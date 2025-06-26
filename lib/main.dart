@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shourk_application/login.dart';
 import 'register_page.dart'; // Make sure this matches your filename
+import 'login.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +18,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const RegisterPage(),
+      home: const LoginPage(),
     );
   }
 }
