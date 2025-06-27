@@ -1,4 +1,4 @@
-import 'dart:async'; // Add this import for TimeoutException
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shourk_application/profile_register_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -20,18 +21,17 @@ class _RegisterPageState extends State<RegisterPage> {
   final emailController = TextEditingController();
   final firstNameController = TextEditingController();
   final lastNameController = TextEditingController();
-  
+
   String phoneNumber = '';
   String countryCode = '';
   bool _isLoading = false;
   String? _serverError;
 
-  // Get base URL based on platform
   String getBaseUrl() {
     if (kIsWeb) {
       return 'http://localhost:5070';
     } else if (Platform.isAndroid) {
-      return 'http://193.203.160.238:5070';
+      return 'http://:5070';
     } else if (Platform.isIOS) {
       return 'http://localhost:5070';
     }
@@ -46,7 +46,6 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  // Validation methods
   String? _validateEmail(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Email address is required';
@@ -62,9 +61,9 @@ class _RegisterPageState extends State<RegisterPage> {
     if (value == null || value.trim().isEmpty) {
       return '$fieldName is required';
     }
-    final nameRegex = RegExp(r'^[A-Za-z]+$');
+    final nameRegex = RegExp(r'^[A-Za-z\s]+$');
     if (!nameRegex.hasMatch(value.trim())) {
-      return '$fieldName can only contain letters';
+      return '$fieldName can only contain letters and spaces';
     }
     return null;
   }
@@ -73,21 +72,21 @@ class _RegisterPageState extends State<RegisterPage> {
     if (phone == null || phone.completeNumber.isEmpty) {
       return 'Valid phone number is required';
     }
+    if (phone.number.length < 7) {
+      return 'Phone number too short';
+    }
     return null;
   }
 
   Future<void> registerUser() async {
-    // Clear previous server error
     setState(() {
       _serverError = null;
     });
 
-    // Validate form
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    // Check if phone number is provided
     if (phoneNumber.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -98,15 +97,7 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    // Check internet connection
-    final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
-      setState(() {
-        _serverError = 'No internet connection. Please check your network.';
-      });
-      return;
-    }
-
+   
     setState(() {
       _isLoading = true;
     });
@@ -116,7 +107,7 @@ class _RegisterPageState extends State<RegisterPage> {
     final lastName = lastNameController.text.trim();
 
     final url = Uri.parse('${getBaseUrl()}/api/userauth/registeruser');
-    print(" Registering user with URL: $url");
+
     final Map<String, dynamic> body = {
       'email': email,
       'phone': phoneNumber,
@@ -125,25 +116,18 @@ class _RegisterPageState extends State<RegisterPage> {
     };
 
     try {
-      debugPrint("📤 Sending registration request to: $url");
-      debugPrint("📤 Request body: $body");
-      
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 15));
-
-      debugPrint("📨 Response status: ${response.statusCode}");
-      debugPrint("📨 Response body: ${response.body}");
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        debugPrint("✅ Registration Success: $data");
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -153,16 +137,23 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           );
 
-          Future.delayed(const Duration(seconds: 1), () {
-            if (mounted) {
-              Navigator.pop(context);
-            }
-          });
+          await Future.delayed(const Duration(seconds: 1));
+          if (mounted) {
+            Navigator.pop(context, true);
+          }
         }
       } else {
-        final errorData = jsonDecode(response.body);
-        final errorMessage = errorData['message'] ?? 'Registration failed (${response.statusCode})';
-        
+        String errorMessage;
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage =
+              errorData['message'] ??
+              errorData['error'] ??
+              'Registration failed (${response.statusCode})';
+        } catch (e) {
+          errorMessage = 'Registration failed (${response.statusCode})';
+        }
+
         setState(() {
           _serverError = errorMessage;
         });
@@ -182,11 +173,10 @@ class _RegisterPageState extends State<RegisterPage> {
       _handleNetworkError('Connection refused by server');
     } on FormatException {
       _handleNetworkError('Invalid server response format');
-    } on TimeoutException { // This is now properly recognized
+    } on TimeoutException {
       _handleNetworkError('Connection timed out. Please try again');
     } catch (e) {
-      debugPrint("⚠️ FULL ERROR: $e");
-      _handleNetworkError('Unknown error occurred: ${e.runtimeType}');
+      _handleNetworkError('Registration failed: ${e.toString()}');
     } finally {
       if (mounted) {
         setState(() {
@@ -197,17 +187,16 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _handleNetworkError(String message) {
-    debugPrint("⚠️ NETWORK ERROR: $message");
-    
-    setState(() {
-      _serverError = message;
-    });
-
     if (mounted) {
+      setState(() {
+        _serverError = message;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -237,10 +226,7 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 30),
               const Text(
                 "Please Enter Your Info",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 30),
 
@@ -319,14 +305,19 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
                 onChanged: (value) {
-                  final filteredValue = value.replaceAll(RegExp(r'[^A-Za-z]'), '');
+                  final filteredValue = value.replaceAll(
+                    RegExp(r'[^A-Za-z\s]'),
+                    '',
+                  );
                   if (value != filteredValue) {
                     firstNameController.value = TextEditingValue(
                       text: filteredValue,
-                      selection: TextSelection.collapsed(offset: filteredValue.length),
+                      selection: TextSelection.collapsed(
+                        offset: filteredValue.length,
+                      ),
                     );
                   }
-                  
+
                   if (_serverError != null) {
                     setState(() {
                       _serverError = null;
@@ -353,14 +344,19 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
                 onChanged: (value) {
-                  final filteredValue = value.replaceAll(RegExp(r'[^A-Za-z]'), '');
+                  final filteredValue = value.replaceAll(
+                    RegExp(r'[^A-Za-z\s]'),
+                    '',
+                  );
                   if (value != filteredValue) {
                     lastNameController.value = TextEditingValue(
                       text: filteredValue,
-                      selection: TextSelection.collapsed(offset: filteredValue.length),
+                      selection: TextSelection.collapsed(
+                        offset: filteredValue.length,
+                      ),
                     );
                   }
-                  
+
                   if (_serverError != null) {
                     setState(() {
                       _serverError = null;
@@ -404,7 +400,11 @@ class _RegisterPageState extends State<RegisterPage> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : registerUser,
+                  onPressed: (){
+                                      Navigator.pushReplacement(
+                    context, MaterialPageRoute(builder: (context) => AMDFormScreen())
+                  );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     disabledBackgroundColor: Colors.grey.shade400,
@@ -412,37 +412,37 @@ class _RegisterPageState extends State<RegisterPage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                          : const Text(
+                            "Continue",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        )
-                      : const Text(
-                          "Continue",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                 ),
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Required fields note
               const Text(
                 "* Required fields",
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
-              
+
               const SizedBox(height: 20),
             ],
           ),

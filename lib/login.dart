@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'register_page.dart';
+import '../register_page.dart'; // Make sure this path is correct
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -12,10 +14,13 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
-  
+
   bool _isPhoneMode = false;
   String _phoneNumber = '';
-  
+
+  // Replace with your actual IP address or ngrok HTTPS URL
+  final String baseUrl = "http://:5070/api/userauth"; // Replace this with your actual backend URL
+
   void _toggleInputMode() {
     setState(() {
       _isPhoneMode = !_isPhoneMode;
@@ -24,36 +29,99 @@ class _LoginPageState extends State<LoginPage> {
       _otpController.clear();
     });
   }
-  
-  void _sendOtp() {
+
+  void _sendOtp() async {
     String contactInfo = _isPhoneMode ? _phoneNumber : _emailController.text;
-    
-    if (contactInfo.isNotEmpty) {
-      // Here you would implement actual OTP sending logic
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('OTP sent to $contactInfo'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else {
+
+    if (contactInfo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Please enter ${_isPhoneMode ? 'phone number' : 'email'}'),
           backgroundColor: Colors.red,
         ),
       );
+      return;
+    }
+
+    final url = Uri.parse('$baseUrl/request-otp');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          _isPhoneMode ? 'phone' : 'email': contactInfo,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('OTP sent to $contactInfo'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send OTP'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
-  
-  void _proceed() {
-    if (_otpController.text.isNotEmpty) {
-      // Navigate to home page after successful login
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
+
+  void _proceed() async {
+    String contactInfo = _isPhoneMode ? _phoneNumber : _emailController.text;
+    String otp = _otpController.text.trim();
+
+    if (otp.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter OTP'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final url = Uri.parse('$baseUrl/verify-otp');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          _isPhoneMode ? 'phone' : 'email': contactInfo,
+          'otp': otp,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const RegisterPage()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid OTP'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -70,8 +138,6 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header - moved to top left
-              const SizedBox(height: 0),
               const Text(
                 'SHOURK',
                 style: TextStyle(
@@ -81,10 +147,7 @@ class _LoginPageState extends State<LoginPage> {
                   letterSpacing: 2,
                 ),
               ),
-              
               const SizedBox(height: 40),
-              
-              // Main Heading
               const Center(
                 child: Text(
                   'Create an Account',
@@ -95,10 +158,9 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
-              
               const SizedBox(height: 40),
-              
-              // Email/Phone Input Field
+
+              // Email or Phone Input
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -111,10 +173,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  
-                  // Conditional rendering based on mode
                   if (_isPhoneMode)
-                    // International Phone Field
                     IntlPhoneField(
                       decoration: InputDecoration(
                         hintText: 'Enter your phone number',
@@ -131,21 +190,14 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(8),
                           borderSide: const BorderSide(color: Colors.blue),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, 
-                          vertical: 16
-                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       ),
-                      initialCountryCode: 'IN', // Default to India
+                      initialCountryCode: 'IN',
                       onChanged: (phone) {
                         _phoneNumber = phone.completeNumber;
                       },
-                      onCountryChanged: (country) {
-                        // Handle country change if needed
-                      },
                     )
                   else
-                    // Email Field
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey.shade300),
@@ -158,25 +210,19 @@ class _LoginPageState extends State<LoginPage> {
                           hintText: 'Enter your email',
                           hintStyle: TextStyle(color: Colors.grey.shade500),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, 
-                            vertical: 16
-                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                         ),
                       ),
                     ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
-              // Toggle Link
+
               GestureDetector(
                 onTap: _toggleInputMode,
                 child: Text(
-                  _isPhoneMode 
-                      ? 'Use email instead' 
-                      : 'Use phone number instead',
+                  _isPhoneMode ? 'Use email instead' : 'Use phone number instead',
                   style: const TextStyle(
                     color: Colors.blue,
                     fontSize: 14,
@@ -184,10 +230,9 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 32),
-              
-              // Send OTP Button
+
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -199,7 +244,6 @@ class _LoginPageState extends State<LoginPage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    elevation: 0,
                   ),
                   child: const Text(
                     'Send OTP',
@@ -210,59 +254,52 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 32),
-              
-              // OTP Section - Always visible now
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'OTP',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: TextField(
-                      controller: _otpController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Enter OTP',
-                        hintStyle: TextStyle(color: Colors.grey.shade500),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, 
-                          vertical: 16
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+
+              const Text(
+                'OTP',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
               ),
-              
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: TextField(
+                  controller: _otpController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    hintText: 'Enter OTP',
+                    hintStyle: TextStyle(color: Colors.grey.shade500),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 32),
-              
-              // Proceed Button - Always visible now
+
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _proceed,
+                  onPressed: (){
+                    Navigator.pushReplacement(
+                    context, MaterialPageRoute(builder: (context) => RegisterPage())
+                  );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    elevation: 0,
                   ),
                   child: const Text(
                     'Proceed',
@@ -273,10 +310,9 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 32),
-              
-              // Link to Register Page
+
               Center(
                 child: GestureDetector(
                   onTap: () {
@@ -284,11 +320,11 @@ class _LoginPageState extends State<LoginPage> {
                   },
                   child: RichText(
                     text: const TextSpan(
-                      // text: "Already have an account? ",
+                      text: "Don't have an account? ",
                       style: TextStyle(color: Colors.black54),
                       children: [
                         TextSpan(
-                          // text: "Register here",
+                          text: "Register here",
                           style: TextStyle(
                             color: Colors.blue,
                             decoration: TextDecoration.underline,

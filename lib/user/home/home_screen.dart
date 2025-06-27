@@ -139,9 +139,14 @@
 
 
 import 'package:flutter/material.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
+import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
+import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
 import '../../shared/widgets/expert_card.dart';
 import '../../shared/models/expert_model.dart';
 import '../home/category_experts_screen.dart';
+import '../navbar/user_upper_navbar.dart';
+import 'exper';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -163,12 +168,12 @@ class HomeScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('SHOURK'),
-        actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.search)),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
-        ],
+      appBar: ExpertUpperNavbar(
+        // title: const Text('SHOURK'),
+        // actions: [
+        //   IconButton(onPressed: () {}, icon: const Icon(Icons.search)),
+        //   IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
+        // ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(12),
@@ -250,17 +255,11 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: ExpertBottomNavbar(
         currentIndex: 0,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.white,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.video_call), label: 'Calls'),
-          BottomNavigationBarItem(icon: Icon(Icons.card_giftcard), label: 'Gift'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
+        onTap: (index) {
+          // TODO: Implement navigation
+        },
       ),
     );
   }
