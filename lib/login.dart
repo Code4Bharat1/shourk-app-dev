@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -19,7 +20,7 @@ class _LoginPageState extends State<LoginPage> {
   String _phoneNumber = '';
 
   // Replace with your actual IP address or ngrok HTTPS URL
-  final String baseUrl = "http://:5070/api/userauth"; // Replace this with your actual backend URL
+  final String baseUrl = "http://localhost:5070/api/expertauth"; // Replace this with your actual backend URL
 
   void _toggleInputMode() {
     setState(() {
@@ -289,11 +290,7 @@ class _LoginPageState extends State<LoginPage> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: (){
-                    Navigator.pushReplacement(
-                    context, MaterialPageRoute(builder: (context) => RegisterPage())
-                  );
-                  },
+                  onPressed: _proceed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     foregroundColor: Colors.white,
@@ -342,3 +339,5 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+
+

@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 
 class ExpertBottomNavbar extends StatelessWidget {
   final int currentIndex;
-  final Function(int) onTap;
+  final ValueChanged<int> onTap;  // Added parameter
 
   const ExpertBottomNavbar({
-    Key? key,
+    super.key,
     required this.currentIndex,
-    required this.onTap,
-  }) : super(key: key);
+    required this.onTap,  // Added parameter
+  });
 
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
       currentIndex: currentIndex,
-      onTap: onTap,
-      selectedItemColor: Colors.orange,
+      onTap: onTap,  // Now using the passed callback
+      selectedItemColor: Colors.yellow[800],
       unselectedItemColor: Colors.black,
       type: BottomNavigationBarType.fixed,
       items: const [

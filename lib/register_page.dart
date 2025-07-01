@@ -1,13 +1,10 @@
+
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/phone_number.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'dart:io';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:shourk_application/profile_register_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'profile_register_page.dart'; // This should contain the AMDFormScreen widget
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -27,15 +24,10 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isLoading = false;
   String? _serverError;
 
-  String getBaseUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:5070';
-    } else if (Platform.isAndroid) {
-      return 'http://:5070';
-    } else if (Platform.isIOS) {
-      return 'http://localhost:5070';
-    }
-    return 'http://localhost:5070';
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedData();
   }
 
   @override
@@ -44,6 +36,57 @@ class _RegisterPageState extends State<RegisterPage> {
     firstNameController.dispose();
     lastNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSavedData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      setState(() {
+        emailController.text = prefs.getString('registration_email') ?? '';
+        firstNameController.text = prefs.getString('registration_firstName') ?? '';
+        lastNameController.text = prefs.getString('registration_lastName') ?? '';
+        phoneNumber = prefs.getString('registration_phoneNumber') ?? '';
+        countryCode = prefs.getString('registration_countryCode') ?? '';
+      });
+    } catch (e) {
+      print('Error loading saved data: $e');
+    }
+  }
+
+  Future<bool> _saveRegistrationData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setString('registration_email', emailController.text.trim());
+      await prefs.setString('registration_firstName', firstNameController.text.trim());
+      await prefs.setString('registration_lastName', lastNameController.text.trim());
+      await prefs.setString('registration_phoneNumber', phoneNumber);
+      await prefs.setString('registration_countryCode', countryCode);
+      await prefs.setString('registration_timestamp', DateTime.now().toIso8601String());
+
+      return true;
+    } catch (e) {
+      print('Error saving registration data: $e');
+      return false;
+    }
+  }
+
+  static Future<Map<String, String?>> getSavedRegistrationData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return {
+        'email': prefs.getString('registration_email'),
+        'firstName': prefs.getString('registration_firstName'),
+        'lastName': prefs.getString('registration_lastName'),
+        'phoneNumber': prefs.getString('registration_phoneNumber'),
+        'countryCode': prefs.getString('registration_countryCode'),
+        'timestamp': prefs.getString('registration_timestamp'),
+      };
+    } catch (e) {
+      print('Error getting saved registration data: $e');
+      return {};
+    }
   }
 
   String? _validateEmail(String? value) {
@@ -78,7 +121,7 @@ class _RegisterPageState extends State<RegisterPage> {
     return null;
   }
 
-  Future<void> registerUser() async {
+  Future<void> saveAndContinue() async {
     setState(() {
       _serverError = null;
     });
@@ -97,108 +140,54 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-   
     setState(() {
       _isLoading = true;
     });
 
-    final email = emailController.text.trim();
-    final firstName = firstNameController.text.trim();
-    final lastName = lastNameController.text.trim();
-
-    final url = Uri.parse('${getBaseUrl()}/api/userauth/registeruser');
-
-    final Map<String, dynamic> body = {
-      'email': email,
-      'phone': phoneNumber,
-      'firstName': firstName,
-      'lastName': lastName,
-    };
-
     try {
-      final response = await http
-          .post(
-            url,
-            headers: {
-              'Content-Type': 'application/json; charset=UTF-8',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 30));
+      bool saved = await _saveRegistrationData();
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (saved) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Registration Successful!'),
+              content: Text('Registration data saved successfully!'),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
             ),
           );
 
           await Future.delayed(const Duration(seconds: 1));
+
           if (mounted) {
-            Navigator.pop(context, true);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const AMDFormScreen()),
+            );
           }
         }
       } else {
-        String errorMessage;
-        try {
-          final errorData = jsonDecode(response.body);
-          errorMessage =
-              errorData['message'] ??
-              errorData['error'] ??
-              'Registration failed (${response.statusCode})';
-        } catch (e) {
-          errorMessage = 'Registration failed (${response.statusCode})';
-        }
-
+        throw Exception('Failed to save registration data');
+      }
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          _serverError = errorMessage;
+          _serverError = 'Failed to save registration data: ${e.toString()}';
         });
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $errorMessage'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: Failed to save registration data'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    } on SocketException {
-      _handleNetworkError('Server unreachable. Check if backend is running');
-    } on http.ClientException {
-      _handleNetworkError('Connection refused by server');
-    } on FormatException {
-      _handleNetworkError('Invalid server response format');
-    } on TimeoutException {
-      _handleNetworkError('Connection timed out. Please try again');
-    } catch (e) {
-      _handleNetworkError('Registration failed: ${e.toString()}');
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
-    }
-  }
-
-  void _handleNetworkError(String message) {
-    if (mounted) {
-      setState(() {
-        _serverError = message;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
-      );
     }
   }
 
@@ -230,7 +219,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 30),
 
-              // Phone Number
               const Text("Phone Number *"),
               const SizedBox(height: 8),
               IntlPhoneField(
@@ -261,7 +249,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 20),
 
-              // Email
               const Text("Email Address *"),
               const SizedBox(height: 8),
               TextFormField(
@@ -278,17 +265,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     borderSide: const BorderSide(color: Colors.red),
                   ),
                 ),
-                onChanged: (value) {
-                  if (_serverError != null) {
-                    setState(() {
-                      _serverError = null;
-                    });
-                  }
-                },
               ),
               const SizedBox(height: 20),
 
-              // First Name
               const Text("First Name *"),
               const SizedBox(height: 8),
               TextFormField(
@@ -317,17 +296,10 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     );
                   }
-
-                  if (_serverError != null) {
-                    setState(() {
-                      _serverError = null;
-                    });
-                  }
                 },
               ),
               const SizedBox(height: 20),
 
-              // Last Name
               const Text("Last Name *"),
               const SizedBox(height: 8),
               TextFormField(
@@ -356,17 +328,10 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     );
                   }
-
-                  if (_serverError != null) {
-                    setState(() {
-                      _serverError = null;
-                    });
-                  }
                 },
               ),
               const SizedBox(height: 20),
 
-              // Server Error Display
               if (_serverError != null)
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -395,16 +360,11 @@ class _RegisterPageState extends State<RegisterPage> {
 
               const SizedBox(height: 20),
 
-              // Continue Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: (){
-                                      Navigator.pushReplacement(
-                    context, MaterialPageRoute(builder: (context) => AMDFormScreen())
-                  );
-                  },
+                  onPressed: _isLoading ? null : saveAndContinue,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     disabledBackgroundColor: Colors.grey.shade400,
@@ -412,32 +372,30 @@ class _RegisterPageState extends State<RegisterPage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child:
-                      _isLoading
-                          ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          )
-                          : const Text(
-                            "Continue",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
                             ),
                           ),
+                        )
+                      : const Text(
+                          "Continue",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              // Required fields note
               const Text(
                 "* Required fields",
                 style: TextStyle(fontSize: 12, color: Colors.grey),
@@ -452,3 +410,4 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 }
+
