@@ -44,3 +44,8 @@ flutter:
     - assets/images/img8.jpg
     - assets/images/img9.jpg
     - assets/images/img10.jpg
+
+    - assets/images/home.jpg
+    - assets/images/career.jpg
+    - assets/images/wellness.jpg
+    - assets/images/fashion.jpg

@@ -7,15 +7,25 @@ import 'package:shourk_application/register_page.dart';
 import 'package:shourk_application/expert/home/expert_home_screen.dart';
 import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
 import 'package:shourk_application/user/home/home_screen.dart';
+
 import 'expert/profile/edit_profile_screen.dart';
 import 'expert/profile/code_option.dart';
 import 'expert/profile/giftcard_form_option.dart';
 import 'expert/profile/giftcard_selection_option.dart';
 import 'expert/profile/payment_option.dart';
+
 // import 'package:shourk_application/expert/screens/search_experts_screen.dart';
 // import 'package:shourk_application/expert/screens/video_call_screen.dart';
 // import 'package:shourk_application/expert/screens/expert_screen.dart';
 // import 'package:shourk_application/expert/screens/dashboard_screen.dart';
+
+import 'package:shourk_application/expert/expert_category/top_expert.dart';
+import 'package:shourk_application/expert/expert_category/home_expert.dart';
+import 'package:shourk_application/expert/expert_category/career_expert.dart';
+import 'package:shourk_application/expert/expert_category/fashion_expert.dart';
+import 'package:shourk_application/expert/expert_category/wellness_expert.dart';
+
+
 
 void main() {
   runApp(const MyApp());
@@ -55,6 +65,14 @@ class MyApp extends StatelessWidget {
           '/have-code': (context) => const HaveCodePage(),
           '/gift-card-select': (context) => const GiftCardSelectPage(),
           '/gift-card-form': (context) => const GiftCardFormPage(),
+
+
+        //Expert Category screens !!
+          '/top-experts': (context) => TopExpertsScreen(),
+          '/home-experts': (context) => HomeExpertsScreen(),
+          '/career-experts': (context) => CareerExpertsScreen(),
+          '/fashion-experts': (context) => FashionBeautyExpertsScreen(),
+         '/wellness-experts': (context) => WellnessExpertsScreen(),
       },
     );
   }

@@ -1,151 +1,19 @@
-// // 📁 lib/user/home/home_screen.dart
-// import 'package:flutter/material.dart';
-// import '../../shared/widgets/expert_card.dart';
-// import '../../shared/models/expert_model.dart';
-
-// class HomeScreen extends StatelessWidget {
-//   const HomeScreen({super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final categories = [
-//       'Top Experts',
-//       'Home',
-//       'Beauty & Fashion',
-//       'Career & Business',
-//       'Wellness',
-//       'Education',
-//       'Finance',
-//       'Tech',
-//     ];
-
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text('SHOURK'),
-//         actions: [
-//           IconButton(onPressed: () {}, icon: const Icon(Icons.search)),
-//           IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
-//         ],
-//       ),
-//       body: ListView(
-//         padding: const EdgeInsets.all(12),
-//         children: [
-//           SizedBox(
-//             height: 80,
-//             child: ListView.builder(
-//               scrollDirection: Axis.horizontal,
-//               itemCount: categories.length,
-//               itemBuilder: (context, index) {
-//                 return GestureDetector(
-//                   onTap: () {
-//                     // TODO: Navigate to filtered category
-//                   },
-//                   child: Container(
-//                     margin: const EdgeInsets.only(right: 10),
-//                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-//                     decoration: BoxDecoration(
-//                       borderRadius: BorderRadius.circular(14),
-//                       color: Colors.grey[200],
-//                     ),
-//                     child: Center(
-//                       child: Text(
-//                         categories[index],
-//                         style: const TextStyle(fontWeight: FontWeight.w500),
-//                       ),
-//                     ),
-//                   ),
-//                 );
-//               },
-//             ),
-//           ),
-//           const SizedBox(height: 20),
-//           ...categories.map((category) => Column(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 children: [
-//                   Padding(
-//                     padding: const EdgeInsets.only(bottom: 8, top: 16, right: 8),
-//                     child: Row(
-//                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                       children: [
-//                         Text(
-//                           category,
-//                           style: const TextStyle(
-//                             fontSize: 18,
-//                             fontWeight: FontWeight.bold,
-//                           ),
-//                         ),
-//                         TextButton(
-//                           onPressed: () {
-//                             // TODO: Navigate to see all
-//                           },
-//                           child: const Text("See all →"),
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                   SizedBox(
-//                     height: 220,
-//                     child: ListView.builder(
-//                       scrollDirection: Axis.horizontal,
-//                       itemCount: dummyExperts.length + 1, // extra card
-//                       itemBuilder: (context, index) {
-//                         if (index < dummyExperts.length) {
-//                           return Padding(
-//                             padding: const EdgeInsets.only(right: 12),
-//                             child: ExpertCard(expert: dummyExperts[index]),
-//                           );
-//                         } else {
-//                           return Opacity(
-//                             opacity: 0.3,
-//                             child: Container(
-//                               width: 160,
-//                               margin: const EdgeInsets.only(right: 12),
-//                               decoration: BoxDecoration(
-//                                 color: Colors.grey[300],
-//                                 borderRadius: BorderRadius.circular(16),
-//                               ),
-//                             ),
-//                           );
-//                         }
-//                       },
-//                     ),
-//                   ),
-//                 ],
-//               )),
-//           const SizedBox(height: 20),
-//           const Center(
-//             child: Text(
-//               '✅ You are connected to the fastest server',
-//               style: TextStyle(color: Colors.green),
-//             ),
-//           ),
-//         ],
-//       ),
-//       bottomNavigationBar: BottomNavigationBar(
-//         currentIndex: 0,
-//         selectedItemColor: Colors.black,
-//         unselectedItemColor: Colors.black54,
-//         backgroundColor: Colors.white,
-//         items: const [
-//           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-//           BottomNavigationBarItem(icon: Icon(Icons.video_call), label: 'Calls'),
-//           BottomNavigationBarItem(icon: Icon(Icons.card_giftcard), label: 'Gift'),
-//           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-//         ],
-//       ),
-//     );
-//   }
-// }
-// 
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shourk_application/expert/expert_category/home_expert.dart';
 import 'dart:convert';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import '../../shared/widgets/expert_card.dart';
 import '../../shared/models/expert_model.dart';
 import '../home/category_experts_screen.dart';
+
+import '../../expert/expert_category/career_expert.dart';
+import '../../expert/expert_category/top_expert.dart';
+import '../../expert/expert_category/wellness_expert.dart';
+import '../../expert/expert_category/career_expert.dart';
+import '../../expert/expert_category/fashion_expert.dart';
+
 
 // Moved CategoryChip to top level
 class CategoryChip extends StatelessWidget {
@@ -655,14 +523,35 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _navigateToCategory(String categoryName) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CategoryExpertsScreen(categoryName: categoryName),
-      ),
-    );
+void _navigateToCategory(String categoryName) {
+  Widget screen;
+
+  switch (categoryName.toLowerCase()) {
+    case 'top experts':
+      screen = const TopExpertsScreen();
+      break;
+    case 'wellness':
+      screen = const WellnessExpertsScreen();
+      break;
+    case 'home':
+      screen = const HomeExpertsScreen();
+      break;
+    case 'fashion & beauty':
+      screen = const FashionBeautyExpertsScreen();
+      break;
+    case 'career and business':
+      screen = const CareerExpertsScreen();
+      break;
+    default:
+      screen = const TopExpertsScreen(); // fallback
   }
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => screen),
+  );
+}
+
 }
 
 // Enhanced Expert Model with API integration
@@ -793,7 +682,7 @@ class ModernExpertCard extends StatelessWidget {
         Navigator.pushNamed(
           context,
           '/expert-detail',
-          arguments: expert.id, // Pass expert ID
+          // arguments: expert.id, // Pass expert ID
         );
       },
       borderRadius: BorderRadius.circular(12),
