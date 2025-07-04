@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import '../register_page.dart'; // Make sure this path is correct
+import 'package:shourk_application/expert/expert_register.dart';
+import '../user/user_register.dart'; // Make sure this path is correct
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -109,7 +110,7 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const RegisterPage()),
+          MaterialPageRoute(builder: (context) => const ExpertRegister()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(

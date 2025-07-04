@@ -1,23 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
 import 'package:shourk_application/shared/widgets/expert_card.dart';
+import 'package:shourk_application/expert/expert_category/top_expert.dart';
+import 'package:shourk_application/expert/expert_category/home_expert.dart';
+import 'package:shourk_application/expert/expert_category/career_expert.dart';
+import 'package:shourk_application/expert/expert_category/wellness_expert.dart';
 
 class FashionBeautyExpertsScreen extends StatefulWidget {
   const FashionBeautyExpertsScreen({super.key});
 
   @override
-  State<FashionBeautyExpertsScreen> createState() =>
-      _FashionBeautyExpertsScreenState();
+  State<FashionBeautyExpertsScreen> createState() => _FashionBeautyExpertsScreenState();
 }
 
 class _FashionBeautyExpertsScreenState extends State<FashionBeautyExpertsScreen> {
   String selectedFilter = 'Recommended';
 
+  final List<Map<String, dynamic>> categories = [
+    {'label': 'Top Experts', 'image': 'assets/images/img2.jpg', 'route': const TopExpertsScreen()},
+    {'label': 'Home', 'image': 'assets/images/home.jpg', 'route': const HomeExpertsScreen()},
+    {'label': 'Career and Business', 'image': 'assets/images/career.jpg', 'route': const CareerExpertsScreen()},
+    {'label': 'Fashion & Beauty', 'image': 'assets/images/fashion.jpg', 'route': const FashionBeautyExpertsScreen()},
+    {'label': 'Wellness', 'image': 'assets/images/wellness.jpg', 'route': const WellnessExpertsScreen()},
+  ];
+
   List<ExpertModel> getFilteredExperts() {
-    List<ExpertModel> experts = dummyExperts.where((expert) =>
-      expert.title.toLowerCase().contains('fashion') ||
-      expert.title.toLowerCase().contains('beauty')
-    ).toList();
+    List<ExpertModel> experts = dummyExperts
+    .where((expert) => expert.category.toLowerCase() == 'fashion')
+    .toList();
+
 
     switch (selectedFilter) {
       case 'Price High - Low':
@@ -76,14 +87,6 @@ class _FashionBeautyExpertsScreenState extends State<FashionBeautyExpertsScreen>
     );
   }
 
-  final categories = [
-    {'label': 'Top Experts', 'route': '/top-experts', 'image': 'assets/images/top.jpg'},
-    {'label': 'Home', 'route': '/home-experts', 'image': 'assets/images/home.jpg'},
-    {'label': 'Career and Business', 'route': '/career-experts', 'image': 'assets/images/career.jpg'},
-    {'label': 'Fashion & Beauty', 'route': '/fashion-experts', 'image': 'assets/images/fashion.jpg'},
-    {'label': 'Wellness', 'route': '/wellness-experts', 'image': 'assets/images/wellness.jpg'},
-  ];
-
   @override
   Widget build(BuildContext context) {
     final experts = getFilteredExperts();
@@ -107,7 +110,7 @@ class _FashionBeautyExpertsScreenState extends State<FashionBeautyExpertsScreen>
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Heading + Filter Button
+          // Filter Button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -145,30 +148,35 @@ class _FashionBeautyExpertsScreenState extends State<FashionBeautyExpertsScreen>
               itemBuilder: (context, index) {
                 final cat = categories[index];
                 final isSelected = cat['label'] == 'Fashion & Beauty';
+
                 return GestureDetector(
                   onTap: () {
-                    if (!isSelected) Navigator.pushNamed(context, cat['route']!);
+                    if (!isSelected) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => cat['route']),
+                      );
+                    }
                   },
                   child: Container(
                     margin: const EdgeInsets.only(right: 12),
                     width: 90,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected ? Colors.black : Colors.grey.shade300,
-                      ),
+                      border: Border.all(color: isSelected ? Colors.black : Colors.grey.shade300),
+                      boxShadow: [
+                        if (isSelected)
+                          const BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(1, 2)),
+                      ],
                       image: DecorationImage(
-                        image: AssetImage(cat['image']!),
+                        image: AssetImage(cat['image']),
                         fit: BoxFit.cover,
-                        colorFilter: ColorFilter.mode(
-                          Colors.black.withOpacity(0.3),
-                          BlendMode.darken,
-                        ),
+                        colorFilter: const ColorFilter.mode(Colors.black38, BlendMode.darken),
                       ),
                     ),
                     child: Center(
                       child: Text(
-                        cat['label']!,
+                        cat['label'],
                         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
                         textAlign: TextAlign.center,
                       ),
@@ -180,27 +188,32 @@ class _FashionBeautyExpertsScreenState extends State<FashionBeautyExpertsScreen>
           ),
 
           const SizedBox(height: 20),
+
+          // Page Heading
           const Center(
             child: Column(
               children: [
-                Text("Fashion & Beauty Experts", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                Text("Fashion & Beauty Experts",
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                 SizedBox(height: 6),
-                Text("Look and feel your best with expert tips",
+                Text("Get styling tips, beauty help, grooming & more",
                     style: TextStyle(fontSize: 13, color: Colors.black54)),
               ],
             ),
           ),
+
           const SizedBox(height: 20),
 
-          // Expert Carousel
+          // Expert Cards Scroll
           Expanded(
             child: PageView.builder(
               itemCount: experts.length,
               controller: PageController(viewportFraction: 0.8),
               itemBuilder: (context, index) {
+                final expert = experts[index]; 
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: ExpertCard(expert: experts[index]),
+                  child: ExpertCard(expert: expert),
                 );
               },
             ),

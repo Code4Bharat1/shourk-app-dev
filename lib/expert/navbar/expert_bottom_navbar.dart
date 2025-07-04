@@ -1,20 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:shourk_application/expert/home/expert_home_screen.dart';
 
-class ExpertBottomNavbar extends StatelessWidget {
+// Import your pages
+import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
+import 'package:shourk_application/expert/navbar/expert_dashboard.dart';
+import 'package:shourk_application/expert/navbar/video_call.dart';
+import 'package:shourk_application/expert/navbar/expert_main.dart';
+
+
+class ExpertBottomNavbar extends StatefulWidget {
   final int currentIndex;
-  final ValueChanged<int> onTap;  // Added parameter
 
   const ExpertBottomNavbar({
     super.key,
     required this.currentIndex,
-    required this.onTap,  // Added parameter
   });
+
+  @override
+  State<ExpertBottomNavbar> createState() => _ExpertBottomNavbarState();
+}
+
+class _ExpertBottomNavbarState extends State<ExpertBottomNavbar> {
+  void _navigateToPage(int index) {
+    Widget? destination;
+
+    switch (index) {
+      case 0:
+        destination = const VideoCallScreen();
+        break;
+      case 1:
+        destination = const ExpertProfilePage();
+        break;
+      case 2:
+        destination = const ExpertHomeScreen(); // Or ExpertMainScreen
+        break;
+      case 3:
+        destination = const ExpertDashboardPage();
+        break;
+    }
+
+    if (destination != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => destination!),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
-      currentIndex: currentIndex,
-      onTap: onTap,  // Now using the passed callback
+      currentIndex: widget.currentIndex,
+      onTap: _navigateToPage,
       selectedItemColor: Colors.yellow[800],
       unselectedItemColor: Colors.black,
       type: BottomNavigationBarType.fixed,

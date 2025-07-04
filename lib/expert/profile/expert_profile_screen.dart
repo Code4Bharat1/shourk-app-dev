@@ -253,10 +253,11 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
         ),
       ),
       bottomNavigationBar: ExpertBottomNavbar(
-        currentIndex: 0,
-        onTap: (index) {
-          // TODO: Implement navigation
-        },),
+        currentIndex: 2,
+        // onTap: (index) {
+        //   // TODO: Implement navigation
+        // },
+      ),
     );
   }
 }

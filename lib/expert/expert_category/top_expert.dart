@@ -17,11 +17,31 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
   String selectedFilter = 'Recommended';
 
   final List<Map<String, dynamic>> categories = [
-    {'label': 'Top Experts', 'image': 'assets/images/img2.jpg', 'route': TopExpertsScreen()},
-    {'label': 'Home', 'image': 'assets/images/home.jpg', 'route': HomeExpertsScreen()},
-    {'label': 'Career and Business', 'image': 'assets/images/career.jpg', 'route': CareerExpertsScreen()},
-    {'label': 'Fashion & Beauty', 'image': 'assets/images/fashion.jpg', 'route': FashionBeautyExpertsScreen()},
-    {'label': 'Wellness', 'image': 'assets/images/wellness.jpg', 'route': WellnessExpertsScreen()},
+    {
+      'label': 'Top Experts',
+      'image': 'assets/images/img2.jpg',
+      'widget': const TopExpertsScreen(),
+    },
+    {
+      'label': 'Home',
+      'image': 'assets/images/home.jpg',
+      'widget': const HomeExpertsScreen(),
+    },
+    {
+      'label': 'Career and Business',
+      'image': 'assets/images/career.jpg',
+      'widget': const CareerExpertsScreen(),
+    },
+    {
+      'label': 'Fashion & Beauty',
+      'image': 'assets/images/fashion.jpg',
+      'widget': const FashionBeautyExpertsScreen(),
+    },
+    {
+      'label': 'Wellness',
+      'image': 'assets/images/wellness.jpg',
+      'widget': const WellnessExpertsScreen(),
+    },
   ];
 
   List<ExpertModel> getFilteredExperts() {
@@ -136,7 +156,7 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
             ),
           ),
 
-          // Category Selector with Navigation
+          // Category Navigation
           SizedBox(
             height: 70,
             child: ListView.builder(
@@ -144,15 +164,17 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
               padding: const EdgeInsets.only(left: 16),
               itemCount: categories.length,
               itemBuilder: (context, index) {
-                final category = categories[index];
-                final isSelected = category['label'] == 'Top Experts';
+                final cat = categories[index];
+                final isSelected = cat['label'] == 'Top Experts';
 
                 return GestureDetector(
                   onTap: () {
                     if (!isSelected) {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => category['route']),
+                        MaterialPageRoute(
+                          builder: (_) => cat['widget'] as Widget,
+                        ),
                       );
                     }
                   },
@@ -174,7 +196,7 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
                             ]
                           : [],
                       image: DecorationImage(
-                        image: AssetImage(category['image']),
+                        image: AssetImage(cat['image']),
                         fit: BoxFit.cover,
                         colorFilter: const ColorFilter.mode(
                           Colors.black38,
@@ -184,7 +206,7 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        category['label'],
+                        cat['label'],
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w500,
@@ -200,26 +222,20 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
 
           const SizedBox(height: 20),
 
-          // Page Heading
           const Center(
             child: Column(
               children: [
-                Text(
-                  "Top Experts",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
+                Text("Top Experts",
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                 SizedBox(height: 6),
-                Text(
-                  "Access to the best has never been easier",
-                  style: TextStyle(fontSize: 13, color: Colors.black54),
-                ),
+                Text("Access to the best has never been easier",
+                    style: TextStyle(fontSize: 13, color: Colors.black54)),
               ],
             ),
           ),
 
           const SizedBox(height: 20),
 
-          // Experts Carousel
           Expanded(
             child: PageView.builder(
               controller: PageController(viewportFraction: 0.8),

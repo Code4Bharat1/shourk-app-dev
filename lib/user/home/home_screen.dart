@@ -4,6 +4,8 @@ import 'package:shourk_application/expert/expert_category/home_expert.dart';
 import 'dart:convert';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
+import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
+import '../../features/expert_profile/expert_detail_screen.dart';
 import '../../shared/widgets/expert_card.dart';
 import '../../shared/models/expert_model.dart';
 import '../home/category_experts_screen.dart';
@@ -216,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-      bottomNavigationBar: ExpertBottomNavbar(
+      bottomNavigationBar: UserBottomNavbar(
         currentIndex: 0,
         onTap: (index) {
           // TODO: Implement navigation
@@ -227,47 +229,86 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // NEW: Category selector section widget
   Widget _buildCategorySelectorSection() {
-    final categoryNames = [
-      'Top Experts',
-      'Home',
-      'Career and Business',
-      'Fashion & Beauty',
-      'Wellness',
-    ];
+  final List<Map<String, dynamic>> categories = [
+    {
+      'label': 'Top Experts',
+      'image': 'assets/images/img2.jpg',
+    },
+    {
+      'label': 'Home',
+      'image': 'assets/images/home.jpg',
+    },
+    {
+      'label': 'Career and Business',
+      'image': 'assets/images/career.jpg',
+    },
+    {
+      'label': 'Fashion & Beauty',
+      'image': 'assets/images/fashion.jpg',
+    },
+    {
+      'label': 'Wellness',
+      'image': 'assets/images/wellness.jpg',
+    },
+  ];
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Find The Right Expert In Seconds!',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Find The Right Expert In Seconds!',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: categoryNames.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: CategoryChip(
-                    title: categoryNames[index],
-                    onTap: () => _navigateToCategory(categoryNames[index]),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 70,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: categories.length,
+            itemBuilder: (context, index) {
+              final category = categories[index];
+
+              return GestureDetector(
+                onTap: () => _navigateToCategory(category['label']),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  width: 90,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                    image: DecorationImage(
+                      image: AssetImage(category['image']),
+                      fit: BoxFit.cover,
+                      colorFilter: const ColorFilter.mode(
+                        Colors.black38,
+                        BlendMode.darken,
+                      ),
+                    ),
                   ),
-                );
-              },
-            ),
+                  child: Center(
+                    child: Text(
+                      category['label'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildFeatureTextSection() {
     return Container(
@@ -679,11 +720,13 @@ class ModernExpertCard extends StatelessWidget {
     return InkWell(
       onTap: () {
         // Navigate to expert details screen
-        Navigator.pushNamed(
-          context,
-          '/expert-detail',
-          // arguments: expert.id, // Pass expert ID
-        );
+      //   Navigator.push(
+      //   context,
+      //   MaterialPageRoute(
+      //  builder: (_) => ExpertDetailScreen(expert: expert),
+      //  ),
+      // );
+
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(

@@ -1,6 +1,11 @@
+// inside home_expert.dart
 import 'package:flutter/material.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
 import 'package:shourk_application/shared/widgets/expert_card.dart';
+import 'career_expert.dart';
+import 'fashion_expert.dart';
+import 'top_expert.dart';
+import 'wellness_expert.dart';
 
 class HomeExpertsScreen extends StatefulWidget {
   const HomeExpertsScreen({super.key});
@@ -12,26 +17,40 @@ class HomeExpertsScreen extends StatefulWidget {
 class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
   String selectedFilter = 'Recommended';
 
-  List<ExpertModel> getFilteredExperts() {
-    List<ExpertModel> experts = dummyExperts
-        .where((expert) => expert.title.toLowerCase().contains('home'))
-        .toList();
+  final List<Map<String, dynamic>> categories = [
+    {
+      'label': 'Top Experts',
+      'image': 'assets/images/img2.jpg',
+      'widget': const TopExpertsScreen(),
+    },
+    {
+      'label': 'Home',
+      'image': 'assets/images/home.jpg',
+      'widget': const HomeExpertsScreen(),
+    },
+    {
+      'label': 'Career and Business',
+      'image': 'assets/images/career.jpg',
+      'widget': const CareerExpertsScreen(),
+    },
+    {
+      'label': 'Fashion & Beauty',
+      'image': 'assets/images/fashion.jpg',
+      'widget': const FashionBeautyExpertsScreen(),
+    },
+    {
+      'label': 'Wellness',
+      'image': 'assets/images/wellness.jpg',
+      'widget': const WellnessExpertsScreen(),
+    },
+  ];
 
-    switch (selectedFilter) {
-      case 'Price High - Low':
-        experts.sort((a, b) => b.price.compareTo(a.price));
-        break;
-      case 'Price Low - High':
-        experts.sort((a, b) => a.price.compareTo(b.price));
-        break;
-      case 'Highest Rating':
-        experts.sort((a, b) => b.rating.compareTo(a.rating));
-        break;
-      case 'Most Reviewed':
-        experts.sort((a, b) => b.reviews.length.compareTo(a.reviews.length));
-        break;
-    }
-    return experts;
+  List<ExpertModel> getFilteredExperts() {
+    return dummyExperts
+        .where((expert) =>
+            expert.title.toLowerCase().contains('home') ||
+            expert.category.toLowerCase().contains('home'))
+        .toList();
   }
 
   void _openFilterDialog() {
@@ -73,14 +92,6 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
     );
   }
 
-  final categories = [
-    {'label': 'Top Experts', 'route': '/top-experts', 'image': 'assets/images/img2.jpg'},
-    {'label': 'Home', 'route': '/home-experts', 'image': 'assets/images/home.jpg'},
-    {'label': 'Career and Business', 'route': '/career-experts', 'image': 'assets/images/career.jpg'},
-    {'label': 'Fashion & Beauty', 'route': '/fashion-experts', 'image': 'assets/images/fashion.jpg'},
-    {'label': 'Wellness', 'route': '/wellness-experts', 'image': 'assets/images/wellness.jpg'},
-  ];
-
   @override
   Widget build(BuildContext context) {
     final experts = getFilteredExperts();
@@ -104,7 +115,7 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header + Filter Button
+          // Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -132,7 +143,7 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
             ),
           ),
 
-          // Category Switcher Tabs
+          // Category Navigation
           SizedBox(
             height: 70,
             child: ListView.builder(
@@ -141,14 +152,16 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
               itemCount: categories.length,
               itemBuilder: (context, index) {
                 final cat = categories[index];
-                final bool isSelected = cat['name'] == 'Home';
+                final isSelected = cat['label'] == 'Home';
 
                 return GestureDetector(
                   onTap: () {
-                    if (!isSelected && cat['route'] != null) {
-                      Navigator.pushReplacement(
+                    if (!isSelected) {
+                      Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => cat['route'] as Widget),
+                        MaterialPageRoute(
+                          builder: (_) => cat['widget'] as Widget,
+                        ),
                       );
                     }
                   },
@@ -157,22 +170,34 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
                     width: 90,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: isSelected ? Colors.black : Colors.grey.shade300),
-                      boxShadow: [
-                        if (isSelected)
-                          const BoxShadow(
-                              color: Colors.black12, blurRadius: 4, offset: Offset(1, 2))
-                      ],
-                      image: const DecorationImage(
-                        image: AssetImage("assets/images/home.jpg"),
+                      border: Border.all(
+                        color: isSelected ? Colors.black : Colors.grey.shade300,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              const BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 4,
+                                offset: Offset(1, 2),
+                              )
+                            ]
+                          : [],
+                      image: DecorationImage(
+                        image: AssetImage(cat['image']),
                         fit: BoxFit.cover,
-                        colorFilter: ColorFilter.mode(Colors.black38, BlendMode.darken),
+                        colorFilter: const ColorFilter.mode(
+                          Colors.black38,
+                          BlendMode.darken,
+                        ),
                       ),
                     ),
                     child: Center(
                       child: Text(
-                        cat['name']!,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                        cat['label'],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -198,7 +223,6 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
 
           const SizedBox(height: 20),
 
-          // Expert Cards Scroll
           Expanded(
             child: PageView.builder(
               itemCount: experts.length,

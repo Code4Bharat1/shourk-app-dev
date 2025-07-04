@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shourk_application/expert/Book_Video_Call/expert_schedule_videocall.dart';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import '../../shared/models/expert_model.dart';
@@ -87,7 +88,12 @@ class _ExpertDetailScreenState extends State<ExpertDetailScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ExpertVideoCallBookingPage()),
+            );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
                 foregroundColor: Colors.white,
@@ -322,8 +328,8 @@ class _ExpertDetailScreenState extends State<ExpertDetailScreen> {
         ],
       ),
       bottomNavigationBar: ExpertBottomNavbar(
-        currentIndex: 2,
-        onTap: (index) {},
+        currentIndex: 1,
+        // onTap: (index) {},
       ),
     );
   }

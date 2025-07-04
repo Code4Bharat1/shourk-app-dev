@@ -6,13 +6,13 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shourk_application/user/home/home_screen.dart';
 
-class AMDFormScreen extends StatefulWidget {
-  const AMDFormScreen({Key? key}) : super(key: key); 
+class ShourkForm extends StatefulWidget {
+  const ShourkForm({Key? key}) : super(key: key); 
   @override
-  _AMDFormScreenState createState() => _AMDFormScreenState();
+  _ShourkFormState createState() => _ShourkFormState();
 }
 
-class _AMDFormScreenState extends State<AMDFormScreen> {
+class _ShourkFormState extends State<ShourkForm> {
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();

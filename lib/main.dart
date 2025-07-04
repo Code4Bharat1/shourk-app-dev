@@ -1,9 +1,8 @@
-
 import 'package:flutter/material.dart';
 import 'package:shourk_application/features/expert_profile/expert_detail_screen.dart';
 // Screens
-import 'package:shourk_application/login.dart';
-import 'package:shourk_application/register_page.dart';
+import 'package:shourk_application/user/user_login.dart';
+import 'package:shourk_application/user/user_register.dart';
 import 'package:shourk_application/expert/home/expert_home_screen.dart';
 import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
 import 'package:shourk_application/user/home/home_screen.dart';
@@ -25,7 +24,7 @@ import 'package:shourk_application/expert/expert_category/career_expert.dart';
 import 'package:shourk_application/expert/expert_category/fashion_expert.dart';
 import 'package:shourk_application/expert/expert_category/wellness_expert.dart';
 
-
+import 'start_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -44,21 +43,24 @@ class MyApp extends StatelessWidget {
       ),
 
       /// 👇 Temporary Home Screen (will be changed later with auth logic)
-      initialRoute: '/home',
+      initialRoute: '/expert-home',
 
       routes: {
-        '/login': (context) => const LoginPage(),
-        '/register': (context) => const RegisterPage(),
+        '/start': (context) => const StartPage(),
+
+        '/user-login': (context) => const UserLogin(),
+        '/user-register': (context) => const RegisterPage(),
 
         // Expert Routes
-        '/home': (context) => const HomeScreen(),  // 👈 Default for now
+        '/home': (context) => const HomeScreen(), 
+        'expert-home': (context) => const ExpertHomeScreen(), // 👈 Default for now
         // '/search': (context) => const SearchExpertsPage(),
         // '/video-call': (context) => const VideoCallPage(),
         '/profile': (context) => const ExpertProfilePage(),
         // '/expert': (context) => const ExpertPage(),
         // '/dashboard': (context) => const DashboardPage(),
         '/edit-profile': (context) => const EditProfileScreen(),
-        // '/expert-detail': (context) => const ExpertDetailScreen(expert:),
+        // '/expert-detail': (context) => const ExpertDetailScreen(),
 
         // Profile pages option pages routes !!
           '/payment-method': (context) => const PaymentMethodPage(),
@@ -79,35 +81,5 @@ class MyApp extends StatelessWidget {
 }
 
 
-
-
-
-// import 'package:flutter/material.dart';
-// import 'package:shourk_application/expert/home/expert_home_screen.dart';
-// import 'package:shourk_application/login.dart';
-// import 'register_page.dart'; // Make sure this matches your filename
-// import 'login.dart';
-// import 'expert/sessions/book_session.dart';
-// import 'user/home/home_screen.dart';
-
-// void main() {
-//   runApp(const MyApp());
-// }
-
-// class MyApp extends StatelessWidget {
-//   const MyApp({super.key});
-  
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       title: 'Register Page',
-//       debugShowCheckedModeBanner: false,
-//       theme: ThemeData(
-//         primarySwatch: Colors.blue,
-//       ),
-//       home: const HomeScreen(),
-//     );
-//   }
-// }
 
 

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/phone_number.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'profile_register_page.dart'; // This should contain the AMDFormScreen widget
+import 'package:shourk_application/user/home/home_screen.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -162,7 +162,7 @@ class _RegisterPageState extends State<RegisterPage> {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const AMDFormScreen()),
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           }
         }
