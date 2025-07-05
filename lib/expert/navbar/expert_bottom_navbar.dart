@@ -26,10 +26,10 @@ class _ExpertBottomNavbarState extends State<ExpertBottomNavbar> {
 
     switch (index) {
       case 0:
-        destination = VideoCallPage();
+        destination = ExpertHomeScreen();
         break;
       case 1:
-        destination = const VideoCallScreen();
+        destination = VideoCallPage();
         break;
       case 2:
         destination = const ExpertProfilePage(); // Or ExpertMainScreen
