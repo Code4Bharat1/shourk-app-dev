@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shourk_application/expert/expert_login.dart'; // Import expert login
+import 'package:shourk_application/expert/home/expert_home_screen.dart';
 import 'package:shourk_application/user/user_login.dart'; // Import user login
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class StartPage extends StatefulWidget {
   const StartPage({Key? key}) : super(key: key);
@@ -191,18 +194,43 @@ class _StartPageState extends State<StartPage> {
                     ],
                   ),
                   child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        selectedRole = 'expert';
-                      });
-                      // Navigate to Expert Login
-                      Future.delayed(const Duration(milliseconds: 200), () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => LoginPage()),
-                        );
-                      });
-                    },
+                   onPressed: () async {
+  setState(() {
+    selectedRole = 'expert';
+  });
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('expertToken');
+
+  if (token != null) {
+    final response = await http.get(
+      Uri.parse('http://localhost:5070/api/expertauth/refresh-token'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      // Token is valid, proceed
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => ExpertHomeScreen()),
+      );
+    } else {
+      // Token invalid, remove and redirect to login
+      await prefs.remove('expertToken');
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+      );
+    }
+  } else {
+    // No token, redirect to login
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => LoginPage()),
+    );
+  }
+},
+
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       foregroundColor: selectedRole == 'expert' 
