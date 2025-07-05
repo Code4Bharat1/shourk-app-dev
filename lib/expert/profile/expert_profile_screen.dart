@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
+import 'dart:convert';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ExpertProfilePage extends StatefulWidget {
   const ExpertProfilePage({super.key});
@@ -14,21 +18,54 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
   final TextEditingController lastNameController = TextEditingController(text: 'Khan');
   final TextEditingController mobileController = TextEditingController(text: '919321611611');
   final TextEditingController emailController = TextEditingController(text: 'pathanebadat@gmail.com');
+  final String baseUrl = "http://localhost:5070/api/expertauth";
+
 
   String selectedOption = 'Profile';
 
-  void _saveProfile() {
-    setState(() {
-      isEditing = false;
-    });
+ void _saveProfile() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('expertToken');
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Profile updated successfully!"),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  if (token != null) {
+    Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+    String expertId = decodedToken['_id'];
+
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/updateexpert/$expertId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'firstName': firstNameController.text.trim(),
+          'lastName': lastNameController.text.trim(),
+          'phone': mobileController.text.trim(),
+          'email': emailController.text.trim(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Profile updated successfully!")),
+        );
+        setState(() {
+          isEditing = false;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to update profile: ${response.body}")),
+        );
+      }
+    } catch (e) {
+      print("Error updating profile: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error updating profile.")),
+      );
+    }
   }
+}
 
   Widget _buildTextField(
       {required String label,
@@ -260,4 +297,46 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
       ),
     );
   }
+
+  
+  @override
+void initState() {
+  super.initState();
+  _loadExpertProfile();
+}
+
+Future<void> _loadExpertProfile() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('expertToken');
+
+  if (token != null) {
+    Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+    String expertId = decodedToken['_id'];
+
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/$expertId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body)['data'];
+
+        setState(() {
+          firstNameController.text = data['firstName'] ?? '';
+          lastNameController.text = data['lastName'] ?? '';
+          mobileController.text = data['phone'] ?? '';
+          emailController.text = data['email'] ?? '';
+        });
+      } else {
+        print("Failed to load expert data: ${response.body}");
+      }
+    } catch (e) {
+      print("Error fetching expert data: $e");
+    }
+  } else {
+    print("Expert token not found.");
+  }
+}
+
 }
