@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
       ),
 
       /// 👇 Temporary Home Screen (will be changed later with auth logic)
-      initialRoute: '/start',
+      initialRoute: '/expert-home', // Change to '/start' for the start page
 
       routes: {
         '/start': (context) => const StartPage(),
