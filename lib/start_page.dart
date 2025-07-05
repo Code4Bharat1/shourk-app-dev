@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shourk_application/expert/expert_login.dart';
+import 'package:shourk_application/expert/expert_login.dart'; // Import expert login
+import 'package:shourk_application/user/user_login.dart'; // Import user login
 
 class StartPage extends StatefulWidget {
   const StartPage({Key? key}) : super(key: key);
@@ -194,9 +195,12 @@ class _StartPageState extends State<StartPage> {
                       setState(() {
                         selectedRole = 'expert';
                       });
-                      // Navigate after a short delay to show selection
+                      // Navigate to Expert Login
                       Future.delayed(const Duration(milliseconds: 200), () {
-                        Navigator.pushNamed(context, '/expert');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => LoginPage()),
+                        );
                       });
                     },
                     style: ElevatedButton.styleFrom(
@@ -261,9 +265,12 @@ class _StartPageState extends State<StartPage> {
                       setState(() {
                         selectedRole = 'user';
                       });
-                      // Navigate after a short delay to show selection
+                      // Navigate to User Login
                       Future.delayed(const Duration(milliseconds: 200), () {
-                        Navigator.pushNamed(context, '/user');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => UserLogin()),
+                        );
                       });
                     },
                     style: ElevatedButton.styleFrom(
@@ -331,99 +338,6 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const StartPage(),
-      routes: {
-        '/expert': (context) => const ExpertPage(),
-        '/user': (context) => const UserPage(),
-      },
-    );
-  }
-}
-
-// Enhanced Placeholder pages for navigation
-class ExpertPage extends StatelessWidget {
-  const ExpertPage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Expert Dashboard',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: const Color(0xFF3B82F6),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF8FAFC),
-              Color(0xFFE2E8F0),
-            ],
-          ),
-        ),
-        child: const Center(
-          child: Text(
-            'Welcome to Expert Dashboard',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A1A1A),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class UserPage extends StatelessWidget {
-  const UserPage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'User Dashboard',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: const Color(0xFF3B82F6),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF8FAFC),
-              Color(0xFFE2E8F0),
-            ],
-          ),
-        ),
-        child: const Center(
-          child: Text(
-            'Welcome to User Dashboard',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A1A1A),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

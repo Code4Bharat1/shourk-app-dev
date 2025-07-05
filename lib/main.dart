@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
       ),
 
       /// 👇 Temporary Home Screen (will be changed later with auth logic)
-      initialRoute: '/expert-home',
+      initialRoute: '/start',
 
       routes: {
         '/start': (context) => const StartPage(),
@@ -53,7 +53,7 @@ class MyApp extends StatelessWidget {
 
         // Expert Routes
         '/home': (context) => const HomeScreen(), 
-        'expert-home': (context) => const ExpertHomeScreen(), // 👈 Default for now
+        '/expert-home': (context) => const ExpertHomeScreen(), // 👈 Default for now
         // '/search': (context) => const SearchExpertsPage(),
         // '/video-call': (context) => const VideoCallPage(),
         '/profile': (context) => const ExpertProfilePage(),
