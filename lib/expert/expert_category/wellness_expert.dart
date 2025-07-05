@@ -29,7 +29,6 @@ class _WellnessExpertsScreenState extends State<WellnessExpertsScreen> {
     .where((expert) => expert.category.toLowerCase() == 'wellness')
     .toList();
 
-
     switch (selectedFilter) {
       case 'Price High - Low':
         experts.sort((a, b) => b.price.compareTo(a.price));
@@ -208,17 +207,19 @@ class _WellnessExpertsScreenState extends State<WellnessExpertsScreen> {
 
           const SizedBox(height: 20),
 
-          // Expert Cards
+          // Expert Cards - Grid Layout (2 per row)
           Expanded(
-            child: PageView.builder(
+            child: GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.75, // Adjust this ratio based on your ExpertCard height
+              ),
               itemCount: experts.length,
-              controller: PageController(viewportFraction: 0.8),
               itemBuilder: (context, index) {
-                final expert = experts[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: ExpertCard(expert: expert),
-                );
+                return ExpertCard(expert: experts[index]);
               },
             ),
           ),

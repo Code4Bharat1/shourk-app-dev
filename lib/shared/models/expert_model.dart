@@ -764,6 +764,6 @@
       ],
     ),
     
-    // Repeat similarly for rest of the entries (img5 to img10, then reuse imgs for others)
+    
   ];
 

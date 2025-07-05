@@ -26,7 +26,8 @@ class _CareerExpertsScreenState extends State<CareerExpertsScreen> {
 
   List<ExpertModel> getFilteredExperts() {
     List<ExpertModel> experts = dummyExperts
-        .where((expert) => expert.title.toLowerCase().contains('career') || expert.title.toLowerCase().contains('business'))
+        .where((expert) => expert.title.toLowerCase().contains('career') || 
+                          expert.title.toLowerCase().contains('business'))
         .toList();
 
     switch (selectedFilter) {
@@ -109,7 +110,7 @@ class _CareerExpertsScreenState extends State<CareerExpertsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Filter Button
+          // Header + Filter Button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -162,21 +163,34 @@ class _CareerExpertsScreenState extends State<CareerExpertsScreen> {
                     width: 90,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: isSelected ? Colors.black : Colors.grey.shade300),
-                      boxShadow: [
-                        if (isSelected)
-                          const BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(1, 2)),
-                      ],
+                      border: Border.all(
+                        color: isSelected ? Colors.black : Colors.grey.shade300,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              const BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 4,
+                                offset: Offset(1, 2),
+                              )
+                            ]
+                          : [],
                       image: DecorationImage(
                         image: AssetImage(cat['image']),
                         fit: BoxFit.cover,
-                        colorFilter: const ColorFilter.mode(Colors.black38, BlendMode.darken),
+                        colorFilter: const ColorFilter.mode(
+                          Colors.black38,
+                          BlendMode.darken,
+                        ),
                       ),
                     ),
                     child: Center(
                       child: Text(
                         cat['label'],
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -188,6 +202,7 @@ class _CareerExpertsScreenState extends State<CareerExpertsScreen> {
 
           const SizedBox(height: 20),
 
+          // Page Title and Subtitle
           const Center(
             child: Column(
               children: [
@@ -202,17 +217,19 @@ class _CareerExpertsScreenState extends State<CareerExpertsScreen> {
 
           const SizedBox(height: 20),
 
-          // Expert Cards Scroll
+          // Grid View for Experts
           Expanded(
-            child: PageView.builder(
+            child: GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.75,
+              ),
               itemCount: experts.length,
-              controller: PageController(viewportFraction: 0.8),
               itemBuilder: (context, index) {
-                final expert = experts[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: ExpertCard(expert: expert),
-                );
+                return ExpertCard(expert: experts[index]);
               },
             ),
           ),

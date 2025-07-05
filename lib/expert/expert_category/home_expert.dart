@@ -1,4 +1,3 @@
-// inside home_expert.dart
 import 'package:flutter/material.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
 import 'package:shourk_application/shared/widgets/expert_card.dart';
@@ -46,11 +45,28 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
   ];
 
   List<ExpertModel> getFilteredExperts() {
-    return dummyExperts
+    List<ExpertModel> experts = dummyExperts
         .where((expert) =>
             expert.title.toLowerCase().contains('home') ||
             expert.category.toLowerCase().contains('home'))
         .toList();
+    
+    switch (selectedFilter) {
+      case 'Price High - Low':
+        experts.sort((a, b) => b.price.compareTo(a.price));
+        break;
+      case 'Price Low - High':
+        experts.sort((a, b) => a.price.compareTo(b.price));
+        break;
+      case 'Highest Rating':
+        experts.sort((a, b) => b.rating.compareTo(a.rating));
+        break;
+      case 'Most Reviewed':
+        experts.sort((a, b) => b.reviews.length.compareTo(a.reviews.length));
+        break;
+    }
+    
+    return experts;
   }
 
   void _openFilterDialog() {
@@ -115,7 +131,7 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header + Filter Button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -157,7 +173,7 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
                 return GestureDetector(
                   onTap: () {
                     if (!isSelected) {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
                           builder: (_) => cat['widget'] as Widget,
@@ -176,7 +192,7 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
                       boxShadow: isSelected
                           ? [
                               const BoxShadow(
-                                color: Colors.black26,
+                                color: Colors.black12,
                                 blurRadius: 4,
                                 offset: Offset(1, 2),
                               )
@@ -209,6 +225,7 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
 
           const SizedBox(height: 20),
 
+          // Page Title and Subtitle
           const Center(
             child: Column(
               children: [
@@ -223,16 +240,19 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
 
           const SizedBox(height: 20),
 
+          // Grid View for Experts
           Expanded(
-            child: PageView.builder(
+            child: GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.75,
+              ),
               itemCount: experts.length,
-              controller: PageController(viewportFraction: 0.8),
               itemBuilder: (context, index) {
-                final expert = experts[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: ExpertCard(expert: expert),
-                );
+                return ExpertCard(expert: experts[index]);
               },
             ),
           ),

@@ -128,7 +128,7 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Heading + Filter
+          // Header + Filter Button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -170,7 +170,7 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
                 return GestureDetector(
                   onTap: () {
                     if (!isSelected) {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
                           builder: (_) => cat['widget'] as Widget,
@@ -189,7 +189,7 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
                       boxShadow: isSelected
                           ? [
                               const BoxShadow(
-                                color: Colors.black26,
+                                color: Colors.black12,
                                 blurRadius: 4,
                                 offset: Offset(1, 2),
                               )
@@ -222,6 +222,7 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
 
           const SizedBox(height: 20),
 
+          // Page Title and Subtitle
           const Center(
             child: Column(
               children: [
@@ -236,16 +237,19 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
 
           const SizedBox(height: 20),
 
+          // Grid View for Experts
           Expanded(
-            child: PageView.builder(
-              controller: PageController(viewportFraction: 0.8),
+            child: GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.75,
+              ),
               itemCount: topExperts.length,
               itemBuilder: (context, index) {
-                final expert = topExperts[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: ExpertCard(expert: expert),
-                );
+                return ExpertCard(expert: topExperts[index]);
               },
             ),
           ),
