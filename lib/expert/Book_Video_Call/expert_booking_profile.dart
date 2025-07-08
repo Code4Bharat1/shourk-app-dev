@@ -32,10 +32,10 @@ class _BookingScreenState extends State<ExpertBookingScreen> {
   void initState() {
     super.initState();
     // Pre-fill the form fields - make these dynamic based on logged-in user
-    firstNameController.text = "Ayaan";
-    lastNameController.text = "Raje";
-    mobileController.text = "+919124245630";
-    emailController.text = "ayaanraje25@gmail.com";
+    firstNameController.text;
+    lastNameController.text;
+    mobileController.text;
+    emailController.text;
   }
 
   @override
@@ -402,11 +402,13 @@ class _BookingScreenState extends State<ExpertBookingScreen> {
                   width: 500, // or any specific width you prefer
                   alignment: Alignment.center, // centers the button
                   child: ElevatedButton(
-                    onPressed:(){
-                        Navigator.pushReplacement( 
-                         context,
-                       MaterialPageRoute(builder: (context) => PaymentMethodScreen()),
-                       );
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PaymentMethodScreen(),
+                        ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,

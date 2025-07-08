@@ -1,24 +1,74 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shourk_application/expert/Book_Video_Call/expert_schedule_videocall.dart';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import '../../shared/models/expert_model.dart';
 
 class ExpertDetailScreen extends StatefulWidget {
-  final ExpertModel expert;
-  const ExpertDetailScreen({super.key, required this.expert});
+  final String expertId;
+  const ExpertDetailScreen({super.key, required this.expertId});
 
   @override
   State<ExpertDetailScreen> createState() => _ExpertDetailScreenState();
 }
 
 class _ExpertDetailScreenState extends State<ExpertDetailScreen> {
+  ExpertModel? _expert;
+  bool _isLoading = true;
+  String _error = '';
   String selectedDuration = 'Quick - 15min';
   bool isPlanSelected = false;
 
   @override
+  void initState() {
+    super.initState();
+    _fetchExpertData();
+  }
+
+  Future<void> _fetchExpertData() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5070/api/expertauth/${widget.expertId}'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        setState(() {
+          _expert = ExpertModel.fromJson(data['data']);
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Failed to load expert: ${response.statusCode}';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final expert = widget.expert;
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_error.isNotEmpty) {
+      return Scaffold(
+        body: Center(
+          child: Text(_error),
+        ),
+      );
+    }
+
+    final expert = _expert!;
 
     return Scaffold(
       body: ListView(
@@ -53,12 +103,14 @@ class _ExpertDetailScreenState extends State<ExpertDetailScreen> {
                     child: Image.network(
                       expert.imageUrl,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => 
+                        const Icon(Icons.person, size: 100),
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(expert.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text(expert.title, style: const TextStyle(color: Colors.black54)),
+                Text(expert.title ?? '', style: const TextStyle(color: Colors.black54)),
                 Row(
                   children: [
                     const Icon(Icons.star, color: Colors.orange),
@@ -68,7 +120,7 @@ class _ExpertDetailScreenState extends State<ExpertDetailScreen> {
                 const SizedBox(height: 12),
                 const Text("About Me", style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
-                Text(expert.about),
+                Text(expert.experience ?? 'No description available'),
                 const SizedBox(height: 12),
                 const Text("Strengths", style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
@@ -90,9 +142,9 @@ class _ExpertDetailScreenState extends State<ExpertDetailScreen> {
             child: ElevatedButton(
               onPressed: () {
                 Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ExpertVideoCallBookingPage()),
-            );
+                  context,
+                  MaterialPageRoute(builder: (context) => ExpertVideoCallBookingPage(expertId: expert.id,)),
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
@@ -108,7 +160,7 @@ class _ExpertDetailScreenState extends State<ExpertDetailScreen> {
             child: Wrap(
               spacing: 12,
               runSpacing: 12,
-              children: widget.expert.whatToExpect.keys.map((duration) {
+              children: expert.whatToExpect.keys.map((duration) {
                 final isSelected = duration == selectedDuration;
                 return GestureDetector(
                   onTap: () {
@@ -155,7 +207,7 @@ class _ExpertDetailScreenState extends State<ExpertDetailScreen> {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: expert.whatToExpect[selectedDuration]!
+                    children: (expert.whatToExpect[selectedDuration] ?? ['No information available'])
                         .map((item) => Row(
                               children: [
                                 const Text("• ", style: TextStyle(fontSize: 18)),
@@ -300,7 +352,7 @@ class _ExpertDetailScreenState extends State<ExpertDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("\$49 / session", style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text("\$${expert.price ?? 49} / session", style: const TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         Row(
                           children: List.generate(5, (index) => const Icon(Icons.star, color: Colors.orange, size: 18)),
@@ -329,7 +381,6 @@ class _ExpertDetailScreenState extends State<ExpertDetailScreen> {
       ),
       bottomNavigationBar: ExpertBottomNavbar(
         currentIndex: 1,
-        // onTap: (index) {},
       ),
     );
   }

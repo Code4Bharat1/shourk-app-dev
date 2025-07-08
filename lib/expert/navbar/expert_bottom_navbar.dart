@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:shourk_application/expert/home/expert_home_screen.dart';
-
-// Import your pages
 import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
 import 'package:shourk_application/expert/navbar/expert_dashboard.dart';
 import 'package:shourk_application/expert/navbar/video_call.dart';
 import 'package:shourk_application/expert/navbar/expert_main.dart';
+import 'package:shourk_application/expert/profile/expert_profile_settings.dart';
 
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ExpertBottomNavbar extends StatefulWidget {
   final int currentIndex;
@@ -21,8 +22,21 @@ class ExpertBottomNavbar extends StatefulWidget {
 }
 
 class _ExpertBottomNavbarState extends State<ExpertBottomNavbar> {
-  void _navigateToPage(int index) {
+  Future<void> _navigateToPage(int index) async {
     Widget? destination;
+
+    // Retrieve expertId if needed
+    String? expertId;
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('expertToken');
+    if (token != null) {
+      try {
+        Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+        expertId = decodedToken['_id'];
+      } catch (e) {
+        print("Error decoding token: $e");
+      }
+    }
 
     switch (index) {
       case 0:
@@ -32,7 +46,7 @@ class _ExpertBottomNavbarState extends State<ExpertBottomNavbar> {
         destination = VideoCallPage();
         break;
       case 2:
-        destination = const ExpertProfilePage(); // Or ExpertMainScreen
+        destination = const ExpertProfilePage();
         break;
       case 3:
         destination = const ExpertMainPage();
@@ -51,48 +65,47 @@ class _ExpertBottomNavbarState extends State<ExpertBottomNavbar> {
   }
 
   @override
- Widget build(BuildContext context) {
-  return BottomNavigationBar(
-    currentIndex: widget.currentIndex,
-    onTap: (index) {
-      if (index == 5) {  // Logout is at index 5
-        _showLogoutConfirmation(context);
-      } else {
-        _navigateToPage(index);  // Existing navigation
-      }
-    },
-    selectedItemColor: Colors.yellow[800],
-    unselectedItemColor: Colors.black,
-    type: BottomNavigationBarType.fixed,
-    items: const [
-      BottomNavigationBarItem(
-        icon: Icon(Icons.search),
-        label: 'Search Experts',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.video_call),
-        label: 'Video Call',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.person_outline),
-        label: 'Profile',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.verified_user_outlined),
-        label: 'Expert',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.dashboard),
-        label: 'Dashboard',
-      ),
-      // New logout item
-      BottomNavigationBarItem(
-        icon: Icon(Icons.logout),
-        label: 'Logout',
-      ),
-    ],
-  );
-}
+  Widget build(BuildContext context) {
+    return BottomNavigationBar(
+      currentIndex: widget.currentIndex,
+      onTap: (index) {
+        if (index == 5) {
+          _showLogoutConfirmation(context);
+        } else {
+          _navigateToPage(index);
+        }
+      },
+      selectedItemColor: Colors.yellow[800],
+      unselectedItemColor: Colors.black,
+      type: BottomNavigationBarType.fixed,
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.search),
+          label: 'Search Experts',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.video_call),
+          label: 'Video Call',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          label: 'Profile',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.verified_user_outlined),
+          label: 'Expert',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.logout),
+          label: 'Logout',
+        ),
+      ],
+    );
+  }
 
 // Add this helper method for logout confirmation
 void _showLogoutConfirmation(BuildContext context) {

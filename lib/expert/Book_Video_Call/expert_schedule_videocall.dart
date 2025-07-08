@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:shourk_application/expert/Book_Video_Call/expert_booking_profile.dart';
 
 class ExpertVideoCallBookingPage extends StatefulWidget {
-  const ExpertVideoCallBookingPage({Key? key}) : super(key: key);
+  final String expertId;
+
+  const ExpertVideoCallBookingPage({Key? key, required this.expertId}) : super(key: key);
 
   @override
   _VideoCallBookingPageState createState() => _VideoCallBookingPageState();
@@ -11,6 +16,9 @@ class ExpertVideoCallBookingPage extends StatefulWidget {
 class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
   String selectedSessionType = '';
   String selectedTimeSlot = '';
+  bool isLoading = true;
+  String errorMessage = '';
+  Map<String, List<String>> timeSlots = {};
 
   final List<Map<String, String>> sessionTypes = [
     {'label': 'Quick - 15min', 'value': 'quick'},
@@ -19,163 +27,72 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
     {'label': 'All Access - 60min', 'value': 'all_access'},
   ];
 
-  final Map<String, List<String>> timeSlots = {
-    'Monday, Mar 25': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Tuesday, Mar 26': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Wednesday, Mar 27': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Thursday, Mar 28': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Friday, Mar 29': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Saturday, March 30': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Sunday, Mar 31': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Monday, Apr 1': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Tuesday, Apr 2': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Wednesday, Apr 3': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Thursday, Apr 4': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Friday, Apr 5': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Saturday, Apr 6': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Sunday, Apr 7': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Monday, Apr 8': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Tuesday, Apr 9': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Wednesday, Apr 10': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Thursday, April 11': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Friday, April 12': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Saturday, Apr 13': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Sunday, Apr 14': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Monday, Apr 15': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Tuesday, Apr 16': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Wednesday, Apr 17': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Thursday, Apr 18': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Friday, Apr 19': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Saturday, Apr 20': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Sunday, Apr 21': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Monday, Apr 22': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Tuesday, Apr 23': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Wednesday, Apr 24': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ]
-  };
+  @override
+  void initState() {
+    super.initState();
+    _fetchExpertAvailability();
+  }
+
+  Future<void> _fetchExpertAvailability() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/availability/${widget.expertId}'),
+        headers: {'Content-Type': 'application/json'},
+      );
+     
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['data'] != null && data['data']['availability'] != null) {
+          final availability = data['data']['availability'] as List;
+          final Map<String, List<String>> processedSlots = {};
+          
+          for (var slot in availability) {
+            final date = slot['date'] as String?;
+            if (date == null) continue;
+            
+            final times = slot['times'] as Map<String, dynamic>?;
+            if (times == null) continue;
+            
+            // Extract available times where value is true
+            final availableTimes = times.entries
+                .where((entry) => entry.value == true)
+                .map((entry) => entry.key) // Use the time string directly
+                .toList();
+            
+            if (availableTimes.isNotEmpty) {
+              final formattedDate = _formatDate(date);
+              processedSlots[formattedDate] = availableTimes;
+            }
+          }
+          
+          setState(() {
+            timeSlots = processedSlots;
+            isLoading = false;
+          });
+        } else {
+          setState(() {
+            isLoading = false;
+            errorMessage = 'No availability data found';
+          });
+        }
+      } else {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'Failed to load data: ${response.statusCode}';
+        });
+      }
+    } catch (error) {
+      setState(() {
+        isLoading = false;
+        errorMessage = 'Error: $error';
+      });
+    }
+  }
+
+  String _formatDate(String dateString) {
+    final date = DateTime.parse(dateString);
+    return DateFormat('EEEE, MMM d').format(date);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -186,9 +103,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SingleChildScrollView(
@@ -196,7 +111,6 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title
             const Text(
               'Book a video call',
               style: TextStyle(
@@ -207,7 +121,6 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
             ),
             const SizedBox(height: 10),
             
-            // Subtitle
             const Text(
               'Select one of the available time slots below:',
               style: TextStyle(
@@ -243,17 +156,24 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
             ),
             const SizedBox(height: 30),
             
-            // Scrollable Time Slots Section
-            Container(
-              height: MediaQuery.of(context).size.height * 0.5, // Adjust height as needed
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    ...timeSlots.entries.map((entry) => _buildDaySection(entry.key, entry.value)),
-                  ],
+            // Time Slots Section
+            if (isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (errorMessage.isNotEmpty)
+              Center(child: Text(errorMessage, style: const TextStyle(color: Colors.red)))
+            else if (timeSlots.isEmpty)
+              const Center(child: Text('No available time slots'))
+            else
+              Container(
+                height: MediaQuery.of(context).size.height * 0.5,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      ...timeSlots.entries.map((entry) => _buildDaySection(entry.key, entry.value)),
+                    ],
+                  ),
                 ),
               ),
-            ),
             
             const SizedBox(height: 30),
             
@@ -320,11 +240,10 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
-                  // _handleBookingRequest();
                   Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => ExpertBookingScreen()),
-            );
+                    context,
+                    MaterialPageRoute(builder: (context) => ExpertBookingScreen()),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
@@ -432,67 +351,6 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
         ),
         const SizedBox(height: 25),
       ],
-    );
-  }
-
-  // CHANGE: Added method to handle booking request
-  void _handleBookingRequest() {
-    if (selectedSessionType.isEmpty || selectedTimeSlot.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select both session type and time slot'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    // Show confirmation dialog
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Booking Confirmation'),
-          content: Text(
-            'Session: ${sessionTypes.firstWhere((type) => type['value'] == selectedSessionType)['label']}\n'
-            'Time: ${selectedTimeSlot.split('-')[1]}\n'
-            'Day: ${selectedTimeSlot.split('-')[0]}\n'
-            'Price: \$550',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // CHANGE: Navigate back to home or show success message
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/home',
-                  (route) => false,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Video call booked successfully!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-              ),
-              child: const Text(
-                'Confirm Booking',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }
