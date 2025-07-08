@@ -16,8 +16,8 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
   bool isEditing = false;
   final TextEditingController firstNameController = TextEditingController(text: 'Ebadat');
   final TextEditingController lastNameController = TextEditingController(text: 'Khan');
-  final TextEditingController mobileController = TextEditingController(text: '919321611611');
-  final TextEditingController emailController = TextEditingController(text: 'pathanebadat@gmail.com');
+  final TextEditingController mobileController = TextEditingController(text: '919321xxxxx');
+  final TextEditingController emailController = TextEditingController(text: 'abc@gmail.com');
   final String baseUrl = "http://localhost:5070/api/expertauth";
 
 

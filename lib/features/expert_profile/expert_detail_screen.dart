@@ -143,7 +143,7 @@ class _ExpertDetailScreenState extends State<ExpertDetailScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => ExpertVideoCallBookingPage()),
+                  MaterialPageRoute(builder: (context) => ExpertVideoCallBookingPage(expertId: expert.id,)),
                 );
               },
               style: ElevatedButton.styleFrom(

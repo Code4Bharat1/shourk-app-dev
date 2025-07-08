@@ -1,3 +1,4 @@
+// Updated Expert Model
 class ExpertModel {
   final String id;
   final String firstName;
@@ -17,6 +18,8 @@ class ExpertModel {
   final int charityPercentage;
   final String? designation;
   final List<String>? advice;
+  final List<DayAvailability> availability;  // New field
+  final int monthsRange;  // New field
 
   ExpertModel({
     required this.id,
@@ -37,6 +40,8 @@ class ExpertModel {
     required this.charityPercentage,
     this.designation,
     this.advice,
+    required this.availability,  // New required parameter
+    required this.monthsRange,  // New required parameter
   });
 
   String get name => '$firstName $lastName';
@@ -70,6 +75,10 @@ class ExpertModel {
       charityPercentage: json['charityPercentage'] ?? 0,
       designation: json['designation'],
       advice: List<String>.from(json['advice'] ?? []),
+      availability: (json['availability'] as List<dynamic>?)
+          ?.map((avail) => DayAvailability.fromJson(avail))
+          .toList() ?? [],
+      monthsRange: json['monthsRange'] ?? 1,
     );
   }
 
@@ -111,6 +120,21 @@ class ReviewModel {
     );
   }
 }
+
+class DayAvailability {
+  final String date;
+  final List<String> slots;
+
+  DayAvailability({required this.date, required this.slots});
+
+  factory DayAvailability.fromJson(Map<String, dynamic> json) {
+    return DayAvailability(
+      date: json['date'] ?? '',
+      slots: List<String>.from(json['slots'] ?? []),
+    );
+  }
+}
+
 List<ExpertModel> dummyExperts = [
   ExpertModel(
     id: '1',
@@ -142,9 +166,9 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+    availability: [],  // Added new field
+    monthsRange: 1,   // Added new field
   ),
-  // Add all other experts in the same format
-  // (Repeating all 20 entries with converted structure)
   ExpertModel(
     id: '2',
     firstName: 'Amina',
@@ -175,8 +199,10 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+    availability: [],  // Added new field
+    monthsRange: 1,   // Added new field
   ),
-  // Continue converting all other entries...
+  // Continue adding availability and monthsRange to all other entries...
   ExpertModel(
     id: '3',
     firstName: 'Dr. Sara',
@@ -207,6 +233,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+    availability: [],  // Added new field
+    monthsRange: 1,   // Added new field
   ),
   ExpertModel(
     id: '4',
@@ -238,6 +266,78 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+    availability: [],  // Added new field
+    monthsRange: 1,   // Added new field
+  ),
+  // Add remaining experts with availability and monthsRange...
+  // (Repeat pattern for all other entries)
+
+  // Continue converting all other entries...
+  ExpertModel(
+    id: '3',
+    firstName: 'Dr. Sara',
+    lastName: 'Khan',
+    title: 'Child Therapist',
+    photoFile: 'assets/images/img3.jpg',
+    averageRating: 4.8,
+    experience: 'Expert in child psychology and behavior development support.',
+    price: double.infinity,
+    about: '10+ years helping kids and parents manage behavioral challenges.',
+    strengths: ['Child Behavior', 'Parent Coaching', 'Emotional Growth'],
+    whatToExpect: {
+      'Quick - 15min': ['Short consultation for concerns'],
+      'Regular - 30min': ['Child behavior assessment'],
+      'Extra - 45min': ['Parent-child counseling'],
+      'All Access - 60min': ['Full development strategy'],
+    },
+    reviews: [
+      ReviewModel(
+        reviewerName: 'Ola Youssef',
+        reviewerTitle: 'Parent',
+        reviewerImage: 'https://randomuser.me/api/portraits/women/12.jpg',
+        rating: 4.9,
+        comment: 'Great advice for my child’s anxiety.',
+      ),
+    ],
+    category: 'wellness',
+    freeSessionEnabled: false,
+    charityEnabled: false,
+    charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
+  ),
+  ExpertModel(
+    id: '4',
+    firstName: 'Omar',
+    lastName: 'El-Sherif',
+    title: 'Financial Advisor',
+    photoFile: 'assets/images/img4.jpg',
+    averageRating: 4.6,
+    experience: 'Guiding smart investments and personal finance strategies.',
+    price: double.infinity,
+    about: 'Finance expert helping individuals plan their wealth and savings.',
+    strengths: ['Investments', 'Budgeting', 'Retirement Planning'],
+    whatToExpect: {
+      'Quick - 15min': ['Assess your financial goals'],
+      'Regular - 30min': ['Review your portfolio'],
+      'Extra - 45min': ['Investment strategy session'],
+      'All Access - 60min': ['Complete financial roadmap'],
+    },
+    reviews: [
+      ReviewModel(
+        reviewerName: 'Ali Khan',
+        reviewerTitle: 'Entrepreneur',
+        reviewerImage: 'https://randomuser.me/api/portraits/men/20.jpg',
+        rating: 4.6,
+        comment: 'Very professional and clear with advice.',
+      ),
+    ],
+    category: 'career',
+    freeSessionEnabled: false,
+    charityEnabled: false,
+    charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -269,6 +369,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -300,6 +402,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -331,6 +435,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -362,6 +468,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -393,6 +501,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -424,6 +534,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -455,6 +567,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -486,6 +600,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -517,6 +633,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -548,6 +666,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -579,6 +699,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -610,6 +732,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -641,6 +765,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -672,6 +798,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -703,6 +831,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -734,6 +864,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -765,6 +897,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -796,6 +930,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -827,6 +963,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -858,6 +996,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -889,6 +1029,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -920,6 +1062,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
    ExpertModel(
     id: '1',
@@ -951,6 +1095,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
+     availability: [],  // Added new field
+    monthsRange: 1, 
   ),
 
  
