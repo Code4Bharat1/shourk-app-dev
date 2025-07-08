@@ -139,9 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('API Response for $category: ${response.statusCode}'); // Debug log
-      print('API Response body: ${response.body}'); // Debug log
-
+     
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         final List<dynamic> expertsJson = data['data'] ?? [];
@@ -181,8 +179,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _getCategoryDisplayName(String apiCategory) {
     switch (apiCategory) {
-      case 'Psychology':
-        return 'Psychology';
       case 'Wellness':
         return 'Wellness';
       case 'Style and Beauty':
