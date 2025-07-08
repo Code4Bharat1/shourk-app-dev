@@ -7,6 +7,7 @@ import 'package:shourk_application/expert/expert_category/top_expert.dart';
 import 'package:shourk_application/expert/expert_category/home_expert.dart';
 import 'package:shourk_application/expert/expert_category/career_expert.dart';
 import 'package:shourk_application/expert/expert_category/wellness_expert.dart';
+import 'package:shourk_application/features/expert_profile/expert_detail_screen.dart'; // Added import
 
 class FashionBeautyExpertsScreen extends StatefulWidget {
   const FashionBeautyExpertsScreen({super.key});
@@ -355,7 +356,19 @@ class _FashionBeautyExpertsScreenState extends State<FashionBeautyExpertsScreen>
                               itemCount: getFilteredExperts().length,
                               itemBuilder: (context, index) {
                                 final filteredExperts = getFilteredExperts();
-                                return ModernExpertCard(expert: filteredExperts[index]);
+                                return ModernExpertCard(
+                                  expert: filteredExperts[index],
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ExpertDetailScreen(
+                                          expertId: filteredExperts[index].id,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
                               },
                             ),
                           ),
@@ -368,21 +381,18 @@ class _FashionBeautyExpertsScreenState extends State<FashionBeautyExpertsScreen>
 
 class ModernExpertCard extends StatelessWidget {
   final ExpertModel expert;
+  final VoidCallback onTap;
 
-  const ModernExpertCard({super.key, required this.expert});
+  const ModernExpertCard({
+    super.key, 
+    required this.expert,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-        // Navigate to expert details screen
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (_) => ExpertDetailScreen(expert: expert),
-        //   ),
-        // );
-      },
+      onTap: onTap, // Use the provided onTap callback
       borderRadius: BorderRadius.circular(12),
       child: Container(
         width: 200,

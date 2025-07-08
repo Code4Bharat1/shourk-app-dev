@@ -57,7 +57,7 @@ class _ExpertHomeScreenState extends State<ExpertHomeScreen> {
 
   // FIXED: Updated API categories to match your database exactly
   final List<String> _apiCategories = [
-    'Psychology',
+   
     'Wellness',
     'Style and Beauty', // Changed from 'Fashion' to match database
     'Career and Business', // Changed from 'Business' to match database
@@ -181,8 +181,6 @@ class _ExpertHomeScreenState extends State<ExpertHomeScreen> {
 
   String _getCategoryDisplayName(String apiCategory) {
     switch (apiCategory) {
-      case 'Psychology':
-        return 'Psychology';
       case 'Wellness':
         return 'Wellness';
       case 'Style and Beauty':
@@ -684,13 +682,13 @@ class ModernExpertCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        // Navigate to expert details screen
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (_) => ExpertDetailScreen(expert: expert),
-        //   ),
-        // );
+        // Navigate to Expert Detail Screen with expert ID
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ExpertDetailScreen(expertId: expert.id),
+          ),
+        );
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(

@@ -7,6 +7,7 @@ import 'package:shourk_application/expert/expert_category/career_expert.dart';
 import 'package:shourk_application/expert/expert_category/fashion_expert.dart';
 import 'package:shourk_application/expert/expert_category/top_expert.dart';
 import 'package:shourk_application/expert/expert_category/wellness_expert.dart';
+import 'package:shourk_application/features/expert_profile/expert_detail_screen.dart';
 
 class HomeExpertsScreen extends StatefulWidget {
   const HomeExpertsScreen({super.key});
@@ -295,12 +296,12 @@ class ModernExpertCard extends StatelessWidget {
     return InkWell(
       onTap: () {
         // Navigate to expert details screen
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (_) => ExpertDetailScreen(expert: expert),
-        //   ),
-        // );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ExpertDetailScreen(expertId: expert.id)
+          ),
+        );
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(

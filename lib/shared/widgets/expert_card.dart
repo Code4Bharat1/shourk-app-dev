@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/expert_model.dart';
-import '/features/expert_profile/expert_detail_screen.dart'; // Ensure this path is correct
+import '/features/expert_profile/expert_detail_screen.dart';
 
 class ExpertCard extends StatelessWidget {
   final ExpertModel expert;
@@ -14,7 +14,7 @@ class ExpertCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ExpertDetailScreen(expert: expert),
+            builder: (_) => ExpertDetailScreen(expertId: expert.id),
           ),
         );
       },
@@ -37,9 +37,11 @@ class ExpertCard extends StatelessWidget {
               children: [
                 // Background image
                 Positioned.fill(
-                  child: Image.asset(
+                  child: Image.network(  // Changed from Image.asset to Image.network
                     expert.imageUrl,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => 
+                      Container(color: Colors.grey[300]), // Fallback for image error
                   ),
                 ),
 
@@ -54,7 +56,7 @@ class ExpertCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      'SAR ${expert.rating >= 4.9 ? "950" : "600"}', // example fallback logic
+                      'SAR ${expert.rating >= 4.9 ? "950" : "600"}', 
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -100,7 +102,7 @@ class ExpertCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          expert.description,
+                          expert.experience ?? 'No description available', // Fixed null safety issue
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 11, color: Colors.black87),

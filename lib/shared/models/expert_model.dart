@@ -15,6 +15,8 @@ class ExpertModel {
   final bool freeSessionEnabled;
   final bool charityEnabled;
   final int charityPercentage;
+  final String? designation;
+  final List<String>? advice;
 
   ExpertModel({
     required this.id,
@@ -33,36 +35,32 @@ class ExpertModel {
     required this.freeSessionEnabled,
     required this.charityEnabled,
     required this.charityPercentage,
+    this.designation,
+    this.advice,
   });
 
   String get name => '$firstName $lastName';
   double get rating => averageRating;
   
   String get imageUrl {
-    if (photoFile == null) return 'assets/images/default_avatar.jpg';
+    if (photoFile == null) return '';
     if (photoFile!.startsWith('http')) return photoFile!;
-    if (photoFile!.startsWith('assets/')) return photoFile!;
-    return 'https://amd-api.code4bharat.com$photoFile';
+    return 'http://localhost:5070$photoFile';
   }
-
-  String get description => experience ?? '';
 
   factory ExpertModel.fromJson(Map<String, dynamic> json) {
     return ExpertModel(
       id: json['_id'] ?? '',
       firstName: json['firstName'] ?? '',
       lastName: json['lastName'] ?? '',
-      title: json['title'],
+      title: json['title'] ?? json['profession'],
       photoFile: json['photoFile'],
       averageRating: (json['averageRating'] ?? 0).toDouble(),
-      experience: json['experience'],
+      experience: json['experience'] ?? '',
       price: (json['price'] ?? 0).toDouble(),
-      about: json['about'],
+      about: json['about'] ?? '',
       strengths: List<String>.from(json['strengths'] ?? []),
-      whatToExpect: Map<String, List<String>>.from(
-        json['whatToExpect']?.map((key, value) => 
-          MapEntry(key, List<String>.from(value))) ?? {},
-      ),
+      whatToExpect: _parseWhatToExpect(json['whatToExpect']),
       reviews: (json['reviews'] as List<dynamic>?)
           ?.map((review) => ReviewModel.fromJson(review))
           .toList() ?? [],
@@ -70,28 +68,21 @@ class ExpertModel {
       freeSessionEnabled: json['freeSessionEnabled'] ?? false,
       charityEnabled: json['charityEnabled'] ?? false,
       charityPercentage: json['charityPercentage'] ?? 0,
+      designation: json['designation'],
+      advice: List<String>.from(json['advice'] ?? []),
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      '_id': id,
-      'firstName': firstName,
-      'lastName': lastName,
-      'title': title,
-      'photoFile': photoFile,
-      'averageRating': averageRating,
-      'experience': experience,
-      'price': price,
-      'about': about,
-      'strengths': strengths,
-      'whatToExpect': whatToExpect,
-      'reviews': reviews.map((review) => review.toJson()).toList(),
-      'category': category,
-      'freeSessionEnabled': freeSessionEnabled,
-      'charityEnabled': charityEnabled,
-      'charityPercentage': charityPercentage,
-    };
+  static Map<String, List<String>> _parseWhatToExpect(dynamic data) {
+    if (data is Map) {
+      return data.map((key, value) {
+        if (value is List) {
+          return MapEntry(key, List<String>.from(value));
+        }
+        return MapEntry(key, <String>[]);
+      });
+    }
+    return {};
   }
 }
 
@@ -119,18 +110,7 @@ class ReviewModel {
       comment: json['comment'] ?? '',
     );
   }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'reviewerName': reviewerName,
-      'reviewerTitle': reviewerTitle,
-      'reviewerImage': reviewerImage,
-      'rating': rating,
-      'comment': comment,
-    };
-  }
 }
-
 List<ExpertModel> dummyExperts = [
   ExpertModel(
     id: '1',
