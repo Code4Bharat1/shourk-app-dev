@@ -35,7 +35,10 @@ class _ExpertBottomNavbarState extends State<ExpertBottomNavbar> {
         destination = const ExpertProfilePage(); // Or ExpertMainScreen
         break;
       case 3:
-        destination = const ExpertDashboardPage();
+        destination = const ExpertMainPage();
+        break;
+      case 4:
+        destination = const ExpertDashboardPage(); // Assuming this is the Expert page
         break;
     }
 
@@ -106,7 +109,6 @@ void _showLogoutConfirmation(BuildContext context) {
         TextButton(
           onPressed: () {
             Navigator.pop(context);  // Close dialog
-            // Add your logout logic here, e.g.:
             // AuthService().logout();
             // Navigator.pushReplacementNamed(context, '/login');
           },

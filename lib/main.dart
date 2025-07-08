@@ -8,10 +8,12 @@ import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
 import 'package:shourk_application/user/home/home_screen.dart';
 
 import 'expert/profile/edit_profile_screen.dart';
-import 'expert/profile/code_option.dart';
-import 'expert/profile/giftcard_form_option.dart';
 import 'expert/profile/giftcard_selection_option.dart';
 import 'expert/profile/payment_option.dart';
+import 'expert/profile/payment_history.dart';
+import 'expert/profile/account_deactivate.dart';
+
+import 'expert/profile/contact_us_screen.dart';
 
 // import 'package:shourk_application/expert/screens/search_experts_screen.dart';
 // import 'package:shourk_application/expert/screens/video_call_screen.dart';
@@ -64,9 +66,11 @@ class MyApp extends StatelessWidget {
 
         // Profile pages option pages routes !!
           '/payment-method': (context) => const PaymentMethodPage(),
-          '/have-code': (context) => const HaveCodePage(),
           '/gift-card-select': (context) => const GiftCardSelectPage(),
-          '/gift-card-form': (context) => const GiftCardFormPage(),
+          '/contact-us': (context) => const ContactUsScreen(),
+          '/payment-history': (context) => const PaymentHistoryPage(),
+          '/deactivate-account': (context) => const DeactivateAccountScreen(),
+
 
 
         //Expert Category screens !!

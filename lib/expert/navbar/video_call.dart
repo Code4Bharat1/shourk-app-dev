@@ -1,796 +1,1077 @@
 import 'package:flutter/material.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
+import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
 class VideoCallPage extends StatefulWidget {
   @override
-   _VideoCallPageState createState() => _VideoCallPageState();
+  _VideoCallPageState createState() => _VideoCallPageState();
 }
 
 class _VideoCallPageState extends State<VideoCallPage> {
-  int selectedMainTab = 0; // 0 for My Bookings, 1 for My Sessions
-  int selectedSubTab =
-      0; // 0 for All, 1 for User Sessions, 2 for Expert Sessions
-  int selectedBookingTab =
-      0; // 0 for Invalid Date, 1 for expert-to-expert, 2 for Quick - 15mins
-  String selectedDate = 'Choose a date';
-  String selectedTime = 'Choose a time';
-  bool showDateDropdown = false;
-  bool showTimeDropdown = false;
+  int _selectedMainTab = 0;
+  int _selectedSubTab = 0;
+  List<Booking> _bookings = [];
+  List<Session> _sessions = [];
+  bool _loadingBookings = true;
+  bool _loadingSessions = true;
+  String? _bookingsError;
+  String? _sessionsError;
+  String? _authToken;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await _loadAuthToken();
+    _loadData();
+  }
+
+  Future<void> _loadAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _authToken = prefs.getString('expertToken');
+    });
+    
+    // Debug: Print token status
+    if (_authToken != null) {
+      print('Auth token loaded: ${_authToken!.substring(0, 20)}...');
+    } else {
+      print('No auth token found');
+    }
+  }
+
+  Future<void> _loadData() async {
+    if (_authToken == null) {
+      setState(() {
+        _loadingBookings = false;
+        _loadingSessions = false;
+        _bookingsError = 'Authentication token not found';
+        _sessionsError = 'Authentication token not found';
+      });
+      return;
+    }
+    
+    await Future.wait([
+      _fetchBookings(),
+      _fetchSessions(),
+    ]);
+  }
+
+  Future<void> _fetchBookings() async {
+    if (_authToken == null) return;
+
+    try {
+      print('Fetching bookings...');
+      final response = await http.get(
+        Uri.parse('https://amd-api.code4bharat.com/api/session/mybookings'),
+        headers: {
+          'Authorization': 'Bearer $_authToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('Bookings response status: ${response.statusCode}');
+      print('Bookings response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data is List) {
+          setState(() {
+            _bookings = data.map((item) => Booking.fromJson(item)).toList();
+            _loadingBookings = false;
+            _bookingsError = null;
+          });
+          print('Loaded ${_bookings.length} bookings');
+        } else if (data is Map && data.containsKey('bookings')) {
+          // Handle case where bookings are nested in response
+          final bookingsList = data['bookings'] as List;
+          setState(() {
+            _bookings = bookingsList.map((item) => Booking.fromJson(item)).toList();
+            _loadingBookings = false;
+            _bookingsError = null;
+          });
+          print('Loaded ${_bookings.length} bookings from nested response');
+        } else {
+          setState(() {
+            _loadingBookings = false;
+            _bookingsError = 'Unexpected response format';
+          });
+          print('Unexpected response format for bookings');
+        }
+      } else {
+        setState(() {
+          _loadingBookings = false;
+          _bookingsError = 'Failed to load bookings (Status: ${response.statusCode})';
+        });
+        print('Failed to load bookings: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      setState(() {
+        _loadingBookings = false;
+        _bookingsError = 'Network error: ${e.toString()}';
+      });
+      print('Error fetching bookings: $e');
+    }
+  }
+
+  Future<void> _fetchSessions() async {
+    if (_authToken == null) return;
+
+    try {
+      print('Fetching sessions...');
+      final response = await http.get(
+        Uri.parse('https://amd-api.code4bharat.com/api/session/getexpertsession'),
+        headers: {
+          'Authorization': 'Bearer $_authToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('Sessions response status: ${response.statusCode}');
+      print('Sessions response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        List<Session> sessions = [];
+        
+        if (data is Map) {
+          // Handle expert sessions
+          if (data.containsKey('expertSessions') && data['expertSessions'] is List) {
+            final expertSessions = (data['expertSessions'] as List)
+                .map((item) => Session.fromExpertJson(item))
+                .toList();
+            sessions.addAll(expertSessions);
+            print('Added ${expertSessions.length} expert sessions');
+          }
+          
+          // Handle user sessions
+          if (data.containsKey('userSessions') && data['userSessions'] is List) {
+            final userSessions = (data['userSessions'] as List)
+                .map((item) => Session.fromUserJson(item))
+                .toList();
+            sessions.addAll(userSessions);
+            print('Added ${userSessions.length} user sessions');
+          }
+        } else if (data is List) {
+          // Handle case where sessions are directly in a list
+          sessions = data.map((item) => Session.fromExpertJson(item)).toList();
+          print('Added ${sessions.length} sessions from direct list');
+        }
+        
+        setState(() {
+          _sessions = sessions;
+          _loadingSessions = false;
+          _sessionsError = null;
+        });
+        print('Total sessions loaded: ${_sessions.length}');
+      } else {
+        setState(() {
+          _loadingSessions = false;
+          _sessionsError = 'Failed to load sessions (Status: ${response.statusCode})';
+        });
+        print('Failed to load sessions: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      setState(() {
+        _loadingSessions = false;
+        _sessionsError = 'Network error: ${e.toString()}';
+      });
+      print('Error fetching sessions: $e');
+    }
+  }
+
+  // Format date helper
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('MMM dd, yyyy').format(date);
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  String _formatShortDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('E, MMM dd').format(date);
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  // Get status color
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case "confirmed":
+        return Color(0xFF4CAF50);
+      case "completed":
+        return Color(0xFF2196F3);
+      case "unconfirmed":
+        return Color(0xFFFF9800);
+      case "rejected":
+      case "cancelled":
+        return Color(0xFFF44336);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Error widget
+  Widget _buildErrorWidget(String error) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      margin: EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red, size: 48),
+          SizedBox(height: 8),
+          Text(
+            'Error',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.red.shade700,
+              fontSize: 16,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            error,
+            style: TextStyle(color: Colors.red.shade600),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _loadingBookings = true;
+                _loadingSessions = true;
+                _bookingsError = null;
+                _sessionsError = null;
+              });
+              _loadData();
+            },
+            child: Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // UI Components with updated design
+  Widget _buildMainTabs() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _selectedMainTab = 0),
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _selectedMainTab == 0 ? Color(0xFF121212) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    "My Bookings",
+                    style: TextStyle(
+                      color: _selectedMainTab == 0 ? Colors.white : Color(0xFF666666),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _selectedMainTab = 1),
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _selectedMainTab == 1 ? Color(0xFF121212) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    "My Sessions",
+                    style: TextStyle(
+                      color: _selectedMainTab == 1 ? Colors.white : Color(0xFF666666),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubTabs() {
+    if (_selectedMainTab != 1) return SizedBox.shrink();
+    
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: ["All", "User Sessions", "Expert Sessions"]
+            .asMap()
+            .entries
+            .map((e) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: ChoiceChip(
+                    label: Text(e.value, style: TextStyle(fontSize: 12)),
+                    selected: _selectedSubTab == e.key,
+                    selectedColor: Color(0xFF121212),
+                    labelStyle: TextStyle(
+                      color: _selectedSubTab == e.key ? Colors.white : Colors.black,
+                    ),
+                    onSelected: (selected) {
+                      setState(() => _selectedSubTab = e.key);
+                    },
+                  ),
+                ))
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildBookingCard(Booking booking) {
+    return Card(
+      margin: EdgeInsets.only(bottom: 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Color(0xFFEEEEEE)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Consultation",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Color(0xFF121212),
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(booking.status).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      booking.status.toUpperCase(),
+                      style: TextStyle(
+                        color: _getStatusColor(booking.status),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              
+              // Session Type
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: "Session Type: ",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF666666),
+                      ),
+                    ),
+                    TextSpan(
+                      text: booking.sessionType,
+                      style: TextStyle(color: Color(0xFF666666)),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 8),
+              
+              // Duration
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: "Duration: ",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF666666),
+                      ),
+                    ),
+                    TextSpan(
+                      text: booking.duration,
+                      style: TextStyle(color: Color(0xFF666666)),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 16),
+              
+              // Client and Expert
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: "Client: ",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF121212),
+                      ),
+                    ),
+                    TextSpan(
+                      text: booking.clientName,
+                      style: TextStyle(color: Color(0xFF121212)),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 4),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: "Expert: ",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF666666),
+                      ),
+                    ),
+                    TextSpan(
+                      text: booking.expertName,
+                      style: TextStyle(color: Color(0xFF666666)),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 16),
+              
+              // Scheduled Time
+              Text(
+                "Scheduled Time:",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF121212),
+                ),
+              ),
+              SizedBox(height: 8),
+              if (booking.sessionDate.isNotEmpty) ...[
+                Text(
+                  _formatShortDate(booking.sessionDate),
+                  style: TextStyle(
+                    color: Color(0xFF121212),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  booking.sessionTime,
+                  style: TextStyle(color: Color(0xFF666666)),
+                ),
+              ] else ...[
+                Text(
+                  "Not scheduled",
+                  style: TextStyle(color: Color(0xFF666666)),
+                ),
+              ],
+              SizedBox(height: 16),
+              
+              // Buttons
+              if (booking.status == "confirmed")
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Ready to join",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF121212),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Join meeting functionality
+                        print('Join meeting: ${booking.meetingLink}');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF4CAF50),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      ),
+                      child: Text("Join Meeting"),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSessionCard(Session session) {
+    final isUnconfirmed = session.status == "unconfirmed";
+    
+    return Card(
+      margin: EdgeInsets.only(bottom: 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Color(0xFFEEEEEE)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Session",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Color(0xFF121212),
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(session.status).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      session.status.toUpperCase(),
+                      style: TextStyle(
+                        color: _getStatusColor(session.status),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              
+              // Session Type
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: "Session Type: ",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF666666),
+                      ),
+                    ),
+                    TextSpan(
+                      text: session.sessionType,
+                      style: TextStyle(color: Color(0xFF666666)),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 8),
+              
+              // Duration
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: "Duration: ",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF666666),
+                      ),
+                    ),
+                    TextSpan(
+                      text: session.duration,
+                      style: TextStyle(color: Color(0xFF666666)),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 16),
+              
+              // Client and Expert
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: "Client: ",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF121212),
+                      ),
+                    ),
+                    TextSpan(
+                      text: session.clientName,
+                      style: TextStyle(color: Color(0xFF121212)),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 4),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: "Expert: ",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF666666),
+                      ),
+                    ),
+                    TextSpan(
+                      text: session.expertName,
+                      style: TextStyle(color: Color(0xFF666666)),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 16),
+              
+              // Scheduled Time
+              Text(
+                "Scheduled Time:",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF121212),
+                ),
+              ),
+              SizedBox(height: 8),
+              if (session.sessionDate.isNotEmpty) ...[
+                Text(
+                  _formatShortDate(session.sessionDate),
+                  style: TextStyle(
+                    color: Color(0xFF121212),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  session.sessionTime,
+                  style: TextStyle(color: Color(0xFF666666)),
+                ),
+              ] else ...[
+                Text(
+                  "Not scheduled",
+                  style: TextStyle(color: Color(0xFF666666)),
+                ),
+              ],
+              SizedBox(height: 16),
+              
+              // Notes
+              if (session.notes.isNotEmpty) ...[
+                Text(
+                  "Notes:",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF121212),
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  session.notes,
+                  style: TextStyle(color: Color(0xFF666666)),
+                ),
+                SizedBox(height: 16),
+              ],
+              
+              // Buttons
+              if (isUnconfirmed)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Action Required",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF121212),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            // Reject functionality
+                            print('Reject session: ${session.id}');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFFF44336),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          child: Text("Reject"),
+                        ),
+                        SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            // Accept functionality
+                            print('Accept session: ${session.id}');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF4CAF50),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          child: Text("Accept"),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Section
-            Row(
+      appBar: ExpertUpperNavbar(),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: EdgeInsets.all(16),
+            child: Column(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hi, User',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Video Call',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                SizedBox(height: 16),
+                Center(
+                  child: Text(
+                    'My Video Consultations',
+                    style: TextStyle(
+                      color: Color(0xFF121212),
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                // Arabic language badge positioned to the left of user profile
-                Row(
-                  children: [
-                    Column(
+                SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Manage your upcoming and past consultation sessions',
+                    style: TextStyle(
+                      color: Color(0xFF666666),
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 24),
+                _buildMainTabs(),
+                SizedBox(height: 16),
+                _buildSubTabs(),
+                SizedBox(height: 24),
+                
+                // Debug info
+                if (_authToken == null)
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    margin: EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 25,
-                          backgroundColor: Colors.grey[300],
-                          child: Text(
-                            'U',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        Icon(Icons.warning, color: Colors.orange),
+                        SizedBox(height: 8),
+                        Text(
+                          'Authentication Required',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade700,
                           ),
                         ),
-                        SizedBox(height: 4),
                         Text(
-                          'User',
-                          style: TextStyle(color: Colors.black, fontSize: 12),
+                          'Please log in to view your consultations',
+                          style: TextStyle(color: Colors.orange.shade600),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ],
-            ),
-
-            SizedBox(height: 32),
-
-            // My Video Consultations Section
-            Center(
-              child: Text(
-                'My Video Consultations',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            SizedBox(height: 8),
-            Center(
-              child: Text(
-                'Manage your upcoming and past consultation sessions',
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
-              ),
-            ),
-
-            SizedBox(height: 24),
-
-            // Main Tabs (My Bookings / My Sessions) in a single shadowed container
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  color: Color(0xFFF6F6F6),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              selectedMainTab = 0;
-                            });
-                          },
-                          child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            color:
-                                selectedMainTab == 0
-                                    ? Colors.black
-                                    : Colors.transparent,
-                            child: Text(
-                              'My Bookings',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color:
-                                    selectedMainTab == 0
-                                        ? Colors.white
-                                        : Colors.black,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              selectedMainTab = 1;
-                            });
-                          },
-                          child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            color:
-                                selectedMainTab == 1
-                                    ? Colors.black
-                                    : Colors.transparent,
-                            child: Text(
-                              'My Sessions',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color:
-                                    selectedMainTab == 1
-                                        ? Colors.white
-                                        : Colors.black,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            SizedBox(height: 24),
-
-            // Content based on selected main tab
-            if (selectedMainTab == 0) ...[
-              // My Bookings Content
-              _buildMyBookingsContent(),
-            ] else ...[
-              // My Sessions Content (existing code)
-              _buildMySessionsContent(),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMyBookingsContent() {
-    return Column(
-      children: [
-        // Booking Sub Tabs (Invalid Date / expert-to-expert / Quick - 15mins)
-        Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildBookingSubTab('Invalid Date', 0),
-              SizedBox(width: 16),
-              _buildBookingSubTab('expert-to-expert', 1),
-              SizedBox(width: 16),
-              _buildBookingSubTab('Quick - 15mins', 2),
-            ],
-          ),
-        ),
-
-        SizedBox(height: 24),
-
-        // Booking Card with shadow
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 6,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Client Info
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.blue[100],
-                    child: Icon(Icons.person, color: Colors.blue[600]),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    'Client: ',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    'edward Qureshi',
-                    style: TextStyle(color: Colors.black, fontSize: 14),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 16),
-
-              // Expert Info with Unconfirmed status
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.green[100],
-                        child: Icon(
-                          Icons.verified_user,
-                          color: Colors.green[800],
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Text(
-                        'Expert: ',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        'Aquib Hingwala',
-                        style: TextStyle(color: Colors.black, fontSize: 14),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Unconfirmed',
-                      style: TextStyle(
-                        color: Colors.orange[700],
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 24),
-
-              // Available Slots Section
-              Text(
-                'Available Slots:',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              SizedBox(height: 12),
-
-              // Time Slot Rectangle
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize:
-                      MainAxisSize
-                          .min, // Important for shrinking to fit content
-                  children: [
-                    Text(
-                      'Fri, Jun 27',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '6:00 AM',
-                      style: TextStyle(color: Colors.black, fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMySessionsContent() {
-    return Column(
-      children: [
-        // Sub Tabs (All / User Sessions / Expert Sessions) in a single row
-        Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildSubTab('All', 0),
-              SizedBox(width: 16),
-              _buildSubTab('User Sessions', 1),
-              SizedBox(width: 16),
-              _buildSubTab('Expert Sessions', 2),
-            ],
-          ),
-        ),
-
-        SizedBox(height: 24),
-
-        // Main content container with shadow
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 6,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Session Type Display
-              Text(
-                selectedSubTab == 2
-                    ? 'Expert to Expert'
-                    : selectedSubTab == 1
-                    ? 'User to Expert'
-                    : 'All Sessions',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-
-              SizedBox(height: 16),
-
-              // Quick Session Info
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                  SizedBox(width: 6),
-                  Text(
-                    'Quick - 15mins',
-                    style: TextStyle(color: Colors.black, fontSize: 12),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 16),
-
-              // Client Info
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.blue[100],
-                    child: Icon(Icons.person, color: Colors.blue[600]),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    'Client: ',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    'User',
-                    style: TextStyle(color: Colors.black, fontSize: 14),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 24),
-
-              // Date and Time Selection with proper Stack positioning
-              Stack(
-                children: [
-                  Column(
-                    children: [
-                      Row(
+                
+                if (_selectedMainTab == 0) ...[
+                  if (_loadingBookings)
+                    Center(
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Select Date',
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey[300]!,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                    color: Colors.white,
-                                  ),
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        showDateDropdown = !showDateDropdown;
-                                        showTimeDropdown = false;
-                                      });
-                                    },
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          selectedDate,
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.keyboard_arrow_down,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Select Time',
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey[300]!,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                    color: Colors.white,
-                                  ),
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        showTimeDropdown = !showTimeDropdown;
-                                        showDateDropdown = false;
-                                      });
-                                    },
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          selectedTime,
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.keyboard_arrow_down,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text(
+                            'Loading bookings...',
+                            style: TextStyle(color: Color(0xFF666666)),
                           ),
                         ],
                       ),
-                      SizedBox(
-                        height: showDateDropdown || showTimeDropdown ? 20 : 0,
-                      ),
-                    ],
-                  ),
-
-                  // Date Dropdown Overlay
-                  if (showDateDropdown)
-                    Positioned(
-                      top: 70,
-                      left: 0,
-                      width:
-                          (MediaQuery.of(context).size.width - 64) / 2 -
-                          8, // Account for padding and spacing
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
+                    )
+                  else if (_bookingsError != null)
+                    _buildErrorWidget(_bookingsError!)
+                  else if (_bookings.isEmpty)
+                    Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.calendar_today, size: 64, color: Color(0xFF666666)),
+                          SizedBox(height: 16),
+                          Text(
+                            "No bookings found",
+                            style: TextStyle(
+                              color: Color(0xFF666666),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            _buildDropdownItem('30 Jun 2025', () {
-                              setState(() {
-                                selectedDate = '30 Jun 2025';
-                                showDateDropdown = false;
-                              });
-                            }),
-                          ],
-                        ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            "Your upcoming bookings will appear here",
+                            style: TextStyle(color: Color(0xFF666666)),
+                          ),
+                        ],
                       ),
-                    ),
-
-                  // Time Dropdown Overlay
-                  if (showTimeDropdown)
-                    Positioned(
-                      top: 70,
-                      right: 0,
-                      width:
-                          (MediaQuery.of(context).size.width - 64) / 2 -
-                          8, // Account for padding and spacing
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
+                    )
+                  else
+                    ..._bookings.map((b) => _buildBookingCard(b)).toList(),
+                ],
+                
+                if (_selectedMainTab == 1) ...[
+                  if (_loadingSessions)
+                    Center(
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text(
+                            'Loading sessions...',
+                            style: TextStyle(color: Color(0xFF666666)),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_sessionsError != null)
+                    _buildErrorWidget(_sessionsError!)
+                  else if (_sessions.isEmpty)
+                    Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.video_call, size: 64, color: Color(0xFF666666)),
+                          SizedBox(height: 16),
+                          Text(
+                            "No sessions found",
+                            style: TextStyle(
+                              color: Color(0xFF666666),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            _buildDropdownItem('10:00 AM', () {
-                              setState(() {
-                                selectedTime = '10:00 AM';
-                                showTimeDropdown = false;
-                              });
-                            }),
-                          ],
-                        ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            "Your sessions will appear here",
+                            style: TextStyle(color: Color(0xFF666666)),
+                          ),
+                        ],
                       ),
-                    ),
+                    )
+                  else
+                    ..._sessions
+                        .where((s) => _selectedSubTab == 0 ||
+                            (_selectedSubTab == 1 && s.sessionType == "User To Expert") ||
+                            (_selectedSubTab == 2 && s.sessionType == "Expert To Expert"))
+                        .map((s) => _buildSessionCard(s))
+                        .toList(),
                 ],
-              ),
-
-              SizedBox(height: 32),
-
-              // Action Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Container(
-                    width: 80,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: OutlinedButton(
-                      onPressed: () {},
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.black),
-                        backgroundColor: Colors.white,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        'Decline',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Container(
-                    width: 80,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        'Accept',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
+      bottomNavigationBar: ExpertBottomNavbar(currentIndex: 1),
+    );
+  }
+}
+
+// Data Models
+class Booking {
+  final String id;
+  final String clientName;
+  final String expertName;
+  String status;
+  final String sessionType;
+  final String sessionDate;
+  final String sessionTime;
+  final String duration;
+  final String meetingLink;
+
+  Booking({
+    required this.id,
+    required this.clientName,
+    required this.expertName,
+    required this.status,
+    required this.sessionType,
+    required this.sessionDate,
+    required this.sessionTime,
+    required this.duration,
+    required this.meetingLink,
+  });
+
+  factory Booking.fromJson(Map<String, dynamic> json) {
+    return Booking(
+      id: json['_id']?.toString() ?? '',
+      clientName: '${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'.trim(),
+      expertName: json['consultingExpertID'] != null
+          ? '${json['consultingExpertID']['firstName'] ?? ''} ${json['consultingExpertID']['lastName'] ?? ''}'.trim()
+          : 'Unknown Expert',
+      status: json['status']?.toString() ?? 'unconfirmed',
+      sessionType: json['sessionType']?.toString() ?? 'User To Expert',
+      sessionDate: json['slots'] != null && json['slots'].isNotEmpty
+          ? json['slots'][0]['selectedDate']?.toString() ?? ''
+          : '',
+      sessionTime: json['slots'] != null && json['slots'].isNotEmpty
+          ? json['slots'][0]['selectedTime']?.toString() ?? ''
+          : '',
+      duration: json['duration']?.toString() ?? '30 mins',
+      meetingLink: json['userMeetingLink']?.toString() ?? '',
+    );
+  }
+}
+
+class Session {
+  final String id;
+  final String clientName;
+  final String expertName;
+  String status;
+  final String sessionType;
+  final String duration;
+  final List<Slot> slots;
+  final String notes;
+  String meetingLink;
+  final String sessionDate;
+  final String sessionTime;
+
+  Session({
+    required this.id,
+    required this.clientName,
+    required this.expertName,
+    required this.status,
+    required this.sessionType,
+    required this.duration,
+    required this.slots,
+    required this.notes,
+    required this.sessionDate,
+    required this.sessionTime,
+    this.meetingLink = "",
+  });
+
+  factory Session.fromExpertJson(Map<String, dynamic> json) {
+    final firstSlot = json['slots'] != null && json['slots'].isNotEmpty
+        ? Slot.fromJson(json['slots'][0])
+        : Slot(selectedDate: '', selectedTime: '');
+    
+    return Session(
+      id: json['_id']?.toString() ?? '',
+      clientName: json['consultingExpertID'] != null
+          ? '${json['consultingExpertID']['firstName'] ?? ''} ${json['consultingExpertID']['lastName'] ?? ''}'.trim()
+          : 'Unknown Expert',
+      expertName: "Me",
+      status: json['status']?.toString() ?? 'unconfirmed',
+      sessionType: "Expert To Expert",
+      duration: json['duration']?.toString() ?? '30 mins',
+      slots: json['slots'] != null
+          ? (json['slots'] as List).map((s) => Slot.fromJson(s)).toList()
+          : [],
+      notes: json['sessionNotes']?.toString() ?? '',
+      sessionDate: firstSlot.selectedDate,
+      sessionTime: firstSlot.selectedTime,
+      meetingLink: json['zoomMeetingLink']?.toString() ?? '',
     );
   }
 
-  Widget _buildDropdownItem(String text, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Text(text, style: TextStyle(color: Colors.black, fontSize: 14)),
-      ),
+  factory Session.fromUserJson(Map<String, dynamic> json) {
+    final firstSlot = json['slots'] != null && json['slots'].isNotEmpty
+        ? Slot.fromJson(json['slots'][0])
+        : Slot(selectedDate: '', selectedTime: '');
+    
+    return Session(
+      id: json['_id']?.toString() ?? '',
+      clientName: '${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'.trim(),
+      expertName: "Me",
+      status: json['status']?.toString() ?? 'unconfirmed',
+      sessionType: "User To Expert",
+      duration: json['duration']?.toString() ?? '30 mins',
+      slots: json['slots'] != null
+          ? (json['slots'] as List).map((s) => Slot.fromJson(s)).toList()
+          : [],
+      notes: json['sessionNotes']?.toString() ?? '',
+      sessionDate: firstSlot.selectedDate,
+      sessionTime: firstSlot.selectedTime,
+      meetingLink: json['zoomMeetingLink']?.toString() ?? '',
     );
   }
+}
 
-  Widget _buildSubTab(String title, int index) {
-    bool isSelected = selectedSubTab == index;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedSubTab = index;
-        });
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.black : Color(0xFFF6F6F6),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
+class Slot {
+  final String selectedDate;
+  final String selectedTime;
 
-  Widget _buildBookingSubTab(String title, int index) {
-    bool isSelected = selectedBookingTab == index;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedBookingTab = index;
-        });
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.black : Color(0xFFF6F6F6),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
+  Slot({required this.selectedDate, required this.selectedTime});
+
+  factory Slot.fromJson(Map<String, dynamic> json) {
+    return Slot(
+      selectedDate: json['selectedDate']?.toString() ?? '',
+      selectedTime: json['selectedTime']?.toString() ?? '',
     );
   }
 }
