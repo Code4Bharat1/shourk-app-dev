@@ -1,20 +1,42 @@
 import 'package:flutter/material.dart';
 
-class UserBottomNavbar extends StatelessWidget {
-  final int currentIndex;
-  final Function(int) onTap;
+class UserBottomNavbar extends StatefulWidget {
+  const UserBottomNavbar({Key? key}) : super(key: key);
 
-  const UserBottomNavbar({
-    Key? key,
-    required this.currentIndex,
-    required this.onTap,
-  }) : super(key: key);
+  @override
+  State<UserBottomNavbar> createState() => _UserBottomNavbarState();
+}
+
+class _UserBottomNavbarState extends State<UserBottomNavbar> {
+  int _currentIndex = 0;
+
+  void _onTap(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+
+    // Navigation logic based on index
+    switch (index) {
+      case 0:
+        // Navigate to Search page
+        Navigator.pushNamed(context, '/search');
+        break;
+      case 1:
+        // Navigate to Video Call page
+        Navigator.pushNamed(context, '/video_call');
+        break;
+      case 2:
+        // Navigate to Profile page
+        Navigator.pushNamed(context, '/user-profile');
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
-      currentIndex: currentIndex,
-      onTap: onTap,
+      currentIndex: _currentIndex,
+      onTap: _onTap,
       selectedItemColor: Colors.orange,
       unselectedItemColor: Colors.black,
       items: const [
