@@ -6,13 +6,14 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import './payment_option.dart';
 import './giftcard_selection_option.dart';
 import 'package:shourk_application/expert/profile/contact_us_screen.dart';
 import 'package:shourk_application/expert/profile/payment_history.dart';
 import 'package:shourk_application/expert/profile/account_deactivate.dart';
 
-// Placeholder pages for navigation options (you'll need to create actual implementations)
+// Placeholder pages for navigation options
 class PaymentMethodsPage extends StatelessWidget {
   const PaymentMethodsPage({super.key});
 
@@ -118,6 +119,7 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
   String selectedOption = 'Profile';
   bool isMobileNavOpen = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  String currentLanguage = 'English';
 
   @override
   void initState() {
@@ -322,7 +324,6 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
       case 'Payment Methods':
         Navigator.push(context, MaterialPageRoute(builder: (context) => const PaymentMethodPage()));
         break;
-        break;
       case 'Gift Card':
         Navigator.push(context, MaterialPageRoute(builder: (context) => const GiftCardSelectPage()));
         break;
@@ -351,36 +352,29 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
     });
   }
 
+  void _toggleLanguage() {
+    setState(() {
+      currentLanguage = currentLanguage == 'English' ? 'Arabic' : 'English';
+      // Here you would add logic to change the app's language
+    });
+  }
+
+  void _navigateToProfile() {
+    // Navigate to expert profile page
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ExpertProfilePage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final userName = '${firstNameController.text} ${lastNameController.text}'.trim();
+    final displayName = userName.isNotEmpty ? userName : 'User';
+
     return Scaffold(
       key: _scaffoldKey,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        title: Row(
-          children: [
-            const Text("Shourk", style: TextStyle(color: Colors.black)),
-            const Spacer(),
-            const Icon(Icons.language, color: Colors.black),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text("العربية",
-                  style: TextStyle(color: Colors.white, fontSize: 12)),
-            ),
-            const SizedBox(width: 12),
-            const Icon(Icons.notifications_none, color: Colors.black),
-            const SizedBox(width: 12),
-            const CircleAvatar(child: Text('U'))
-          ],
-        ),
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
+      appBar: ExpertUpperNavbar(),
       backgroundColor: Colors.grey[100],
       body: Stack(
         children: [
@@ -391,11 +385,85 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Hi, User", style: TextStyle(fontSize: 16)),
-                  const SizedBox(height: 10),
-                  const Text("Profile",
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
+                  // New header section with language button and profile image
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Hi, $displayName", 
+                              style: const TextStyle(fontSize: 16)),
+                          const SizedBox(height: 4),
+                          const Text("Profile",
+                              style: TextStyle(
+                                  fontSize: 24, 
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          // Language toggle button
+                          ElevatedButton(
+                            onPressed: _toggleLanguage,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                            ),
+                            child: Text(currentLanguage),
+                          ),
+                          const SizedBox(width: 12),
+                          // Profile image container (clickable)
+                          GestureDetector(
+                            onTap: _navigateToProfile,
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.grey[300]!, width: 2),
+                              ),
+                              child: ClipOval(
+                                child: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                                    ? Image.network(
+                                        profileImageUrl!,
+                                        fit: BoxFit.cover,
+                                        width: 40,
+                                        height: 40,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            color: Colors.grey[300],
+                                            child: const Icon(
+                                              Icons.person,
+                                              size: 20,
+                                              color: Colors.white,
+                                            ),
+                                          );
+                                        },
+                                      )
+                                    : Container(
+                                        color: Colors.grey[300],
+                                        child: const Icon(
+                                          Icons.person,
+                                          size: 20,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Settings section
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -419,19 +487,23 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
                       padding: const EdgeInsets.only(top: 10, bottom: 10),
                       child: Row(
                         children: [
-                          const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                          const Icon(Icons.check_circle, 
+                              color: Colors.green, size: 20),
                           const SizedBox(width: 8),
                           Text(
                             successMessage,
-                            style: const TextStyle(color: Colors.green, fontSize: 16),
+                            style: const TextStyle(
+                                color: Colors.green, fontSize: 16),
                           ),
                         ],
                       ),
                     ),
                   
+                  // Profile card
                   Card(
                     elevation: 4,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15)),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -448,12 +520,15 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
                                       height: 100,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.white, width: 2),
+                                        border: Border.all(
+                                            color: Colors.white, width: 2),
                                       ),
                                       child: ClipOval(
                                         child: isUploading
-                                            ? const Center(child: CircularProgressIndicator())
-                                            : (profileImageUrl != null && profileImageUrl!.isNotEmpty
+                                            ? const Center(
+                                                child: CircularProgressIndicator())
+                                            : (profileImageUrl != null &&
+                                                    profileImageUrl!.isNotEmpty
                                                 ? Image.network(
                                                     profileImageUrl!,
                                                     fit: BoxFit.cover,
@@ -462,7 +537,10 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
                                                   )
                                                 : Container(
                                                     color: Colors.grey[300],
-                                                    child: const Icon(Icons.person, size: 40, color: Colors.white),
+                                                    child: const Icon(
+                                                        Icons.person,
+                                                        size: 40,
+                                                        color: Colors.white),
                                                   )),
                                       ),
                                     ),
@@ -471,12 +549,13 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
                                         bottom: 0,
                                         right: 0,
                                         child: Container(
-                                          decoration: BoxDecoration(
+                                          decoration: const BoxDecoration(
                                             color: Colors.black54,
                                             shape: BoxShape.circle,
                                           ),
                                           padding: const EdgeInsets.all(6),
-                                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                                          child: const Icon(Icons.camera_alt,
+                                              color: Colors.white, size: 20),
                                         ),
                                       ),
                                   ],
@@ -485,10 +564,11 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      "${firstNameController.text} ${lastNameController.text}",
+                                      displayName,
                                       style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w600),
@@ -548,7 +628,8 @@ class _ExpertProfilePageState extends State<ExpertProfilePage> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                              ),)
+                              ),
+                            )
                         ],
                       ),
                     ),

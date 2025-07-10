@@ -20,6 +20,8 @@ dependencies:
   googleapis: ^11.4.0
   googleapis_auth: ^1.4.1
   provider: ^6.1.5
+  url_launcher: ^6.1.10
+  image_picker: ^1.1.0
 
 dev_dependencies:
   flutter_test:

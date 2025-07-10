@@ -1,292 +1,591 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
+import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
+import 'package:shourk_application/expert/profile/contact_us_screen.dart';
+import 'package:shourk_application/expert/profile/account_deactivate.dart';
+import 'package:shourk_application/expert/profile/payment_option.dart';
+import 'package:shourk_application/expert/profile/giftcard_selection_option.dart';
 
-class ContactUsScreen extends StatelessWidget {
-  const ContactUsScreen({super.key});
+// Reusable SettingsDrawer widget
+class SettingsDrawer extends StatelessWidget {
+  final String currentPage;
+  final Function(String) onSelectOption;
+  final Function onClose;
+
+  const SettingsDrawer({
+    super.key,
+    required this.currentPage,
+    required this.onSelectOption,
+    required this.onClose,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Center(
-          child: Container(
-            margin: const EdgeInsets.only(top: 40),
-            padding: const EdgeInsets.only(bottom: 32),
-            child: _buildGrid(constraints),
-          ),
-        );
-      },
-    );
-  }
+    const drawerOptions = [
+      {"label": "Profile", "icon": Icons.person},
+      {"label": "Payment Methods", "icon": Icons.payment},
+      {"label": "Gift Card", "icon": Icons.card_giftcard},
+      {"label": "Contact Us", "icon": Icons.chat},
+      {"label": "Payment History", "icon": Icons.history},
+      {"label": "Deactivate account", "icon": Icons.delete},
+    ];
 
-  Widget _buildGrid(BoxConstraints constraints) {
-    // Determine grid columns based on screen width
-    int crossAxisCount = 1;
-    if (constraints.maxWidth >= 1024) {
-      crossAxisCount = 3; // lg:grid-cols-3
-    } else if (constraints.maxWidth >= 768) {
-      crossAxisCount = 2; // md:grid-cols-2
-    } else {
-      crossAxisCount = 1; // sm:grid-cols-1
-    }
-
-    // Determine gap based on screen width
-    double gap = constraints.maxWidth >= 1024 ? 40 : 24; // lg:gap-10 : gap-6
-
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: crossAxisCount,
-      mainAxisSpacing: gap,
-      crossAxisSpacing: gap,
-      childAspectRatio: 1.2,
-      children: [
-        _buildSocialMediaCard(),
-        _buildChatSupportCard(),
-        _buildEmailCard(),
-      ],
-    );
-  }
-
-  Widget _buildSocialMediaCard() {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 384), // max-w-md
-      padding: const EdgeInsets.all(24), // p-6
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12), // rounded-xl
-        border: Border.all(
-          color: const Color(0xFFA6A6A6), // border-[#A6A6A6]
-          width: 1,
-        ),
-      ),
+      width: MediaQuery.of(context).size.width * 0.7,
+      color: Colors.white,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, // text-start
         children: [
-          // Icon container
-          Container(
-            margin: const EdgeInsets.only(bottom: 16), // mb-4
-            child: Image.asset(
-              'assets/images/socialmediaicon.png',
-              width: 40, // w-10
-              height: 40, // h-10
-            ),
+          AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            automaticallyImplyLeading: false,
+            title: const Text("Settings"),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => onClose(),
+              )
+            ],
           ),
-          
-          // Title
-          const Text(
-            'Our Social Media',
-            style: TextStyle(
-              fontSize: 20, // text-xl
-              fontWeight: FontWeight.w600, // font-semibold
-              color: Colors.black,
-            ),
-          ),
-          
-          // Description
-          Container(
-            margin: const EdgeInsets.only(top: 8), // mt-2
-            child: const Text(
-              'We\'d love to hear from you.',
-              style: TextStyle(
-                color: Color(0xFF374151), // text-gray-700
-              ),
-            ),
-          ),
-          
-          // Social Icons
-          Container(
-            margin: const EdgeInsets.only(top: 16), // mt-4
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                GestureDetector(
-                  onTap: () => _launchSocialMedia('instagram'),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 8), // mx-2
-                    child: const Icon(
-                      Icons.camera_alt, // Instagram icon alternative
-                      color: Colors.black,
-                      size: 24, // text-3xl equivalent
-                    ),
+          Expanded(
+            child: ListView(
+              children: drawerOptions.map((option) {
+                final isSelected = currentPage == option['label'];
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), 
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.black : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-                GestureDetector(
-                  onTap: () => _launchSocialMedia('twitter'),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 8), // mx-2
-                    child: const Icon(
-                      Icons.chat_bubble, // Twitter icon alternative
-                      color: Colors.black,
-                      size: 24, // text-3xl equivalent
+                  child: ListTile(
+                    selected: isSelected,
+                    selectedColor: Colors.white,
+                    leading: Icon(
+                      option['icon'] as IconData,
+                      color: isSelected ? Colors.white : Colors.black,
                     ),
+                    title: Text(
+                      option['label'] as String,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    onTap: () => onSelectOption(option['label'] as String),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChatSupportCard() {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 384), // max-w-md
-      padding: const EdgeInsets.all(24), // p-6
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12), // rounded-xl
-        border: Border.all(
-          color: const Color(0xFFA6A6A6), // border-[#A6A6A6]
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, // text-left
-        children: [
-          // Icon container
-          Container(
-            margin: const EdgeInsets.only(bottom: 16), // mb-4
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // Responsive icon size: w-8 h-8 md:w-10 md:h-10
-                double iconSize = constraints.maxWidth >= 768 ? 40 : 32;
-                return Image.asset(
-                  'assets/images/chaticon.png',
-                  width: iconSize,
-                  height: iconSize,
                 );
-              },
-            ),
-          ),
-          
-          // Title
-          const Text(
-            'Chat to Support',
-            style: TextStyle(
-              fontSize: 20, // text-xl
-              fontWeight: FontWeight.w600, // font-semibold
-              color: Colors.black,
-            ),
-          ),
-          
-          // Description
-          Container(
-            margin: const EdgeInsets.only(top: 8), // mt-2
-            child: const Text(
-              'We\'re here to help',
-              style: TextStyle(
-                color: Color(0xFF374151), // text-gray-700
-              ),
-            ),
-          ),
-          
-          // Button
-          Container(
-            margin: const EdgeInsets.only(top: 12), // mt-3
-            child: OutlinedButton(
-              onPressed: () => _launchChatSupport(),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
-                side: const BorderSide(color: Colors.black),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12), // rounded-xl
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16, // px-4
-                  vertical: 8, // py-2
-                ),
-              ),
-              child: const Text('Chat to Support'),
+              }).toList(),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildEmailCard() {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 384), // max-w-md
-      padding: const EdgeInsets.all(24), // p-6
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12), // rounded-xl
-        border: Border.all(
-          color: const Color(0xFFA6A6A6), // border-[#A6A6A6]
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, // text-left
-        children: [
-          // Icon container
-          Container(
-            margin: const EdgeInsets.only(bottom: 16), // mb-4
-            child: const Icon(
-              Icons.alternate_email, // MdAlternateEmail equivalent
-              color: Colors.black,
-              size: 32, // text-4xl equivalent
-            ),
-          ),
-          
-          // Title
-          const Text(
-            'Leave us a Mail',
-            style: TextStyle(
-              fontSize: 20, // text-xl
-              fontWeight: FontWeight.w600, // font-semibold
-              color: Colors.black,
-            ),
-          ),
-          
-          // Description
-          Container(
-            margin: const EdgeInsets.only(top: 8), // mt-2
-            child: const Text(
-              'If not available, you can send us an email at',
-              style: TextStyle(
-                color: Color(0xFF374151), // text-gray-700
-                fontSize: 14, // text-sm
-              ),
-            ),
-          ),
-          
-          // Email
-          Container(
-            margin: const EdgeInsets.only(top: 8), // mt-2
-            child: const Text(
-              'hi@amd.com',
-              style: TextStyle(
-                fontWeight: FontWeight.w600, // font-semibold
-                color: Colors.black,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+class ContactUsScreen extends StatefulWidget {
+  const ContactUsScreen({super.key});
+
+  @override
+  State<ContactUsScreen> createState() => _ContactUsScreenState();
+}
+
+class _ContactUsScreenState extends State<ContactUsScreen> {
+  // Drawer state variables
+  bool isMobileNavOpen = false;
+  String currentPage = 'Contact Us';
+  
+  // User data
+  String? expertId;
+  String? profileImageUrl;
+  String firstName = '';
+  String lastName = '';
+  String currentLanguage = 'English';
+  final String baseUrl = "https://amd-api.code4bharat.com/api/expertauth";
+
+  @override
+  void initState() {
+    super.initState();
+    _getExpertId();
   }
 
-  void _launchSocialMedia(String platform) async {
-    final urls = {
-      'instagram': 'https://instagram.com',
-      'twitter': 'https://twitter.com',
-    };
+  Future<void> _getExpertId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('expertToken');
 
-    if (urls.containsKey(platform)) {
-      final uri = Uri.parse(urls[platform]!);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
+    if (token != null) {
+      try {
+        Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+        setState(() {
+          expertId = decodedToken['_id'];
+        });
+        if (expertId != null) {
+          _loadExpertProfile();
+        }
+      } catch (e) {
+        print("Error parsing token: $e");
       }
+    } else {
+      print("Expert token not found");
     }
   }
 
-  void _launchChatSupport() {
-    // Implement chat support functionality
-    // This could open a chat widget, navigate to a chat screen, etc.
-    print('Opening chat support...');
+  Future<void> _loadExpertProfile() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/$expertId'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body)['data'];
+        setState(() {
+          firstName = data['firstName'] ?? '';
+          lastName = data['lastName'] ?? '';
+          profileImageUrl = data['photoFile'];
+        });
+      } else {
+        print("Failed to load expert data: ${response.body}");
+      }
+    } catch (e) {
+      print("Error fetching expert data: $e");
+    }
+  }
+
+  void _openSettingsMenu() {
+    setState(() => isMobileNavOpen = true);
+  }
+
+  void _closeMobileNav() {
+    setState(() => isMobileNavOpen = false);
+  }
+
+  void _handleSelectOption(String option) {
+    if (option == currentPage) {
+      _closeMobileNav();
+      return;
+    }
+    
+    switch (option) {
+      case 'Profile':
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ExpertProfilePage()),
+        );
+        break;
+      case 'Payment Methods':
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const PaymentMethodPage()),
+        );
+        break;
+      case 'Gift Card':
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const GiftCardSelectPage()),
+        );
+        break;
+      case 'Contact Us':
+        // Already on this page
+        _closeMobileNav();
+        break;
+      case 'Payment History':
+        // Handle payment history navigation
+        _closeMobileNav();
+        break;
+      case 'Deactivate account':
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DeactivateAccountScreen()),
+        );
+        break;
+    }
+  }
+
+  void _toggleLanguage() {
+    setState(() {
+      currentLanguage = currentLanguage == 'English' ? 'Arabic' : 'English';
+      // Add logic to change app's language
+    });
+  }
+
+  void _navigateToProfile() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const ExpertProfilePage()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userName = '$firstName $lastName'.trim();
+    final displayName = userName.isNotEmpty ? userName : 'Expert';
+
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      appBar: const ExpertUpperNavbar(),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              // Profile header section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Greeting and page title
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Hi, $displayName", 
+                            style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                        const SizedBox(height: 4),
+                        const Text("Contact Us",
+                            style: TextStyle(
+                                fontSize: 24, 
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    
+                    // Language button and profile photo
+                    Row(
+                      children: [
+                        // Language toggle button
+                        ElevatedButton(
+                          onPressed: _toggleLanguage,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                          ),
+                          child: Text(currentLanguage),
+                        ),
+                        const SizedBox(width: 12),
+                        
+                        // Profile image container
+                        GestureDetector(
+                          onTap: _navigateToProfile,
+                          child: Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.grey.shade300, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                                  ? Image.network(
+                                      profileImageUrl!,
+                                      width: 46,
+                                      height: 46,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
+                                          color: Colors.grey.shade200,
+                                          child: const Icon(
+                                            Icons.person,
+                                            size: 24,
+                                            color: Colors.grey,
+                                          ),
+                                        );
+                                      },
+                                    )
+                                  : Container(
+                                      color: Colors.grey.shade200,
+                                      child: const Icon(
+                                        Icons.person,
+                                        size: 24,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              
+              // Settings header row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.settings, size: 18),
+                        SizedBox(width: 8),
+                        Text("Settings", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.menu),
+                      onPressed: _openSettingsMenu,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              
+              // Original Contact Us content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 10),
+                      
+                      // Social Media Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              spreadRadius: 1,
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Social Media Icons
+                            Row(
+                              children: [
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.facebook, size: 20),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.play_arrow, size: 20),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.camera_alt, size: 20),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Our Social Media',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'We\'d love to hear from you.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.camera_alt, size: 24),
+                                ),
+                                const SizedBox(width: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.alternate_email, size: 24),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Chat Support Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              spreadRadius: 1,
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.chat_bubble_outline, size: 32, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Chat to Support',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'We\'re here to help',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            OutlinedButton(
+                              onPressed: () {},
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.grey),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                              ),
+                              child: const Text(
+                                'Chat to Support',
+                                style: TextStyle(color: Colors.black),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Email Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              spreadRadius: 1,
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.alternate_email, size: 32, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Leave us a Mail',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'If not available, you can send us an email at',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'shourk@gmail.com',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20), // Bottom padding
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          // Drawer overlay
+          if (isMobileNavOpen)
+            GestureDetector(
+              onTap: _closeMobileNav,
+              child: Container(
+                color: Colors.black54,
+                width: MediaQuery.of(context).size.width,
+                height: MediaQuery.of(context).size.height,
+              ),
+            ),
+          
+          // Settings drawer
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            right: isMobileNavOpen ? 0 : -MediaQuery.of(context).size.width * 0.7,
+            top: 0,
+            bottom: 0,
+            child: SettingsDrawer(
+              currentPage: currentPage,
+              onSelectOption: _handleSelectOption,
+              onClose: _closeMobileNav,
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: const ExpertBottomNavbar(currentIndex: 2), // Profile tab selected
+    );
   }
 }

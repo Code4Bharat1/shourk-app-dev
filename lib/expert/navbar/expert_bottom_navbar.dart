@@ -52,7 +52,7 @@ class _ExpertBottomNavbarState extends State<ExpertBottomNavbar> {
         destination = const ExpertMainPage();
         break;
       case 4:
-        destination = const ExpertDashboardPage(); // Assuming this is the Expert page
+        destination =  DashboardScreen(); // Assuming this is the Expert page
         break;
     }
 

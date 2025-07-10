@@ -11,16 +11,16 @@ class ExpertUpperNavbar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: 0,
       title: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 18),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+          // IconButton(
+          //   icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 18),
+          //   onPressed: () => Navigator.of(context).pop(),
+          // ),
           const Text(
             'Shourk',
             style: TextStyle(
               color: Colors.black,
               fontWeight: FontWeight.bold,
-              fontSize: 17,
+              fontSize: 21,
             ),
           ),
           const Spacer(),
