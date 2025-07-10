@@ -10,11 +10,15 @@ dependencies:
   flutter:
     sdk: flutter
   intl_phone_field: ^3.2.0
-  http: ^0.13.6
+  http: ^1.1.0
   connectivity_plus: ^5.0.2
   file_picker: ^10.2.0
   shared_preferences: ^2.2.2
   jwt_decoder: ^2.0.1
+  intl: ^0.18.1
+  google_sign_in: ^6.1.5
+  googleapis: ^11.4.0
+  googleapis_auth: ^1.4.1
 
 dev_dependencies:
   flutter_test:
