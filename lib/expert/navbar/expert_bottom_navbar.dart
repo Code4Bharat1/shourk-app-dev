@@ -59,7 +59,7 @@ class _ExpertBottomNavbarState extends State<ExpertBottomNavbar> {
         }
         break;
       case 4:
-        destination = ExpertDashboardPage();
+        destination = DashboardScreen();
         break;
     }
 

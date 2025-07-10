@@ -203,7 +203,7 @@ class _StartPageState extends State<StartPage> {
   final token = prefs.getString('expertToken');
 
   if (token != null) {
-    final response = await http.get(
+    final response = await http.post(
       Uri.parse('http://localhost:5070/api/expertauth/refresh-token'),
       headers: {'Authorization': 'Bearer $token'},
     );

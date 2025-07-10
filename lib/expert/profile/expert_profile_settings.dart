@@ -4,6 +4,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
+import 'package:shourk_application/expert/profile/available_session_lengths.dart';
+import 'package:shourk_application/expert/profile/connect_calendar.dart';
+import 'package:shourk_application/expert/profile/edit_examplequestions.dart';
+import 'package:shourk_application/expert/profile/edit_whattoexpect.dart';
+import 'package:shourk_application/expert/profile/enable_charity.dart';
+import 'package:shourk_application/expert/profile/enable_freesession.dart';
+import 'package:shourk_application/expert/profile/preferred_availability.dart';
+import 'package:shourk_application/expert/profile/video_session_price.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 
 import 'edit_profile_screen.dart'; // <-- Import your EditProfileScreen here
 
@@ -162,21 +171,68 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       MaterialPageRoute(builder: (_) => const EditProfileScreen()),
                     );
                   }),
-                  _settingsTile(context, "Enable Charity"),
-                  _settingsTile(context, "Enable Free Session for New Users"),
-                  _settingsTile(context, "Edit what to Expect"),
-                  _settingsTile(context, "Edit example questions"),
+                  _settingsTile(context, "Enable Charity", onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const EnableCharityScreen()),
+                    );
+                  }),
+                  _settingsTile(context, "Enable First Session Free", onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const EnableFreeSessionScreen()),
+                    );
+                  }),
+                  _settingsTile(context, "Edit what to Expect", onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const EditWhatToExpectPage()),
+                    );
+                  }),
+                  _settingsTile(context, "Edit example questions", onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const EditExampleQuestionsScreen()),
+                    );
+                  }),
                   const SizedBox(height: 24),
                   _sectionHeader("Availability"),
-                  _settingsTile(context, "Set my preferred availability"),
-                  _settingsTile(context, "Connect my calendar"),
+                  _settingsTile(context, "Set my preferred availability", onTap:(){
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PreferredAvailabilityScreen()),
+                    );
+                  }),
+                  _settingsTile(context, "Connect my calendar", onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ConnectCalendarPage()), // Replace with actual calendar connection screen
+                    );
+                  }),
                   const SizedBox(height: 24),
                   _sectionHeader("Offerings"),
-                  _settingsTile(context, "1:1 Video session prices"),
-                  _settingsTile(context, "Available session lengths"),
+                  _settingsTile(context, "1:1 Video session prices", onTap:(){
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const VideoSessionPricePage()), // Replace with actual session prices screen
+                    );
+                  }),
+                  _settingsTile(context, "Available session lengths", onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AvailableSessionLengthsPage()), // Replace with actual session lengths screen
+                    );
+                  }),
                 ],
               ),
             ),
+
+            bottomNavigationBar: ExpertBottomNavbar(
+        currentIndex: 3,
+        // onTap: (index) {
+        //   // TODO: Implement navigation
+        // },
+      ),
     );
   }
 
