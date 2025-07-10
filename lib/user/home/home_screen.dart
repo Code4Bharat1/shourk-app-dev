@@ -224,10 +224,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
       bottomNavigationBar: UserBottomNavbar(
-        currentIndex: 0,
-        onTap: (index) {
-          // TODO: Implement navigation
-        },
+        // currentIndex: 0,
+        // onTap: (index) {
+        //   // TODO: Implement navigation
+        // },
       ),
     );
   }

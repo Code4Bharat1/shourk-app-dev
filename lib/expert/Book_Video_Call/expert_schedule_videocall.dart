@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:shourk_application/expert/Book_Video_Call/expert_booking_profile.dart';
 
 class ExpertVideoCallBookingPage extends StatefulWidget {
-  const ExpertVideoCallBookingPage({Key? key}) : super(key: key);
+  final String expertId;
+
+  const ExpertVideoCallBookingPage({Key? key, required this.expertId}) : super(key: key);
 
   @override
   _VideoCallBookingPageState createState() => _VideoCallBookingPageState();
@@ -10,7 +15,11 @@ class ExpertVideoCallBookingPage extends StatefulWidget {
 
 class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
   String selectedSessionType = '';
-  String selectedTimeSlot = '';
+  List<String> selectedTimeSlots = [];
+  bool isLoading = true;
+  String errorMessage = '';
+  List<Map<String, dynamic>> availabilitySlots = [];
+  bool showLimitMessage = false; // Added to control limit message display
 
   final List<Map<String, String>> sessionTypes = [
     {'label': 'Quick - 15min', 'value': 'quick'},
@@ -19,163 +28,72 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
     {'label': 'All Access - 60min', 'value': 'all_access'},
   ];
 
-  final Map<String, List<String>> timeSlots = {
-    'Monday, Mar 25': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Tuesday, Mar 26': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Wednesday, Mar 27': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Thursday, Mar 28': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Friday, Mar 29': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Saturday, March 30': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Sunday, Mar 31': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Monday, Apr 1': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Tuesday, Apr 2': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Wednesday, Apr 3': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Thursday, Apr 4': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Friday, Apr 5': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Saturday, Apr 6': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Sunday, Apr 7': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Monday, Apr 8': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Tuesday, Apr 9': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Wednesday, Apr 10': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Thursday, April 11': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Friday, April 12': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Saturday, Apr 13': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Sunday, Apr 14': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Monday, Apr 15': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Tuesday, Apr 16': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Wednesday, Apr 17': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Thursday, Apr 18': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Friday, Apr 19': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Saturday, Apr 20': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Sunday, Apr 21': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Monday, Apr 22': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Tuesday, Apr 23': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ],
-  'Wednesday, Apr 24': [
-    '07:00 AM', '08:00 AM', '09:00 AM',
-    '10:00 AM', '11:00 AM', '01:00 PM',
-    '02:00 PM', '03:00 PM', '04:00 PM'
-  ]
-  };
+  @override
+  void initState() {
+    super.initState();
+    _fetchExpertAvailability();
+  }
+
+  Future<void> _fetchExpertAvailability() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/availability/${widget.expertId}'),
+        headers: {'Content-Type': 'application/json'},
+      );
+     
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['data'] != null && data['data']['availability'] != null) {
+          final availability = data['data']['availability'] as List;
+          final List<Map<String, dynamic>> processedSlots = [];
+          
+          for (var slot in availability) {
+            final date = slot['date'] as String?;
+            if (date == null) continue;
+            
+            final times = slot['times'] as Map<String, dynamic>?;
+            if (times == null) continue;
+            
+            final availableTimes = times.entries
+                .where((entry) => entry.value == true)
+                .map((entry) => entry.key)
+                .toList();
+            
+            processedSlots.add({
+              'date': date,
+              'formattedDate': _formatDate(date),
+              'times': availableTimes,
+            });
+          }
+          
+          setState(() {
+            availabilitySlots = processedSlots;
+            isLoading = false;
+          });
+        } else {
+          setState(() {
+            isLoading = false;
+            errorMessage = 'No availability data found';
+          });
+        }
+      } else {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'Failed to load data: ${response.statusCode}';
+        });
+      }
+    } catch (error) {
+      setState(() {
+        isLoading = false;
+        errorMessage = 'Error: $error';
+      });
+    }
+  }
+
+  String _formatDate(String dateString) {
+    final date = DateTime.parse(dateString);
+    return DateFormat('EEEE, MMM d').format(date);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -186,9 +104,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SingleChildScrollView(
@@ -196,7 +112,6 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title
             const Text(
               'Book a video call',
               style: TextStyle(
@@ -207,7 +122,6 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
             ),
             const SizedBox(height: 10),
             
-            // Subtitle
             const Text(
               'Select one of the available time slots below:',
               style: TextStyle(
@@ -243,17 +157,49 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
             ),
             const SizedBox(height: 30),
             
-            // Scrollable Time Slots Section
-            Container(
-              height: MediaQuery.of(context).size.height * 0.5, // Adjust height as needed
-              child: SingleChildScrollView(
+            // Selection counter and limit message
+            if (selectedTimeSlots.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 15),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ...timeSlots.entries.map((entry) => _buildDaySection(entry.key, entry.value)),
+                   // Show limit message when 5 slots are selected
+                    if (selectedTimeSlots.length == 5)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Maximum 5 slots selected. To select more, remove some first.',
+                          style: TextStyle(
+                            color: Colors.red[700],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            ),
+            
+            // Time Slots Section
+            if (isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (errorMessage.isNotEmpty)
+              Center(child: Text(errorMessage, style: const TextStyle(color: Colors.red)))
+            else if (availabilitySlots.isEmpty)
+              const Center(child: Text('No available time slots'))
+            else
+              Container(
+                height: MediaQuery.of(context).size.height * 0.5,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      ...availabilitySlots.map((slot) => 
+                        _buildDaySection(slot['formattedDate'], slot['date'], slot['times']))
+                    ],
+                  ),
+                ),
+              ),
             
             const SizedBox(height: 30),
             
@@ -320,11 +266,10 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
-                  // _handleBookingRequest();
                   Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => ExpertBookingScreen()),
-            );
+                    context,
+                    MaterialPageRoute(builder: (context) => ExpertBookingScreen()),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
@@ -375,124 +320,114 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
     );
   }
 
-  Widget _buildDaySection(String day, List<String> times) {
+  Widget _buildDaySection(String formattedDay, String originalDate, List<String> times) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          day,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
+        RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: formattedDay,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              TextSpan(
+                text: '  (${times.length} times available)',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 15),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            childAspectRatio: 2.5,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-          ),
-          itemCount: times.length,
-          itemBuilder: (context, index) {
-            String timeSlot = '$day-${times[index]}';
-            bool isSelected = selectedTimeSlot == timeSlot;
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedTimeSlot = timeSlot;
-                });
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFFEDECE8) : Colors.white,
-                  border: Border.all(
-                    color: Colors.grey.shade300,
-                    width: 1,
+        
+        if (times.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 30),
+            child: const Text(
+              'No available times for this date',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 2.5,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemCount: times.length,
+            itemBuilder: (context, index) {
+              final timeSlot = times[index];
+              final uniqueKey = '$originalDate-$timeSlot';
+              final isSelected = selectedTimeSlots.contains(uniqueKey);
+              final isDisabled = !isSelected && selectedTimeSlots.length >= 5;
+
+              return GestureDetector(
+                onTap: () {
+                  // Show message when trying to select beyond limit
+                  if (isDisabled) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Maximum 5 slots selected. Remove some to select more.'),
+                        backgroundColor: Colors.red[700],
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                    return;
+                  }
+                  
+                  setState(() {
+                    if (isSelected) {
+                      selectedTimeSlots.remove(uniqueKey);
+                    } else {
+                      selectedTimeSlots.add(uniqueKey);
+                    }
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected 
+                        ? const Color(0xFFEDECE8) 
+                        : (isDisabled ? Colors.grey.shade100 : Colors.white),
+                    border: Border.all(
+                      color: isDisabled ? Colors.grey.shade300 : Colors.grey.shade400,
+                      width: 1,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: Text(
-                    times[index],
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                  child: Center(
+                    child: Text(
+                      timeSlot,
+                      style: TextStyle(
+                        color: isDisabled ? Colors.grey : Colors.black,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          ),
         const SizedBox(height: 25),
       ],
-    );
-  }
-
-  // CHANGE: Added method to handle booking request
-  void _handleBookingRequest() {
-    if (selectedSessionType.isEmpty || selectedTimeSlot.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select both session type and time slot'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    // Show confirmation dialog
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Booking Confirmation'),
-          content: Text(
-            'Session: ${sessionTypes.firstWhere((type) => type['value'] == selectedSessionType)['label']}\n'
-            'Time: ${selectedTimeSlot.split('-')[1]}\n'
-            'Day: ${selectedTimeSlot.split('-')[0]}\n'
-            'Price: \$550',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // CHANGE: Navigate back to home or show success message
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/home',
-                  (route) => false,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Video call booked successfully!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-              ),
-              child: const Text(
-                'Confirm Booking',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

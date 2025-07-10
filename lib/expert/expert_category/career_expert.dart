@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shourk_application/features/expert_profile/expert_detail_screen.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
 import 'package:shourk_application/shared/widgets/expert_card.dart';
 import 'package:shourk_application/expert/expert_category/top_expert.dart';
@@ -297,12 +298,12 @@ class ModernExpertCard extends StatelessWidget {
     return InkWell(
       onTap: () {
         // Navigate to expert details screen
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (_) => ExpertDetailScreen(expert: expert),
-        //   ),
-        // );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ExpertDetailScreen(expertId: expert.id)
+          ),
+        );
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
