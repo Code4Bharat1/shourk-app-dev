@@ -49,17 +49,10 @@ class _ExpertBottomNavbarState extends State<ExpertBottomNavbar> {
         destination = const ExpertProfilePage();
         break;
       case 3:
-        if (expertId != null) {
-          destination = ProfileSettingsScreen(expertId: expertId);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Expert ID not found. Please login again.')),
-          );
-          return;
-        }
+        destination = const ExpertMainPage();
         break;
       case 4:
-        destination = DashboardScreen();
+        destination =  DashboardScreen(); // Assuming this is the Expert page
         break;
     }
 
@@ -114,28 +107,28 @@ class _ExpertBottomNavbarState extends State<ExpertBottomNavbar> {
     );
   }
 
-  void _showLogoutConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('expertToken');
-              Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-            },
-            child: const Text('Logout', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
+// Add this helper method for logout confirmation
+void _showLogoutConfirmation(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Logout'),
+      content: const Text('Are you sure you want to logout?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);  // Close dialog
+            // AuthService().logout();
+            // Navigator.pushReplacementNamed(context, '/login');
+          },
+          child: const Text('Logout', style: TextStyle(color: Colors.red)),
+        ),
+      ],
+    ),
+  );
+}
 }

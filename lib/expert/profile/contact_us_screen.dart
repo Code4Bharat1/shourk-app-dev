@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
+import 'package:intl/intl.dart';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
-import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
-import 'package:shourk_application/expert/profile/contact_us_screen.dart';
-import 'package:shourk_application/expert/profile/payment_history.dart';
-import 'package:shourk_application/expert/profile/account_deactivate.dart';
-import 'package:shourk_application/expert/profile/payment_option.dart';
+import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
+import 'package:shourk_application/expert/profile/contact_us_screen.dart';
+import 'package:shourk_application/expert/profile/account_deactivate.dart';
+import 'package:shourk_application/expert/profile/payment_option.dart';
+import 'package:shourk_application/expert/profile/giftcard_selection_option.dart';
 
-// Settings Drawer Widget (Reusable)
+// Reusable SettingsDrawer widget
 class SettingsDrawer extends StatelessWidget {
   final String currentPage;
   final Function(String) onSelectOption;
@@ -87,26 +88,17 @@ class SettingsDrawer extends StatelessWidget {
   }
 }
 
-class GiftCardSelectPage extends StatefulWidget {
-  const GiftCardSelectPage({super.key});
+class ContactUsScreen extends StatefulWidget {
+  const ContactUsScreen({super.key});
 
   @override
-  State<GiftCardSelectPage> createState() => _GiftCardSelectPageState();
+  State<ContactUsScreen> createState() => _ContactUsScreenState();
 }
 
-class _GiftCardSelectPageState extends State<GiftCardSelectPage> {
-  String? selectedAmount;
-  final List<String> predefinedAmounts = ['200', '500', '750', '1000'];
-  final TextEditingController customAmountController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController phoneController = TextEditingController();
-  final TextEditingController messageController = TextEditingController();
-
-  bool showCustomField = false;
-  
+class _ContactUsScreenState extends State<ContactUsScreen> {
   // Drawer state variables
   bool isMobileNavOpen = false;
-  String currentPage = 'Gift Card';
+  String currentPage = 'Contact Us';
   
   // User data
   String? expertId;
@@ -192,20 +184,18 @@ class _GiftCardSelectPageState extends State<GiftCardSelectPage> {
         );
         break;
       case 'Gift Card':
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const GiftCardSelectPage()),
+        );
+        break;
+      case 'Contact Us':
         // Already on this page
         _closeMobileNav();
         break;
-      case 'Contact Us':
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ContactUsScreen()),
-        );
-        break;
       case 'Payment History':
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const PaymentHistoryPage()),
-        );
+        // Handle payment history navigation
+        _closeMobileNav();
         break;
       case 'Deactivate account':
         Navigator.pushReplacement(
@@ -230,32 +220,22 @@ class _GiftCardSelectPageState extends State<GiftCardSelectPage> {
     );
   }
 
-  bool get isContinueEnabled =>
-      selectedAmount != null && emailController.text.isNotEmpty;
-
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 600;
-    final chipPadding = isSmallScreen
-        ? const EdgeInsets.symmetric(horizontal: 16, vertical: 10)
-        : const EdgeInsets.symmetric(horizontal: 24, vertical: 12);
-
     final userName = '$firstName $lastName'.trim();
     final displayName = userName.isNotEmpty ? userName : 'Expert';
 
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: const ExpertUpperNavbar(),
-      bottomNavigationBar: const ExpertBottomNavbar(currentIndex: 2),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Profile header section
-                Row(
+          Column(
+            children: [
+              // Profile header section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     // Greeting and page title
@@ -265,7 +245,7 @@ class _GiftCardSelectPageState extends State<GiftCardSelectPage> {
                         Text("Hi, $displayName", 
                             style: const TextStyle(fontSize: 16, color: Colors.grey)),
                         const SizedBox(height: 4),
-                        const Text("Gift Card",
+                        const Text("Contact Us",
                             style: TextStyle(
                                 fontSize: 24, 
                                 fontWeight: FontWeight.bold)),
@@ -341,10 +321,13 @@ class _GiftCardSelectPageState extends State<GiftCardSelectPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                
-                // Settings header row
-                Row(
+              ),
+              const SizedBox(height: 10),
+              
+              // Settings header row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Row(
@@ -360,221 +343,221 @@ class _GiftCardSelectPageState extends State<GiftCardSelectPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-
-                // Header Section
-                Center(
+              ),
+              const SizedBox(height: 10),
+              
+              // Original Contact Us content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Send a Gift Card',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Gift a thoughtful session to a friend, family members or colleague.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-                const Divider(height: 1),
-                const SizedBox(height: 24),
-
-                const Text('Choose Amount',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                const Text('Select a predefined amount or enter a custom value.',
-                    style: TextStyle(color: Colors.grey)),
-                const SizedBox(height: 20),
-
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: isSmallScreen ? 2 : 4,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 2.0,
-                  children: predefinedAmounts.map((amount) {
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          selectedAmount = amount;
-                          showCustomField = false;
-                          customAmountController.clear();
-                        });
-                      },
-                      child: Container(
+                      const SizedBox(height: 10),
+                      
+                      // Social Media Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: selectedAmount == amount && !showCustomField
-                              ? Colors.blue[50]
-                              : Colors.grey[50],
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: selectedAmount == amount && !showCustomField
-                                ? Colors.blue
-                                : Colors.grey[300]!,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'SAR $amount',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: selectedAmount == amount && !showCustomField
-                                  ? Colors.blue
-                                  : Colors.black,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              spreadRadius: 1,
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
                             ),
-                          ),
+                          ],
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 24),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            showCustomField = !showCustomField;
-                            if (!showCustomField) {
-                              customAmountController.clear();
-                              selectedAmount = null;
-                            }
-                          });
-                        },
-                        child: Container(
-                          padding: chipPadding,
-                          decoration: BoxDecoration(
-                            color: showCustomField ? Colors.blue[50] : Colors.grey[50],
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: showCustomField ? Colors.blue : Colors.grey[300]!,
-                              width: 1.5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Social Media Icons
+                            Row(
+                              children: [
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.facebook, size: 20),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.play_arrow, size: 20),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.camera_alt, size: 20),
+                                ),
+                              ],
                             ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Custom Amount',
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Our Social Media',
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: showCustomField ? Colors.blue : Colors.black,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (showCustomField) ...[
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextField(
-                          controller: customAmountController,
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            setState(() {
-                              selectedAmount = value.isNotEmpty ? value : null;
-                            });
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'Enter amount',
-                            prefixText: 'SAR ',
-                            prefixStyle: const TextStyle(fontWeight: FontWeight.bold),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'We\'d love to hear from you.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 16),
-                          ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.camera_alt, size: 24),
+                                ),
+                                const SizedBox(width: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.alternate_email, size: 24),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 32),
-
-                const Text('Recipient Email*',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    hintText: 'recipient@example.com',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                const Text('Recipient Phone Number (Optional)',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    hintText: '+1 (555) 123-4567',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                const Text('Personalised Message (Optional)',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                const Text('Write a short message to the recipient',
-                    style: TextStyle(color: Colors.grey)),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: messageController,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText: 'Type your message here...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  ),
-                ),
-                const SizedBox(height: 40),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: isContinueEnabled
-                        ? () => Navigator.pushNamed(context, '/gift-card-form')
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 20),
+                      
+                      // Chat Support Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              spreadRadius: 1,
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.chat_bubble_outline, size: 32, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Chat to Support',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'We\'re here to help',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            OutlinedButton(
+                              onPressed: () {},
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.grey),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                              ),
+                              child: const Text(
+                                'Chat to Support',
+                                style: TextStyle(color: Colors.black),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    child: const Text(
-                      'Proceed to Payment',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
+                      const SizedBox(height: 20),
+                      
+                      // Email Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              spreadRadius: 1,
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.alternate_email, size: 32, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Leave us a Mail',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'If not available, you can send us an email at',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'shourk@gmail.com',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20), // Bottom padding
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-              ],
-            ),
+              ),
+            ],
           ),
           
           // Drawer overlay
@@ -602,15 +585,7 @@ class _GiftCardSelectPageState extends State<GiftCardSelectPage> {
           ),
         ],
       ),
+      bottomNavigationBar: const ExpertBottomNavbar(currentIndex: 2), // Profile tab selected
     );
-  }
-
-  @override
-  void dispose() {
-    customAmountController.dispose();
-    emailController.dispose();
-    phoneController.dispose();
-    messageController.dispose();
-    super.dispose();
   }
 }

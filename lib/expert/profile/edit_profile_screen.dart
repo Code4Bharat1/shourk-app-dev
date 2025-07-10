@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'package:shourk_application/shared/models/expert_model.dart';
-import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final ExpertModel? expert;
@@ -119,75 +120,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    GestureDetector(
-                      onTap: pickProfileImage,
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundImage: profileProvider,
+      backgroundColor: Colors.white,
+      appBar: ExpertUpperNavbar(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: ListView(  
+                children: [
+                  _buildTextField("First Name", _firstNameController),
+                  const SizedBox(height: 16),
+                  _buildTextField("Last Name", _lastNameController),
+                  const SizedBox(height: 16),
+                  _buildTextField("Mobile Number", _mobileController),
+                  const SizedBox(height: 16),
+                  _buildTextField("Email", _emailController),
+                  const SizedBox(height: 30),
+                  ElevatedButton(
+                    onPressed: _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: firstNameController,
-                      decoration: const InputDecoration(labelText: 'First Name'),
-                    ),
-                    TextField(
-                      controller: lastNameController,
-                      decoration: const InputDecoration(labelText: 'Last Name'),
-                    ),
-                    TextField(
-                      controller: areaOfExpertiseController,
-                      decoration: const InputDecoration(labelText: 'Area of Expertise'),
-                    ),
-                    // TextField(
-                    //   controller: countryController,
-                    //   decoration: const InputDecoration(labelText: 'Country'),
-                    // ),
-                  ],
-                ),
-              ),
-            ),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: phoneController,
-                      decoration: const InputDecoration(labelText: 'Phone'),
-                    ),
-                    TextField(
-                      controller: emailController,
-                      decoration: const InputDecoration(labelText: 'Email'),
-                    ),
-                    TextField(
-                      controller: dateOfBirthController,
-                      decoration: const InputDecoration(labelText: 'Date of Birth (YYYY-MM-DD)'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: aboutMeController,
-                      maxLines: 5,
-                      decoration: const InputDecoration(labelText: 'About'),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     const SizedBox(height: 16),
                     const Text('Things I Can Advise On', style: TextStyle(fontWeight: FontWeight.bold)),

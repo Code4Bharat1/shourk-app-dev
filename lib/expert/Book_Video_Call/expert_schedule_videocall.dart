@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:shourk_application/expert/Book_Video_Call/expert_booking_profile.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
+import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 
 class ExpertVideoCallBookingPage extends StatefulWidget {
   final String expertId;
@@ -99,14 +101,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      appBar: ExpertUpperNavbar(),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -290,6 +285,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
           ],
         ),
       ),
+      bottomNavigationBar: const ExpertBottomNavbar(currentIndex: 1),
     );
   }
 
@@ -425,9 +421,9 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                 ),
               );
             },
-          ),
+          ),   
         const SizedBox(height: 25),
-      ],
+      ],     
     );
   }
 }
