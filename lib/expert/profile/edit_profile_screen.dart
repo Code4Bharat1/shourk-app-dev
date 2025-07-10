@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -16,6 +17,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   bool _isLoading = true;
+
+  final String baseUrl = "http://localhost:5070/api/expertauth"; // Define baseUrl
 
   @override
   void initState() {
@@ -36,11 +39,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         return;
       }
 
+      final decodedToken = JwtDecoder.decode(token);
+      final expertId = decodedToken['_id'];
+
       final response = await http.get(
-        Uri.parse('http://localhost:5070/api/expertauth/get-profile'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+        Uri.parse('$baseUrl/$expertId'), // Correct endpoint
+        headers: {'Authorization': 'Bearer $token'},
       );
 
       if (response.statusCode == 200) {
@@ -73,8 +77,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (token == null) return;
 
+      final decodedToken = JwtDecoder.decode(token);
+      final expertId = decodedToken['_id'];
+
       final response = await http.put(
-        Uri.parse('http://localhost:5070/api/expertauth/update-profile'),
+        Uri.parse('http://localhost:5070/api/expertauth/updateexpert/$expertId'), // Updated URL
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

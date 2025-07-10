@@ -15,10 +15,11 @@ class ExpertVideoCallBookingPage extends StatefulWidget {
 
 class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
   String selectedSessionType = '';
-  String selectedTimeSlot = '';
+  List<String> selectedTimeSlots = [];
   bool isLoading = true;
   String errorMessage = '';
-  Map<String, List<String>> timeSlots = {};
+  List<Map<String, dynamic>> availabilitySlots = [];
+  bool showLimitMessage = false; // Added to control limit message display
 
   final List<Map<String, String>> sessionTypes = [
     {'label': 'Quick - 15min', 'value': 'quick'},
@@ -44,7 +45,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
         final data = json.decode(response.body);
         if (data['data'] != null && data['data']['availability'] != null) {
           final availability = data['data']['availability'] as List;
-          final Map<String, List<String>> processedSlots = {};
+          final List<Map<String, dynamic>> processedSlots = [];
           
           for (var slot in availability) {
             final date = slot['date'] as String?;
@@ -53,20 +54,20 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
             final times = slot['times'] as Map<String, dynamic>?;
             if (times == null) continue;
             
-            // Extract available times where value is true
             final availableTimes = times.entries
                 .where((entry) => entry.value == true)
-                .map((entry) => entry.key) // Use the time string directly
+                .map((entry) => entry.key)
                 .toList();
             
-            if (availableTimes.isNotEmpty) {
-              final formattedDate = _formatDate(date);
-              processedSlots[formattedDate] = availableTimes;
-            }
+            processedSlots.add({
+              'date': date,
+              'formattedDate': _formatDate(date),
+              'times': availableTimes,
+            });
           }
           
           setState(() {
-            timeSlots = processedSlots;
+            availabilitySlots = processedSlots;
             isLoading = false;
           });
         } else {
@@ -156,12 +157,36 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
             ),
             const SizedBox(height: 30),
             
+            // Selection counter and limit message
+            if (selectedTimeSlots.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 15),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                   // Show limit message when 5 slots are selected
+                    if (selectedTimeSlots.length == 5)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Maximum 5 slots selected. To select more, remove some first.',
+                          style: TextStyle(
+                            color: Colors.red[700],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            
             // Time Slots Section
             if (isLoading)
               const Center(child: CircularProgressIndicator())
             else if (errorMessage.isNotEmpty)
               Center(child: Text(errorMessage, style: const TextStyle(color: Colors.red)))
-            else if (timeSlots.isEmpty)
+            else if (availabilitySlots.isEmpty)
               const Center(child: Text('No available time slots'))
             else
               Container(
@@ -169,7 +194,8 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      ...timeSlots.entries.map((entry) => _buildDaySection(entry.key, entry.value)),
+                      ...availabilitySlots.map((slot) => 
+                        _buildDaySection(slot['formattedDate'], slot['date'], slot['times']))
                     ],
                   ),
                 ),
@@ -294,61 +320,112 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
     );
   }
 
-  Widget _buildDaySection(String day, List<String> times) {
+  Widget _buildDaySection(String formattedDay, String originalDate, List<String> times) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          day,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
+        RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: formattedDay,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              TextSpan(
+                text: '  (${times.length} times available)',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 15),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            childAspectRatio: 2.5,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-          ),
-          itemCount: times.length,
-          itemBuilder: (context, index) {
-            String timeSlot = '$day-${times[index]}';
-            bool isSelected = selectedTimeSlot == timeSlot;
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedTimeSlot = timeSlot;
-                });
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFFEDECE8) : Colors.white,
-                  border: Border.all(
-                    color: Colors.grey.shade300,
-                    width: 1,
+        
+        if (times.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 30),
+            child: const Text(
+              'No available times for this date',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 2.5,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemCount: times.length,
+            itemBuilder: (context, index) {
+              final timeSlot = times[index];
+              final uniqueKey = '$originalDate-$timeSlot';
+              final isSelected = selectedTimeSlots.contains(uniqueKey);
+              final isDisabled = !isSelected && selectedTimeSlots.length >= 5;
+
+              return GestureDetector(
+                onTap: () {
+                  // Show message when trying to select beyond limit
+                  if (isDisabled) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Maximum 5 slots selected. Remove some to select more.'),
+                        backgroundColor: Colors.red[700],
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                    return;
+                  }
+                  
+                  setState(() {
+                    if (isSelected) {
+                      selectedTimeSlots.remove(uniqueKey);
+                    } else {
+                      selectedTimeSlots.add(uniqueKey);
+                    }
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected 
+                        ? const Color(0xFFEDECE8) 
+                        : (isDisabled ? Colors.grey.shade100 : Colors.white),
+                    border: Border.all(
+                      color: isDisabled ? Colors.grey.shade300 : Colors.grey.shade400,
+                      width: 1,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: Text(
-                    times[index],
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                  child: Center(
+                    child: Text(
+                      timeSlot,
+                      style: TextStyle(
+                        color: isDisabled ? Colors.grey : Colors.black,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          ),
         const SizedBox(height: 25),
       ],
     );
