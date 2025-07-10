@@ -1,4 +1,3 @@
-// Updated Expert Model
 class ExpertModel {
   final String id;
   final String firstName;
@@ -9,6 +8,11 @@ class ExpertModel {
   final String? experience;
   final double price;
   final String? about;
+  final String? phone;
+final String? email;
+final String? areaOfExpertise;
+final String? dateOfBirth;
+
   final List<String> strengths;
   final Map<String, List<String>> whatToExpect;
   final List<ReviewModel> reviews;
@@ -18,8 +22,12 @@ class ExpertModel {
   final int charityPercentage;
   final String? designation;
   final List<String>? advice;
-  final List<DayAvailability> availability;  // New field
-  final int monthsRange;  // New field
+  final List<DayAvailability> availability;
+  final int monthsRange;
+
+  // Newly added:
+  final bool? notificationsEnabled;
+  final Map<String, String>? socialLinks;
 
   ExpertModel({
     required this.id,
@@ -31,6 +39,11 @@ class ExpertModel {
     this.experience,
     required this.price,
     this.about,
+    this.phone,
+this.email,
+this.areaOfExpertise,
+this.dateOfBirth,
+
     required this.strengths,
     required this.whatToExpect,
     required this.reviews,
@@ -40,13 +53,15 @@ class ExpertModel {
     required this.charityPercentage,
     this.designation,
     this.advice,
-    required this.availability,  // New required parameter
-    required this.monthsRange,  // New required parameter
+    required this.availability,
+    required this.monthsRange,
+    this.notificationsEnabled,
+    this.socialLinks,
   });
 
   String get name => '$firstName $lastName';
   double get rating => averageRating;
-  
+
   String get imageUrl {
     if (photoFile == null) return '';
     if (photoFile!.startsWith('http')) return photoFile!;
@@ -60,15 +75,21 @@ class ExpertModel {
       lastName: json['lastName'] ?? '',
       title: json['title'] ?? json['profession'],
       photoFile: json['photoFile'],
+      phone: json['phone'],
+email: json['email'],
+areaOfExpertise: json['areaOfExpertise'],
+dateOfBirth: json['dateOfBirth'],
+
       averageRating: (json['averageRating'] ?? 0).toDouble(),
-      experience: json['experience'] ?? '',
+      experience: json['experience'],
       price: (json['price'] ?? 0).toDouble(),
-      about: json['about'] ?? '',
+      about: json['about'],
       strengths: List<String>.from(json['strengths'] ?? []),
       whatToExpect: _parseWhatToExpect(json['whatToExpect']),
       reviews: (json['reviews'] as List<dynamic>?)
-          ?.map((review) => ReviewModel.fromJson(review))
-          .toList() ?? [],
+              ?.map((review) => ReviewModel.fromJson(review))
+              .toList() ??
+          [],
       category: json['category'] ?? '',
       freeSessionEnabled: json['freeSessionEnabled'] ?? false,
       charityEnabled: json['charityEnabled'] ?? false,
@@ -76,10 +97,47 @@ class ExpertModel {
       designation: json['designation'],
       advice: List<String>.from(json['advice'] ?? []),
       availability: (json['availability'] as List<dynamic>?)
-          ?.map((avail) => DayAvailability.fromJson(avail))
-          .toList() ?? [],
+              ?.map((avail) => DayAvailability.fromJson(avail))
+              .toList() ??
+          [],
       monthsRange: json['monthsRange'] ?? 1,
+      notificationsEnabled: json['notificationsEnabled'],
+      socialLinks: json['socialLinks'] != null
+          ? Map<String, String>.from(json['socialLinks'])
+          : null,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'firstName': firstName,
+      'lastName': lastName,
+      'title': title,
+      'photoFile': photoFile,
+      'averageRating': averageRating,
+      'experience': experience,
+      'price': price,
+      'phone': phone,
+'email': email,
+'areaOfExpertise': areaOfExpertise,
+'dateOfBirth': dateOfBirth,
+
+      'about': about,
+      'strengths': strengths,
+      'whatToExpect': whatToExpect,
+      'reviews': reviews.map((r) => r.toJson()).toList(),
+      'category': category,
+      'freeSessionEnabled': freeSessionEnabled,
+      'charityEnabled': charityEnabled,
+      'charityPercentage': charityPercentage,
+      'designation': designation,
+      'advice': advice,
+      'availability': availability.map((a) => a.toJson()).toList(),
+      'monthsRange': monthsRange,
+      'notificationsEnabled': notificationsEnabled,
+      'socialLinks': socialLinks,
+    };
   }
 
   static Map<String, List<String>> _parseWhatToExpect(dynamic data) {
@@ -119,6 +177,16 @@ class ReviewModel {
       comment: json['comment'] ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'reviewerName': reviewerName,
+      'reviewerTitle': reviewerTitle,
+      'reviewerImage': reviewerImage,
+      'rating': rating,
+      'comment': comment,
+    };
+  }
 }
 
 class DayAvailability {
@@ -133,7 +201,15 @@ class DayAvailability {
       slots: List<String>.from(json['slots'] ?? []),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'date': date,
+      'slots': slots,
+    };
+  }
 }
+
 
 List<ExpertModel> dummyExperts = [
   ExpertModel(

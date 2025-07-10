@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 
 class AvailableSessionLengthsPage extends StatefulWidget {
   const AvailableSessionLengthsPage({super.key});
@@ -131,6 +132,12 @@ class _AvailableSessionLengthsPageState extends State<AvailableSessionLengthsPag
             ),
           ],
         ),
+      ),
+          bottomNavigationBar: ExpertBottomNavbar(
+        currentIndex: 3,
+        // onTap: (index) {
+        //   // TODO: Implement navigation
+        // },
       ),
     );
   }

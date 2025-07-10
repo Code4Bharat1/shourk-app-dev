@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/calendar/v3.dart' as calendar;
 import 'package:googleapis_auth/auth_io.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 
 class ConnectCalendarPage extends StatefulWidget {
   const ConnectCalendarPage({super.key});
@@ -327,6 +328,12 @@ class _ConnectCalendarPageState extends State<ConnectCalendarPage> {
               ),
           ],
         ),
+      ),
+          bottomNavigationBar: ExpertBottomNavbar(
+        currentIndex: 3,
+        // onTap: (index) {
+        //   // TODO: Implement navigation
+        // },
       ),
     );
   }

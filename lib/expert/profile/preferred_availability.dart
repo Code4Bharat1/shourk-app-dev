@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:intl/intl.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart'; 
 
 class PreferredAvailabilityScreen extends StatefulWidget {
   const PreferredAvailabilityScreen({super.key});
@@ -29,12 +30,15 @@ class _PreferredAvailabilityScreenState extends State<PreferredAvailabilityScree
     _loadAvailability();
   }
 
-  void _initializeTimeSlots() {
-    _timeSlots = [
-      '6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM', '12 PM',
-      '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM', '10 PM'
-    ];
-  }
+void _initializeTimeSlots() {
+  _timeSlots = List.generate(17, (index) {
+    final hour = 6 + index;
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final hour12 = hour > 12 ? hour - 12 : hour;
+    return '$hour12 $period';  // ✅ Remove ":00" to match backend
+  });
+}
+
 
   void _generateMonthDays() {
     final now = DateTime.now();
@@ -48,15 +52,16 @@ class _PreferredAvailabilityScreenState extends State<PreferredAvailabilityScree
   }
 
   void _initializeEmptyAvailability() {
-    _availability = {};
-    for (var day in _monthDays) {
-      final dayKey = DateFormat('yyyy-MM-dd').format(day);
-      _availability[dayKey] = {};
-      for (var timeSlot in _timeSlots) {
-        _availability[dayKey]![timeSlot] = false;
-      }
+  _availability = {};
+  for (var day in _monthDays) {
+    final dayKey = DateFormat('yyyy-MM-dd').format(day);
+    _availability[dayKey] = {};
+    for (var timeSlot in _timeSlots) {
+      _availability[dayKey]![timeSlot] = false;
     }
   }
+}
+
 
   Future<void> _loadAvailability() async {
     try {
@@ -377,6 +382,12 @@ class _PreferredAvailabilityScreenState extends State<PreferredAvailabilityScree
                 ),
               ],
             ),
+                bottomNavigationBar: ExpertBottomNavbar(
+        currentIndex: 3,
+        // onTap: (index) {
+        //   // TODO: Implement navigation
+        // },
+      ),
     );
   }
 }

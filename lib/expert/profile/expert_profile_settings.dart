@@ -13,6 +13,7 @@ import 'package:shourk_application/expert/profile/enable_freesession.dart';
 import 'package:shourk_application/expert/profile/preferred_availability.dart';
 import 'package:shourk_application/expert/profile/video_session_price.dart';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
+import 'package:shourk_application/shared/models/expert_model.dart'; // Import your ExpertModel if needed
 
 import 'edit_profile_screen.dart'; // <-- Import your EditProfileScreen here
 
@@ -109,10 +110,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                           expertData?['areaOfExpertise'] ?? '',
                           style: const TextStyle(color: Colors.grey),
                         ),
-                        Text(
-                          expertData?['country'] ?? '',
-                          style: const TextStyle(color: Colors.grey),
-                        ),
+                        // Text(
+                        //   expertData?['country'] ?? '',
+                        //   style: const TextStyle(color: Colors.grey),
+                        // ),
                       ],
                     ),
                   ),
@@ -161,14 +162,21 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     "• Complete 10+ paid bookings.\n"
                     "• Generate at least \$1,000 on the platform.\n"
                     "• Maintain a rating above 4.8.",
-                    style: TextStyle(fontSize: 14, color: Colors.black),
+                    style: TextStyle(fontSize: 14, color: Colors.blue),
                   ),
                   const SizedBox(height: 24),
                   _sectionHeader("Settings"),
                   _buildBlackButtonTile(context, "Edit Profile", onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                     MaterialPageRoute(
+  builder: (_) => EditProfileScreen(
+    expert: ExpertModel.fromJson(expertData!),
+  ),
+),
+
+
+
                     );
                   }),
                   _settingsTile(context, "Enable Charity", onTap: () {
@@ -186,7 +194,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   _settingsTile(context, "Edit what to Expect", onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const EditWhatToExpectPage()),
+                      MaterialPageRoute(builder: (_) => const EditWhatToExpectScreen()),
                     );
                   }),
                   _settingsTile(context, "Edit example questions", onTap: () {
