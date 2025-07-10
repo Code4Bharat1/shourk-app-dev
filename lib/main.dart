@@ -29,6 +29,9 @@ import 'package:shourk_application/expert/expert_category/wellness_expert.dart';
 //User panel 
 import 'package:shourk_application/user/profile/user_profile_screen.dart';
 import 'package:shourk_application/user/profile/user_payment_method.dart';
+import 'package:shourk_application/user/profile/user_giftcard.dart';
+import 'package:shourk_application/user/profile/user_contactus.dart';
+import 'package:shourk_application/user/profile/user_paymenthistory.dart';
 
 import 'user/navbar/user_bottom_navbar.dart';
 
@@ -59,11 +62,17 @@ class MyApp extends StatelessWidget {
         '/user-login': (context) => const UserLogin(),
         '/user-register': (context) => const RegisterPage(),
 
+        // '/user_profile_screen': (context) => const UserProfilePage(),
         '/user_profile_screen': (context) => const UserProfilePage(),
         '/payment_method': (context) => PaymentDashboard(),
             // '/search': (context) => SearchPage(),
             // '/video_call': (context) => VideoCallPage(),
+            // '/user-profile': (context) => UserProfilePage(),
             '/user-profile': (context) => UserProfilePage(),
+            '/user-giftcard': (context) => UserGiftCardSelectPage(),
+            '/user-contactus': (context) => UserContactUsScreen(),
+            '/user-paymenthistory': (context) => UserPaymentHistoryPage(),
+            
 
         // Expert Routes
         '/home': (context) => const HomeScreen(), 
