@@ -81,31 +81,43 @@ class _VideoCallPageState extends State<VideoCallPage> {
       print('Bookings response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final rawData = json.decode(response.body);
         
-        if (data is List) {
-          setState(() {
-            _bookings = data.map((item) => Booking.fromJson(item)).toList();
-            _loadingBookings = false;
-            _bookingsError = null;
-          });
-          print('Loaded ${_bookings.length} bookings');
-        } else if (data is Map && data.containsKey('bookings')) {
-          // Handle case where bookings are nested in response
-          final bookingsList = data['bookings'] as List;
-          setState(() {
-            _bookings = bookingsList.map((item) => Booking.fromJson(item)).toList();
-            _loadingBookings = false;
-            _bookingsError = null;
-          });
-          print('Loaded ${_bookings.length} bookings from nested response');
-        } else {
-          setState(() {
-            _loadingBookings = false;
-            _bookingsError = 'Unexpected response format';
-          });
-          print('Unexpected response format for bookings');
+        // Handle different response formats
+        List<dynamic> bookingsList = [];
+        
+        if (rawData is List) {
+          bookingsList = rawData;
+        } else if (rawData is Map) {
+          if (rawData.containsKey('bookings') && rawData['bookings'] is List) {
+            bookingsList = rawData['bookings'] as List;
+          } else if (rawData.containsKey('data') && rawData['data'] is List) {
+            bookingsList = rawData['data'] as List;
+          } else {
+            // If it's a single booking object, wrap it in a list
+            bookingsList = [rawData];
+          }
         }
+        
+        List<Booking> parsedBookings = [];
+        for (var item in bookingsList) {
+          try {
+            if (item is Map<String, dynamic>) {
+              parsedBookings.add(Booking.fromJson(item));
+            }
+          } catch (e) {
+            print('Error parsing booking item: $e');
+            print('Item: $item');
+            // Continue with other items
+          }
+        }
+        
+        setState(() {
+          _bookings = parsedBookings;
+          _loadingBookings = false;
+          _bookingsError = null;
+        });
+        print('Loaded ${_bookings.length} bookings');
       } else {
         setState(() {
           _loadingBookings = false;
@@ -139,31 +151,54 @@ class _VideoCallPageState extends State<VideoCallPage> {
       print('Sessions response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final rawData = json.decode(response.body);
         
         List<Session> sessions = [];
         
-        if (data is Map) {
+        if (rawData is Map) {
           // Handle expert sessions
-          if (data.containsKey('expertSessions') && data['expertSessions'] is List) {
-            final expertSessions = (data['expertSessions'] as List)
-                .map((item) => Session.fromExpertJson(item))
-                .toList();
-            sessions.addAll(expertSessions);
+          if (rawData.containsKey('expertSessions') && rawData['expertSessions'] is List) {
+            final expertSessions = rawData['expertSessions'] as List;
+            for (var item in expertSessions) {
+              try {
+                if (item is Map<String, dynamic>) {
+                  sessions.add(Session.fromExpertJson(item));
+                }
+              } catch (e) {
+                print('Error parsing expert session: $e');
+                print('Item: $item');
+              }
+            }
             print('Added ${expertSessions.length} expert sessions');
           }
           
           // Handle user sessions
-          if (data.containsKey('userSessions') && data['userSessions'] is List) {
-            final userSessions = (data['userSessions'] as List)
-                .map((item) => Session.fromUserJson(item))
-                .toList();
-            sessions.addAll(userSessions);
+          if (rawData.containsKey('userSessions') && rawData['userSessions'] is List) {
+            final userSessions = rawData['userSessions'] as List;
+            for (var item in userSessions) {
+              try {
+                if (item is Map<String, dynamic>) {
+                  sessions.add(Session.fromUserJson(item));
+                }
+              } catch (e) {
+                print('Error parsing user session: $e');
+                print('Item: $item');
+              }
+            }
             print('Added ${userSessions.length} user sessions');
           }
-        } else if (data is List) {
+        } else if (rawData is List) {
           // Handle case where sessions are directly in a list
-          sessions = data.map((item) => Session.fromExpertJson(item)).toList();
+          for (var item in rawData) {
+            try {
+              if (item is Map<String, dynamic>) {
+                sessions.add(Session.fromExpertJson(item));
+              }
+            } catch (e) {
+              print('Error parsing session from list: $e');
+              print('Item: $item');
+            }
+          }
           print('Added ${sessions.length} sessions from direct list');
         }
         

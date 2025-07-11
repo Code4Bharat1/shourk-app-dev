@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 
 class EditExampleQuestionsScreen extends StatefulWidget {
   const EditExampleQuestionsScreen({super.key});
@@ -209,6 +210,12 @@ class _EditExampleQuestionsScreenState extends State<EditExampleQuestionsScreen>
             const SizedBox(height: 20),
           ],
         ),
+      ),
+          bottomNavigationBar: ExpertBottomNavbar(
+        currentIndex: 3,
+        // onTap: (index) {
+        //   // TODO: Implement navigation
+        // },
       ),
     );
   }

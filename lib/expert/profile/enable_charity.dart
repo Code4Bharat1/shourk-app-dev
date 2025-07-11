@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 
 class EnableCharityScreen extends StatefulWidget {
   const EnableCharityScreen({super.key});
@@ -243,6 +244,12 @@ class _EnableCharityScreenState extends State<EnableCharityScreen> {
                 ],
               ),
             ),
+                bottomNavigationBar: ExpertBottomNavbar(
+        currentIndex: 3,
+        // onTap: (index) {
+        //   // TODO: Implement navigation
+        // },
+      ),
     );
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shourk_application/expert/home/expert_home_screen.dart';
+import 'package:shourk_application/expert/profile/edit_profile_screen.dart';
 import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
 import 'package:shourk_application/expert/navbar/expert_dashboard.dart';
 import 'package:shourk_application/expert/navbar/video_call.dart';
@@ -49,7 +50,8 @@ class _ExpertBottomNavbarState extends State<ExpertBottomNavbar> {
         destination = const ExpertProfilePage();
         break;
       case 3:
-        destination = const ExpertMainPage();
+        destination = ProfileSettingsScreen(expertId: expertId ?? '');
+
         break;
       case 4:
         destination =  DashboardScreen(); // Assuming this is the Expert page
