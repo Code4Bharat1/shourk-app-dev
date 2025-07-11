@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io'; // For File handling on mobile
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
+import 'package:shourk_application/shared/models/expert_model.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final ExpertModel? expert;
@@ -20,7 +22,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController phoneController;
   late TextEditingController emailController;
   late TextEditingController areaOfExpertiseController;
-  // late TextEditingController countryController;
   late TextEditingController dateOfBirthController;
   late TextEditingController aboutMeController;
   late Map<String, TextEditingController> socialControllers;
@@ -28,6 +29,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   List<String> adviceList = [];
   bool notificationsEnabled = false;
   File? profileImage;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -37,7 +39,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     phoneController = TextEditingController(text: widget.expert?.phone ?? '');
     emailController = TextEditingController(text: widget.expert?.email ?? '');
     areaOfExpertiseController = TextEditingController(text: widget.expert?.areaOfExpertise ?? '');
-    // countryController = TextEditingController(text: widget.expert?.country ?? '');
     dateOfBirthController = TextEditingController(text: widget.expert?.dateOfBirth ?? '');
     aboutMeController = TextEditingController(text: widget.expert?.experience ?? '');
 
@@ -55,10 +56,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> pickProfileImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked != null) {
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (pickedFile != null) {
       setState(() {
-        profileImage = File(picked.path);
+        profileImage = File(pickedFile.path); // Use dart:io.File type for mobile
       });
     }
   }
@@ -96,7 +97,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       phone: phoneController.text,
       email: emailController.text,
       areaOfExpertise: areaOfExpertiseController.text,
-      // country: countryController.text,
       dateOfBirth: dateOfBirthController.text,
     );
 
@@ -107,11 +107,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
+  Widget _buildTextField(String label, TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ImageProvider<Object> profileProvider;
 
     if (profileImage != null) {
+      // Use FileImage with dart:io.File type for mobile
       profileProvider = FileImage(profileImage!);
     } else if (widget.expert?.photoFile != null && widget.expert!.photoFile!.isNotEmpty) {
       profileProvider = NetworkImage(widget.expert!.photoFile!);
@@ -126,18 +137,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(16),
-              child: ListView(  
+              child: ListView(
                 children: [
-                  _buildTextField("First Name", _firstNameController),
+                  _buildTextField("First Name", firstNameController),
                   const SizedBox(height: 16),
-                  _buildTextField("Last Name", _lastNameController),
+                  _buildTextField("Last Name", lastNameController),
                   const SizedBox(height: 16),
-                  _buildTextField("Mobile Number", _mobileController),
+                  _buildTextField("Mobile Number", phoneController),
                   const SizedBox(height: 16),
-                  _buildTextField("Email", _emailController),
+                  _buildTextField("Email", emailController),
                   const SizedBox(height: 30),
                   ElevatedButton(
-                    onPressed: _saveProfile,
+                    onPressed: saveProfile,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
@@ -146,80 +157,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    const SizedBox(height: 16),
-                    const Text('Things I Can Advise On', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ...adviceList.asMap().entries.map((entry) {
-                      int index = entry.key;
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              initialValue: entry.value,
-                              onChanged: (value) {
-                                setState(() {
-                                  adviceList[index] = value;
-                                });
-                              },
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () {
+                    child: const Text('Save Profile'),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Things I Can Advise On', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ...adviceList.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: entry.value,
+                            onChanged: (value) {
                               setState(() {
-                                adviceList.removeAt(index);
+                                adviceList[index] = value;
                               });
                             },
-                          )
-                        ],
-                      );
-                    }).toList(),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          adviceList.add('');
-                        });
-                      },
-                      child: const Text('+ Add Advice'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // SwitchListTile(
-            //   title: const Text('Enable Notifications'),
-            //   value: notificationsEnabled,
-            //   onChanged: (val) {
-            //     setState(() {
-            //       notificationsEnabled = val;
-            //     });
-            //   },
-            // ),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: socialControllers.keys.map((key) {
-                    return TextField(
-                      controller: socialControllers[key],
-                      decoration: InputDecoration(labelText: '$key Username'),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            setState(() {
+                              adviceList.removeAt(index);
+                            });
+                          },
+                        ),
+                      ],
                     );
                   }).toList(),
-                ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        adviceList.add('');
+                      });
+                    },
+                    child: const Text('+ Add Advice'),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: saveProfile,
-              child: const Text('Save Profile'),
-            ),
-          ],
-        ),
-      ),
-          bottomNavigationBar: ExpertBottomNavbar(
+      bottomNavigationBar: ExpertBottomNavbar(
         currentIndex: 3,
-        // onTap: (index) {
-        //   // TODO: Implement navigation
-        // },
       ),
     );
   }

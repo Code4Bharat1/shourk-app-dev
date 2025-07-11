@@ -19,7 +19,7 @@ import 'edit_profile_screen.dart'; // <-- Import your EditProfileScreen here
 
 class ProfileSettingsScreen extends StatefulWidget {
   final String expertId;
-  const ProfileSettingsScreen({Key? key, required this.expertId}) : super(key: key);
+  ProfileSettingsScreen({Key? key, required this.expertId}) : super(key: key);
 
   @override
   State<ProfileSettingsScreen> createState() => _ProfileSettingsScreenState();
