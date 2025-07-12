@@ -328,8 +328,8 @@ Padding(
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
-          "Starting at SAR 950",
+        Text(
+          "Starting at SAR ${expert.price}",
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,

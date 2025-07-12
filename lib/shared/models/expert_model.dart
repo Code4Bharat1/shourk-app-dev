@@ -9,9 +9,10 @@ class ExpertModel {
   final double price;
   final String? about;
   final String? phone;
-final String? email;
-final String? areaOfExpertise;
-final String? dateOfBirth;
+  final String? email;
+  final String? areaOfExpertise;
+  final String? dateOfBirth;
+  final String? sessionDuration;
 
   final List<String> strengths;
   final Map<String, List<String>> whatToExpect;
@@ -40,9 +41,10 @@ final String? dateOfBirth;
     required this.price,
     this.about,
     this.phone,
-this.email,
-this.areaOfExpertise,
-this.dateOfBirth,
+    this.email,
+    this.areaOfExpertise,
+    this.dateOfBirth,
+    this.sessionDuration,
 
     required this.strengths,
     required this.whatToExpect,
@@ -76,9 +78,10 @@ this.dateOfBirth,
       title: json['title'] ?? json['profession'],
       photoFile: json['photoFile'],
       phone: json['phone'],
-email: json['email'],
-areaOfExpertise: json['areaOfExpertise'],
-dateOfBirth: json['dateOfBirth'],
+      email: json['email'],
+      areaOfExpertise: json['areaOfExpertise'],
+      dateOfBirth: json['dateOfBirth'],
+      sessionDuration: json['sessionDuration'],
 
       averageRating: (json['averageRating'] ?? 0).toDouble(),
       experience: json['experience'],
@@ -86,7 +89,8 @@ dateOfBirth: json['dateOfBirth'],
       about: json['about'],
       strengths: List<String>.from(json['strengths'] ?? []),
       whatToExpect: _parseWhatToExpect(json['whatToExpect']),
-      reviews: (json['reviews'] as List<dynamic>?)
+      reviews:
+          (json['reviews'] as List<dynamic>?)
               ?.map((review) => ReviewModel.fromJson(review))
               .toList() ??
           [],
@@ -96,15 +100,17 @@ dateOfBirth: json['dateOfBirth'],
       charityPercentage: json['charityPercentage'] ?? 0,
       designation: json['designation'],
       advice: List<String>.from(json['advice'] ?? []),
-      availability: (json['availability'] as List<dynamic>?)
+      availability:
+          (json['availability'] as List<dynamic>?)
               ?.map((avail) => DayAvailability.fromJson(avail))
               .toList() ??
           [],
       monthsRange: json['monthsRange'] ?? 1,
       notificationsEnabled: json['notificationsEnabled'],
-      socialLinks: json['socialLinks'] != null
-          ? Map<String, String>.from(json['socialLinks'])
-          : null,
+      socialLinks:
+          json['socialLinks'] != null
+              ? Map<String, String>.from(json['socialLinks'])
+              : null,
     );
   }
 
@@ -119,10 +125,10 @@ dateOfBirth: json['dateOfBirth'],
       'experience': experience,
       'price': price,
       'phone': phone,
-'email': email,
-'areaOfExpertise': areaOfExpertise,
-'dateOfBirth': dateOfBirth,
-
+      'email': email,
+      'areaOfExpertise': areaOfExpertise,
+      'dateOfBirth': dateOfBirth,
+      'sessionDuration': sessionDuration,
       'about': about,
       'strengths': strengths,
       'whatToExpect': whatToExpect,
@@ -203,13 +209,9 @@ class DayAvailability {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'date': date,
-      'slots': slots,
-    };
+    return {'date': date, 'slots': slots};
   }
 }
-
 
 List<ExpertModel> dummyExperts = [
   ExpertModel(
@@ -219,12 +221,16 @@ List<ExpertModel> dummyExperts = [
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -242,8 +248,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-    availability: [],  // Added new field
-    monthsRange: 1,   // Added new field
+    availability: [], // Added new field
+    monthsRange: 1, // Added new field
   ),
   ExpertModel(
     id: '2',
@@ -252,9 +258,11 @@ List<ExpertModel> dummyExperts = [
     title: 'Career Coach',
     photoFile: 'assets/images/img2.jpg',
     averageRating: 4.7,
-    experience: 'Helping professionals grow in their careers and achieve goals.',
+    experience:
+        'Helping professionals grow in their careers and achieve goals.',
     price: double.infinity,
-    about: 'Certified career coach with expertise in job search and interview prep.',
+    about:
+        'Certified career coach with expertise in job search and interview prep.',
     strengths: ['CV Review', 'Career Transition', 'Interview Coaching'],
     whatToExpect: {
       'Quick - 15min': ['Discuss career goals', 'Resume tips'],
@@ -275,8 +283,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-    availability: [],  // Added new field
-    monthsRange: 1,   // Added new field
+    availability: [], // Added new field
+    monthsRange: 1, // Added new field
   ),
   // Continue adding availability and monthsRange to all other entries...
   ExpertModel(
@@ -309,8 +317,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-    availability: [],  // Added new field
-    monthsRange: 1,   // Added new field
+    availability: [], // Added new field
+    monthsRange: 1, // Added new field
   ),
   ExpertModel(
     id: '4',
@@ -342,8 +350,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-    availability: [],  // Added new field
-    monthsRange: 1,   // Added new field
+    availability: [], // Added new field
+    monthsRange: 1, // Added new field
   ),
   // Add remaining experts with availability and monthsRange...
   // (Repeat pattern for all other entries)
@@ -379,8 +387,8 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
   ExpertModel(
     id: '4',
@@ -412,22 +420,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -445,22 +457,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -478,22 +494,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -511,22 +531,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -544,22 +568,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -577,22 +605,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -610,22 +642,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -643,22 +679,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -676,22 +716,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -709,22 +753,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -742,22 +790,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -775,22 +827,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -808,22 +864,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -841,22 +901,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -874,22 +938,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -907,22 +975,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -940,22 +1012,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -973,22 +1049,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -1006,22 +1086,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -1039,22 +1123,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -1072,22 +1160,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -1105,22 +1197,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -1138,22 +1234,26 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-   ExpertModel(
+  ExpertModel(
     id: '1',
     firstName: 'Dr. Ahmed',
     lastName: 'Al-Sayed',
     title: 'Psychologist',
     photoFile: 'assets/images/img1.jpg',
     averageRating: 4.9,
-    experience: 'hello this is short expert here and I hope that you connect with me.',
+    experience:
+        'hello this is short expert here and I hope that you connect with me.',
     price: double.infinity,
     about: 'Experienced psychologist with 15+ years in clinical therapy.',
     strengths: ['Mental Health', 'Therapy', 'Family Counseling'],
     whatToExpect: {
-      'Quick - 15min': ['Introduction & 2 quick tips', 'Discuss primary concern'],
+      'Quick - 15min': [
+        'Introduction & 2 quick tips',
+        'Discuss primary concern',
+      ],
       'Regular - 30min': ['Explore your issues in more depth'],
       'Extra - 45min': ['In-depth mental wellness session'],
       'All Access - 60min': ['Comprehensive wellness planning'],
@@ -1171,9 +1271,7 @@ List<ExpertModel> dummyExperts = [
     freeSessionEnabled: false,
     charityEnabled: false,
     charityPercentage: 0,
-     availability: [],  // Added new field
-    monthsRange: 1, 
+    availability: [], // Added new field
+    monthsRange: 1,
   ),
-
- 
 ];

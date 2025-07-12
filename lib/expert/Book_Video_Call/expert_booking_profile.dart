@@ -1,24 +1,126 @@
-
-
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shourk_application/shared/models/expert_model.dart';
 
-class  ExpertBookingScreen extends StatefulWidget {
+class ExpertBookingScreen extends StatefulWidget {
+  final String expertId;
+
+  const ExpertBookingScreen({super.key, required this.expertId});
+
   @override
   _BookingFormScreenState createState() => _BookingFormScreenState();
 }
 
-class _BookingFormScreenState extends State< ExpertBookingScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _firstNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _noteController = TextEditingController();
-  final _promoController = TextEditingController();
+class _BookingFormScreenState extends State<ExpertBookingScreen> {
+  ExpertModel? expert;
+  bool isLoading = true;
+  String error = '';
+  double discountAmount = 0.0; // For promo code discounts
+  double walletBalance = 0.0;
+  bool isWalletLoading = true;
+  bool isBookingInProgress = false;
+  String? authToken;
+  String? currentUserId;
+
+  // Add missing form key and controllers
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
+  final TextEditingController _promoController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    // Get auth token from SharedPreferences (same pattern as ProfileSettingsScreen)
+    await _getAuthToken();
+    
+    await Future.wait([
+      fetchExpert(),
+      fetchWalletBalance(),
+    ]);
+  }
+
+  Future<void> _getAuthToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('expertToken');
+      
+      if (token != null) {
+        final decodedToken = JwtDecoder.decode(token);
+        setState(() {
+          authToken = token;
+          currentUserId = decodedToken['_id'];
+        });
+      } else {
+        // Handle case where user is not authenticated
+        setState(() {
+          authToken = null;
+          currentUserId = null;
+        });
+      }
+    } catch (e) {
+      print("Error getting auth token: $e");
+      setState(() {
+        authToken = null;
+        currentUserId = null;
+      });
+    }
+  }
+
+  Future<void> fetchWalletBalance() async {
+    try {
+      if (authToken == null) {
+        // Handle case where user is not authenticated
+        setState(() {
+          isWalletLoading = false;
+          walletBalance = 0.0;
+        });
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse('http://localhost:5070/api/expertwallet/balances'),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+         walletBalance = (data['data']['spending'] ?? 0.0).toDouble(); // ✅ correct key
+
+          isWalletLoading = false;
+        });
+      } else {
+        setState(() {
+          walletBalance = 0.0;
+          isWalletLoading = false;
+        });
+      }
+    } catch (e) {
+      print("Error fetching wallet balance: $e");
+      setState(() {
+        walletBalance = 0.0;
+        isWalletLoading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
+    // Dispose controllers to prevent memory leaks
     _firstNameController.dispose();
     _lastNameController.dispose();
     _phoneController.dispose();
@@ -28,40 +130,105 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
     super.dispose();
   }
 
+  Future<void> fetchExpert() async {
+    try {
+      final res = await http.get(
+        Uri.parse('http://localhost:5070/api/expertauth/${widget.expertId}'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body)['data'];
+        setState(() {
+          expert = ExpertModel.fromJson(data);
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          error = 'Failed to load expert (${res.statusCode})';
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        error = 'Error: $e';
+        isLoading = false;
+      });
+    }
+  }
+
+  // Helper method to get session fee
+  double get sessionFee => expert?.price ?? 0.0;
+
+  // Helper method to get total amount after discount
+  double get totalAmount => sessionFee - discountAmount;
+
+  // Helper method to check if this is a free session
+  bool get isFirstSession => expert?.freeSessionEnabled ?? false;
+
+  // Helper method to get final price after considering free session
+  double get finalPriceAfterGiftCard => isFirstSession ? 0.0 : totalAmount;
+
+  // Helper method to apply promo code
+  void _applyPromoCode() {
+    final promoCode = _promoController.text.trim();
+    if (promoCode.isNotEmpty) {
+      // Add your promo code logic here
+      // For example, a simple discount logic:
+      setState(() {
+        if (promoCode.toUpperCase() == 'SAVE10') {
+          discountAmount = sessionFee * 0.1; // 10% discount
+        } else if (promoCode.toUpperCase() == 'SAVE20') {
+          discountAmount = sessionFee * 0.2; // 20% discount
+        } else {
+          discountAmount = 0.0;
+          // Show error message for invalid promo code
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid promo code')),
+          );
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (error.isNotEmpty) {
+      return Scaffold(
+        body: Center(child: Text(error)),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
+        title: const Text(
           'Book Session',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
         ),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Expert Profile Card
             _buildExpertCard(),
-            SizedBox(height: 20),
-            
-            // Booking Form
+            const SizedBox(height: 20),
             _buildBookingForm(),
-            SizedBox(height: 20),
-            
-            // Payment Summary
+            const SizedBox(height: 20),
             _buildPaymentSummary(),
-            SizedBox(height: 20),
-            
-            // Book Button
+            const SizedBox(height: 20),
             _buildBookButton(),
           ],
         ),
@@ -71,7 +238,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
 
   Widget _buildExpertCard() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -80,50 +247,52 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
             color: Colors.grey.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 4,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               CircleAvatar(
                 radius: 30,
-                backgroundImage: AssetImage('assets/expert_avatar.jpg'), // Replace with actual image
+                backgroundImage: NetworkImage(expert!.imageUrl),
                 backgroundColor: Colors.grey[300],
-                child: Icon(Icons.person, size: 30, color: Colors.grey[600]),
+                onBackgroundImageError: (_, __) {},
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Aks Gup',
-                      style: TextStyle(
+                      expert!.name,
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Expert',
+                      expert!.title ?? '',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Row(
-                      children: [
-                        ...List.generate(5, (index) => Icon(
+                      children: List.generate(
+                        5,
+                        (index) => Icon(
                           Icons.star,
                           size: 16,
-                          color: Colors.grey[400],
-                        )),
-                      ],
+                          color: index < expert!.rating.round()
+                              ? Colors.orange
+                              : Colors.grey[400],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -133,17 +302,17 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.attach_money, size: 16),
+                      const Icon(Icons.attach_money, size: 16),
                       Text(
-                        'SAR 200',
-                        style: TextStyle(
+                        'SAR ${sessionFee.toStringAsFixed(0)}',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     'Per Session',
                     style: TextStyle(
@@ -155,9 +324,9 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
               ),
             ],
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Container(
-            padding: EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.grey[50],
               borderRadius: BorderRadius.circular(8),
@@ -168,8 +337,8 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                 Row(
                   children: [
                     Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                    SizedBox(width: 8),
-                    Text(
+                    const SizedBox(width: 8),
+                    const Text(
                       'Selected Sessions',
                       style: TextStyle(
                         fontSize: 14,
@@ -178,7 +347,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
                   'Monday, July 14, 2025',
                   style: TextStyle(
@@ -186,11 +355,11 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                     color: Colors.grey[700],
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Row(
                   children: [
                     Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text(
                       '2:00 PM',
                       style: TextStyle(
@@ -203,9 +372,9 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
               ],
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Container(
-            padding: EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.orange[50],
               borderRadius: BorderRadius.circular(8),
@@ -214,7 +383,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
             child: Row(
               children: [
                 Icon(Icons.info_outline, color: Colors.orange[600], size: 16),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'You can add up to 5 sessions at different time slots. Any 1 time slot might get selected based on availability.',
@@ -234,7 +403,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
 
   Widget _buildBookingForm() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -243,7 +412,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
             color: Colors.grey.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 4,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -252,14 +421,14 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Complete Your Booking',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             // Name fields
             Row(
@@ -272,7 +441,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                     prefixIcon: Icons.person_outline,
                   ),
                 ),
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 Expanded(
                   child: _buildTextField(
                     controller: _lastNameController,
@@ -283,7 +452,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                 ),
               ],
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             // Phone and Email
             Row(
@@ -297,7 +466,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                     keyboardType: TextInputType.phone,
                   ),
                 ),
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 Expanded(
                   child: _buildTextField(
                     controller: _emailController,
@@ -309,13 +478,13 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                 ),
               ],
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             // Note to Expert
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                const Row(
                   children: [
                     Text(
                       'Note to Expert',
@@ -334,7 +503,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 TextFormField(
                   controller: _noteController,
                   maxLines: 4,
@@ -347,14 +516,14 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.blue),
+                      borderSide: const BorderSide(color: Colors.blue),
                     ),
-                    contentPadding: EdgeInsets.all(12),
+                    contentPadding: const EdgeInsets.all(12),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             // Promo Code
             Row(
@@ -365,32 +534,30 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                     decoration: InputDecoration(
                       labelText: 'Gift Card / Promo Code',
                       hintText: 'Enter gift or promo code',
-                      prefixIcon: Icon(Icons.card_giftcard_outlined),
+                      prefixIcon: const Icon(Icons.card_giftcard_outlined),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide(color: Colors.grey[300]!),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.blue),
+                        borderSide: const BorderSide(color: Colors.blue),
                       ),
                     ),
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () {
-                    // Handle promo code application
-                  },
-                  child: Text('Apply'),
+                  onPressed: _applyPromoCode,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey[800],
                     foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
+                  child: const Text('Apply'),
                 ),
               ],
             ),
@@ -412,12 +579,12 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
@@ -431,9 +598,9 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.blue),
+              borderSide: const BorderSide(color: Colors.blue),
             ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
           ),
         ),
       ],
@@ -442,7 +609,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
 
   Widget _buildPaymentSummary() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -451,14 +618,14 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
             color: Colors.grey.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 4,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         children: [
           Container(
-            padding: EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.blue[50],
               borderRadius: BorderRadius.circular(8),
@@ -466,7 +633,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
             child: Row(
               children: [
                 Icon(Icons.account_balance_wallet, color: Colors.blue[600]),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   'Your Wallet Balance',
                   style: TextStyle(
@@ -474,19 +641,57 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                     color: Colors.blue[700],
                   ),
                 ),
-                Spacer(),
-                Text(
-                  'SAR 200',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[700],
-                  ),
-                ),
+                const Spacer(),
+                isWalletLoading 
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
+                      ),
+                    )
+                  : Text(
+                      'SAR ${walletBalance.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[700],
+                      ),
+                    ),
               ],
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
+          
+          // Show insufficient balance warning if needed
+          if (!isWalletLoading && finalPriceAfterGiftCard > walletBalance && !isFirstSession) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_outlined, color: Colors.red[600], size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Insufficient wallet balance. Please top up your wallet.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -498,7 +703,7 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                 ),
               ),
               Text(
-                'SAR 200.00',
+                'SAR ${sessionFee.toStringAsFixed(2)}',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[600],
@@ -506,13 +711,62 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
               ),
             ],
           ),
-          SizedBox(height: 8),
-          Divider(),
-          SizedBox(height: 8),
+          
+          // Show free session discount if applicable
+          if (isFirstSession) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'First Session (Free)',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.green[600],
+                  ),
+                ),
+                Text(
+                  '-SAR ${sessionFee.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.green[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          
+          // Show promo code discount if applicable
+          if (discountAmount > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Discount',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.green[600],
+                  ),
+                ),
+                Text(
+                  '-SAR ${discountAmount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.green[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          
+          const SizedBox(height: 8),
+          const Divider(),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Total',
                 style: TextStyle(
                   fontSize: 16,
@@ -520,8 +774,8 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
                 ),
               ),
               Text(
-                'SAR 200.00',
-                style: TextStyle(
+                'SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)}',
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -534,44 +788,60 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
   }
 
   Widget _buildBookButton() {
+    bool canBook = !isWalletLoading && 
+                   (isFirstSession || finalPriceAfterGiftCard <= walletBalance) &&
+                   !isBookingInProgress;
+    
     return Column(
       children: [
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: () {
+            onPressed: canBook ? () {
               if (_formKey.currentState!.validate()) {
-                // Handle booking
-                _showBookingConfirmation();
+                _handleBooking();
               }
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.payment),
-                SizedBox(width: 8),
-                Text(
-                  'Pay SAR 200.00 & Book',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+            } : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
+              backgroundColor: canBook ? Colors.black : Colors.grey[400],
               foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
+            child: isBookingInProgress 
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.payment),
+                    const SizedBox(width: 8),
+                    Text(
+                      isFirstSession 
+                        ? 'Book Free Session'
+                        : 'Pay SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)} & Book',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
           ),
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         Text(
-          'By clicking "Pay SAR 200.00 & Book", you agree to our Terms of Service and Privacy Policy.',
+          isFirstSession 
+            ? 'By clicking "Book Free Session", you agree to our Terms of Service and Privacy Policy.'
+            : 'By clicking "Pay SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)} & Book", you agree to our Terms of Service and Privacy Policy.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12,
@@ -582,44 +852,166 @@ class _BookingFormScreenState extends State< ExpertBookingScreen> {
     );
   }
 
-  void _showBookingConfirmation() {
+  Future<void> _handleBooking() async {
+   if (authToken == null || currentUserId == null) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Login required or user ID missing. Please re-login.')),
+  );
+  return;
+}
+
+
+    setState(() {
+      isBookingInProgress = true;
+    });
+
+String _mapSessionDurationLabel(String durationCode) {
+  switch (durationCode) {
+    case '15':
+      return 'Quick - 15min';
+    case '30':
+      return 'Regular - 30min';
+    case '45':
+      return 'Extra - 45min';
+    case '60':
+      return 'All Access - 60min';
+    default:
+      return 'Regular - 30min'; // fallback
+  }
+}
+
+
+int _mapDurationToBackend(String durationStr) {
+  // Convert string to int and validate it
+  final validDurations = [15, 30, 45, 60];
+  final parsed = int.tryParse(durationStr) ?? 30;
+  return validDurations.contains(parsed) ? parsed : 30;
+}
+
+
+    try {
+      // Prepare booking data
+ final bookingData = {
+  'consultingExpertID': widget.expertId,      // ✅ Expert being booked
+  'expertId': currentUserId,                  // ✅ Logged-in expert who is booking
+  'areaOfExpertise': expert?.areaOfExpertise ?? 'Home',
+  'duration': _mapSessionDurationLabel(expert?.sessionDuration ?? '30'),
+  'firstName': _firstNameController.text.trim(),
+  'lastName': _lastNameController.text.trim(),
+  'phone': _phoneController.text.trim(),
+  'email': _emailController.text.trim(),
+  'note': _noteController.text.trim(),
+  'promoCode': _promoController.text.trim(),
+  'sessionDate': '2025-07-14',
+  'sessionTime': '14:00',
+  'price': sessionFee,
+  'discountAmount': discountAmount,
+  'finalAmount': finalPriceAfterGiftCard,
+};
+
+
+
+
+print("📦 Booking Payload: consultingExpertID=${currentUserId}, expertId=${widget.expertId}");
+
+
+      // First create the session
+      final sessionResponse = await http.post(
+        Uri.parse('http://localhost:5070/api/session/experttoexpertsession'),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(bookingData),
+      );
+
+      if (sessionResponse.statusCode != 200 && sessionResponse.statusCode != 201) {
+        throw Exception('Failed to create session: ${sessionResponse.body}');
+      }
+
+      final sessionData = jsonDecode(sessionResponse.body);
+      final sessionId = sessionData['session']['_id'];
+
+      // If not a free session and there's a cost, make the payment
+      if (!isFirstSession && finalPriceAfterGiftCard > 0) {
+        final paymentResponse = await http.post(
+          Uri.parse('http://localhost:5070/api/expertwallet/spending/pay'),
+          headers: {
+            'Authorization': 'Bearer $authToken',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'sessionId': sessionId,
+            'amount': finalPriceAfterGiftCard,
+          }),
+        );
+
+        if (paymentResponse.statusCode != 200 && paymentResponse.statusCode != 201) {
+          throw Exception('Payment failed: ${paymentResponse.body}');
+        }
+
+        // Update local wallet balance after successful payment
+        setState(() {
+          walletBalance = walletBalance - finalPriceAfterGiftCard;
+        });
+      }
+
+      // Show success confirmation
+      _showBookingConfirmation(sessionId);
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Booking failed: ${e.toString()}')),
+      );
+    } finally {
+      setState(() {
+        isBookingInProgress = false;
+      });
+    }
+  }
+
+  void _showBookingConfirmation(String sessionId) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Booking Confirmed!'),
-          content: Text('Your session has been booked successfully. You will receive a confirmation email shortly.'),
+          title: const Text('Booking Confirmed!'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color: Colors.green,
+                size: 50,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Your session with ${expert?.name} has been booked successfully.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Session ID: $sessionId',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Close dialog
                 Navigator.of(context).pop(); // Go back to previous screen
               },
-              child: Text('OK'),
+              child: const Text('OK'),
             ),
           ],
         );
       },
     );
   }
-}
-
-// Main app to demonstrate the booking form
-class BookingApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Booking Form',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Roboto',
-      ),
-      home:  ExpertBookingScreen(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-void main() {
-  runApp(BookingApp());
 }
