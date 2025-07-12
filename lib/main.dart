@@ -15,6 +15,8 @@ import 'expert/profile/account_deactivate.dart';
 
 import 'expert/profile/contact_us_screen.dart';
 
+import 'expert/navbar/expert_serach_screen.dart';
+
 // import 'package:shourk_application/expert/screens/search_experts_screen.dart';
 // import 'package:shourk_application/expert/screens/video_call_screen.dart';
 // import 'package:shourk_application/expert/screens/expert_screen.dart';
@@ -54,21 +56,21 @@ class MyApp extends StatelessWidget {
       ),
 
       /// 👇 Temporary Home Screen (will be changed later with auth logic)
-      initialRoute: '/expert-home', // Change to '/start' for the start page
+      initialRoute: '/home', // Change to '/start' for the start page
 
       routes: {
         '/start': (context) => const StartPage(),
 
         '/user-login': (context) => const UserLogin(),
-        '/user-register': (context) => const RegisterPage(),
+        '/user-register': (context) => const UserRegister(),
 
         // '/user_profile_screen': (context) => const UserProfilePage(),
-        '/user_profile_screen': (context) => const UserProfilePage(),
+        '/user_profile_screen': (context) => const UserProfileScreen(),
         '/payment_method': (context) => PaymentDashboard(),
             // '/search': (context) => SearchPage(),
             // '/video_call': (context) => VideoCallPage(),
             // '/user-profile': (context) => UserProfilePage(),
-            '/user-profile': (context) => UserProfilePage(),
+            '/user-profile': (context) => UserProfileScreen(),
             '/user-giftcard': (context) => UserGiftCardSelectPage(),
             '/user-contactus': (context) => UserContactUsScreen(),
             '/user-paymenthistory': (context) => UserPaymentHistoryPage(),
@@ -91,6 +93,9 @@ class MyApp extends StatelessWidget {
           '/contact-us': (context) => const ContactUsScreen(),
           '/payment-history': (context) => const PaymentHistoryPage(),
           '/deactivate-account': (context) => const DeactivateAccountScreen(),
+          
+          //Expert Upper navbar search screen 
+          '/search-experts': (context) => const ExpertSearchScreen(),
 
 
 

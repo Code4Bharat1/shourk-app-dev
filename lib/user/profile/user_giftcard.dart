@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 import '../navbar/user_upper_navbar.dart';
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
-// import '../profile/user_contactus.dart';
-// import '../profile/user_detectiveaccount.dart';
-// import '../profile/user_giftcard.dart';
-// import '../profile/user_payment_method.dart';
-// import '../profile/user_paymenthistory.dart';
-// import '../profile/user_profile_screen.dart';
 
 class UserGiftCardSelectPage extends StatefulWidget {
   const UserGiftCardSelectPage({super.key});
@@ -59,9 +53,6 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
       case 'Payment Methods':
         Navigator.pushNamed(context, '/payment_method');
         break;
-      // case 'Payment Dashboard':
-      //   Navigator.pushNamed(context, '/payment-dashboard');
-      //   break;
       case 'Gift Card':
         Navigator.pushNamed(context, '/user-giftcard');
         break;
@@ -74,7 +65,6 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
       case 'Sign Out':
         Navigator.pushNamed(context, '/start');
         break;
-      // 'Gift Card' stays on current page
     }
   }
 
@@ -104,10 +94,12 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
     final chipPadding = isSmallScreen
         ? const EdgeInsets.symmetric(horizontal: 16, vertical: 10)
         : const EdgeInsets.symmetric(horizontal: 24, vertical: 12);
+    
+    final displayName = "User"; // Placeholder for user name
 
     return Scaffold(
       appBar: const UserUpperNavbar(),
-      bottomNavigationBar: const UserBottomNavbar(),
+      bottomNavigationBar: const UserBottomNavbar(currentIndex: 2),
       body: Stack(
         children: [
           // Main content
@@ -117,16 +109,54 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header section with proper spacing
-                const Text(
-                  "Hi, user",
-                  style: TextStyle(fontSize: 18, color: Colors.black),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Hi, $displayName", 
+                            style: const TextStyle(fontSize: 16)),
+                        const SizedBox(height: 4),
+                        const Text("Profile",
+                            style: TextStyle(
+                                fontSize: 24, 
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          displayName,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: () => Navigator.pushNamed(context, '/user-profile'),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.grey[300]!, width: 2),
+                            ),
+                            child: ClipOval(
+                              child: Container(
+                                color: Colors.grey[300],
+                                child: const Icon(
+                                  Icons.person,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  "Profile",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 
                 // Settings row - matching PaymentDashboard structure
                 Row(
@@ -402,13 +432,9 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
                         _buildDrawerOption("Payment Methods", Icons.payment, () {
                           _navigateToPage("Payment Methods");
                         }),
-                        // _buildDrawerOption("Payment Dashboard", Icons.dashboard, () {
-                        //   _navigateToPage("Payment Dashboard");
-                        // }),
                         _buildDrawerOption("Gift Card", Icons.card_giftcard, () {
                           _navigateToPage("Gift Card");
                         }),
-
                         _buildDrawerOption("Contact Us", Icons.chat, () {
                           _navigateToPage("Contact Us");
                         }),

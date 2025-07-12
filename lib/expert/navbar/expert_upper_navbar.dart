@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import './expert_serach_screen.dart'; // Add this import
+import '../profile/giftcard_selection_option.dart';       // Adjust path accordingly
+import '../profile/expert_profile_screen.dart'; // Adjust path accordingly
 
 class ExpertUpperNavbar extends StatelessWidget implements PreferredSizeWidget {
   const ExpertUpperNavbar({Key? key}) : super(key: key);
@@ -11,10 +14,6 @@ class ExpertUpperNavbar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: 0,
       title: Row(
         children: [
-          // IconButton(
-          //   icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 18),
-          //   onPressed: () => Navigator.of(context).pop(),
-          // ),
           const Text(
             'Shourk',
             style: TextStyle(
@@ -27,19 +26,28 @@ class ExpertUpperNavbar extends StatelessWidget implements PreferredSizeWidget {
           IconButton(
             icon: const Icon(Icons.search, color: Colors.black),
             onPressed: () {
-              // TODO: Implement search
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ExpertSearchScreen()),
+              );
             },
           ),
           IconButton(
             icon: const Icon(Icons.card_giftcard, color: Colors.black),
             onPressed: () {
-              // TODO: Implement gift section
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const GiftCardSelectPage()),
+              );
             },
           ),
           IconButton(
             icon: const Icon(Icons.person_outline, color: Colors.black),
             onPressed: () {
-              // TODO: Implement profile navigation
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ExpertProfilePage()),
+              );
             },
           ),
         ],

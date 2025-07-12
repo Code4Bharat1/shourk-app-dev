@@ -1,20 +1,19 @@
+
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/phone_number.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shourk_application/user/home/home_screen.dart';
 
-class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+
+class UserRegister extends StatefulWidget {
+  const UserRegister({super.key});
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+  State<UserRegister> createState() => _UserRegisterState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _UserRegisterState extends State<UserRegister> {
   final _formKey = GlobalKey<FormState>();
   final emailController = TextEditingController();
   final firstNameController = TextEditingController();
@@ -24,9 +23,6 @@ class _RegisterPageState extends State<RegisterPage> {
   String countryCode = '';
   bool _isLoading = false;
   String? _serverError;
-
-  // API endpoint
-  static const String apiUrl = 'http://localhost:5070/api/userauth/registeruser';
 
   @override
   void initState() {
@@ -125,78 +121,6 @@ class _RegisterPageState extends State<RegisterPage> {
     return null;
   }
 
-  Future<Map<String, dynamic>> _registerUser() async {
-    try {
-      final Map<String, dynamic> requestBody = {
-        'email': emailController.text.trim(),
-        'firstName': firstNameController.text.trim(),
-        'lastName': lastNameController.text.trim(),
-        'phoneNumber': phoneNumber,
-        'countryCode': countryCode,
-      };
-
-      print('Sending registration request: $requestBody');
-
-      final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: json.encode(requestBody),
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw TimeoutException('Request timed out', const Duration(seconds: 30));
-        },
-      );
-
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        return {
-          'success': true,
-          'data': responseData,
-          'message': 'Registration successful'
-        };
-      } else {
-        // Handle different error status codes
-        String errorMessage = 'Registration failed';
-        
-        try {
-          final Map<String, dynamic> errorData = json.decode(response.body);
-          errorMessage = errorData['message'] ?? errorData['error'] ?? 'Unknown error occurred';
-        } catch (e) {
-          errorMessage = 'Server error (${response.statusCode})';
-        }
-
-        return {
-          'success': false,
-          'message': errorMessage,
-          'statusCode': response.statusCode
-        };
-      }
-    } on TimeoutException catch (e) {
-      return {
-        'success': false,
-        'message': 'Request timed out. Please check your internet connection and try again.'
-      };
-    } on http.ClientException catch (e) {
-      return {
-        'success': false,
-        'message': 'Network error. Please check your internet connection.'
-      };
-    } catch (e) {
-      print('Registration error: $e');
-      return {
-        'success': false,
-        'message': 'An unexpected error occurred: ${e.toString()}'
-      };
-    }
-  }
-
   Future<void> saveAndContinue() async {
     setState(() {
       _serverError = null;
@@ -221,62 +145,33 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
-      // Make API call to register user
-      final registrationResult = await _registerUser();
+      bool saved = await _saveRegistrationData();
 
-      if (registrationResult['success']) {
-        // Save registration data locally after successful API call
-        bool saved = await _saveRegistrationData();
-
-        if (saved) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Registration successful!'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 2),
-              ),
-            );
-
-            await Future.delayed(const Duration(seconds: 1));
-
-            if (mounted) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const HomeScreen()),
-              );
-            }
-          }
-        } else {
-          throw Exception('Failed to save registration data locally');
-        }
-      } else {
-        // Handle registration failure
-        setState(() {
-          _serverError = registrationResult['message'] ?? 'Registration failed';
-        });
-
+      if (saved) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(registrationResult['message'] ?? 'Registration failed'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
+            const SnackBar(
+              content: Text('Registration data saved successfully!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
             ),
           );
+
+          await Future.delayed(const Duration(seconds: 1));
         }
+      } else {
+        throw Exception('Failed to save registration data');
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _serverError = 'Registration failed: ${e.toString()}';
+          _serverError = 'Failed to save registration data: ${e.toString()}';
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: Failed to save registration data'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -508,3 +403,4 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 }
+

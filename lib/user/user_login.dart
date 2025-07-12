@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'user_register.dart'; // Make sure this path is correct
+import 'package:shourk_application/expert/expert_register.dart';
+import 'package:shourk_application/expert/home/expert_home_screen.dart';
+import '../user/user_register.dart'; // Make sure this path is correct
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shourk_application/user/home/home_screen.dart';
 
 class UserLogin extends StatefulWidget {
   const UserLogin({Key? key}) : super(key: key);
@@ -80,54 +84,71 @@ class _UserLoginState extends State<UserLogin> {
     }
   }
 
-  void _proceed() async {
-    String contactInfo = _isPhoneMode ? _phoneNumber : _emailController.text;
-    String otp = _otpController.text.trim();
+ void _proceed() async {
+  String contactInfo = _isPhoneMode ? _phoneNumber : _emailController.text;
+  String otp = _otpController.text.trim();
 
-    if (otp.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter OTP'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+  if (otp.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please enter OTP'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
 
-    final url = Uri.parse('$baseUrl/verify-otp');
+  final url = Uri.parse('$baseUrl/verify-otp');
 
-    try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          _isPhoneMode ? 'phone' : 'email': contactInfo,
-          'otp': otp,
-        }),
-      );
+  try {
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        _isPhoneMode ? 'phone' : 'email': contactInfo,
+        'otp': otp,
+      }),
+    );
 
-      if (response.statusCode == 200) {
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+
+      if (responseData['data']['isNewExpert'] == true) {
+        // Expert needs to register
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const RegisterPage()),
+          MaterialPageRoute(builder: (context) => const UserRegister()),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid OTP'),
-            backgroundColor: Colors.red,
-          ),
+        // Expert is registered, save token
+        final token = responseData['data']['token'];
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('expertToken', token);
+
+        // Redirect to home screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       }
-    } catch (e) {
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
+        const SnackBar(
+          content: Text('Invalid OTP'),
           backgroundColor: Colors.red,
         ),
       );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +334,7 @@ class _UserLoginState extends State<UserLogin> {
               Center(
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.pushNamed(context, '/register');
+                    Navigator.pushNamed(context, '/user-register');
                   },
                   child: RichText(
                     text: const TextSpan(

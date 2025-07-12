@@ -1,25 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
-// import './payment_option.dart';
-import "../profile/user_payment_method.dart";
-// import './giftcard_selection_option.dart';
-import '../profile/user_giftcard.dart';
-import '../profile/user_contactus.dart';
-// import '../profile/user_detectiveaccount.dart';
-import '../profile/user_paymenthistory.dart';
 import 'package:shourk_application/start_page.dart';
-// import 'package:shourk_application/expert/profile/contact_us_screen.dart';
-// import 'package:shourk_application/expert/profile/payment_history.dart';
-// import 'package:shourk_application/expert/profile/account_deactivate.dart';
+import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
+import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
+import 'package:shourk_application/user/profile/user_giftcard.dart';
+import 'package:shourk_application/user/profile/user_payment_method.dart';
+import 'package:shourk_application/user/profile/user_contactus.dart';
+import 'package:shourk_application/user/profile/user_paymenthistory.dart';
+// import 'package:shourk_application/user/profile/account_deactivate.dart';
 
-// Placeholder pages for navigation options (you'll need to create actual implementations
+// Placeholder pages for navigation options
 class UserPaymentMethodsPage extends StatelessWidget {
   const UserPaymentMethodsPage({super.key});
 
@@ -32,94 +27,22 @@ class UserPaymentMethodsPage extends StatelessWidget {
   }
 }
 
-class CodeEntryPage extends StatelessWidget {
-  const CodeEntryPage({super.key});
+class UserProfileScreen extends StatefulWidget {
+  const UserProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Do you have code?')),
-      body: const Center(child: Text('Code Entry Page')),
-    );
-  }
+  State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class GiftCardPage extends StatelessWidget {
-  const GiftCardPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Gift Card')),
-      body: const Center(child: Text('Gift Card Page')),
-    );
-  }
-}
-
-class ContactUsPage extends StatelessWidget {
-  const ContactUsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Contact Us')),
-      body: const Center(child: Text('Contact Us Page')),
-    );
-  }
-}
-
-class PaymentHistoryScreen extends StatelessWidget {
-  const PaymentHistoryScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Payment History')),
-      body: const Center(child: Text('Payment History Page')),
-    );
-  }
-}
-
-class FeedbackPage extends StatelessWidget {
-  const FeedbackPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Give us Feedback')),
-      body: const Center(child: Text('Feedback Page')),
-    );
-  }
-}
-
-class DeactivateAccountPage extends StatelessWidget {
-  const DeactivateAccountPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Deactivate account')),
-      body: const Center(child: Text('Deactivate Account Page')),
-    );
-  }
-}
-
-class UserProfilePage extends StatefulWidget {
-  const UserProfilePage({super.key});
-
-  @override
-  State<UserProfilePage> createState() => _UserProfilePageState();
-}
-
-class _UserProfilePageState extends State<UserProfilePage> {
+class _UserProfileScreenState extends State<UserProfileScreen> {
   bool isEditing = false;
   bool isUploading = false;
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
   final TextEditingController mobileController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
-  final String baseUrl = "https://amd-api.code4bharat.com/api/expertauth";
-  String? expertId;
+  final String baseUrl = "https://amd-api.code4bharat.com/api/userauth";
+  String? userId;
   String? profileImageUrl;
   String successMessage = "";
   String selectedOption = 'Profile';
@@ -129,34 +52,35 @@ class _UserProfilePageState extends State<UserProfilePage> {
   @override
   void initState() {
     super.initState();
-    _getExpertId();
+    _getUserId();
   }
 
-  Future<void> _getExpertId() async {
+  Future<void> _getUserId() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('expertToken');
+    final token = prefs.getString('userToken');
 
     if (token != null) {
       try {
         Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
         setState(() {
-          expertId = decodedToken['_id'];
+          userId = decodedToken['_id'];
         });
-        if (expertId != null) {
-          _loadExpertProfile();
+        if (userId != null) {
+          _loadUserProfile();
         }
       } catch (e) {
         print("Error parsing token: $e");
       }
     } else {
-      print("Expert token not found");
+      print("User token not found");
     }
   }
 
-  Future<void> _loadExpertProfile() async {
+  Future<void> _loadUserProfile() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/$expertId'),
+        Uri.parse('$baseUrl/$userId'),
+        headers: {'Authorization': 'Bearer $userId'},
       );
 
       if (response.statusCode == 200) {
@@ -169,18 +93,21 @@ class _UserProfilePageState extends State<UserProfilePage> {
           profileImageUrl = data['photoFile'];
         });
       } else {
-        print("Failed to load expert data: ${response.body}");
+        print("Failed to load user data: ${response.body}");
       }
     } catch (e) {
-      print("Error fetching expert data: $e");
+      print("Error fetching user data: $e");
     }
   }
 
   Future<void> _saveProfile() async {
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/updateexpert/$expertId'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$baseUrl/updateuser/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $userId'
+        },
         body: jsonEncode({
           'firstName': firstNameController.text.trim(),
           'lastName': lastNameController.text.trim(),
@@ -194,7 +121,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
           isEditing = false;
           successMessage = "Changes Saved!";
         });
-        // Clear success message after 3 seconds
         Future.delayed(const Duration(seconds: 3), () {
           setState(() {
             successMessage = "";
@@ -222,7 +148,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final file = File(pickedFile.path);
     final fileSize = await file.length();
 
-    // Check file size (5MB limit)
     if (fileSize > 5 * 1024 * 1024) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("File size should be less than 5MB")),
@@ -236,10 +161,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     try {
       var request = http.MultipartRequest(
-        'PUT',
-        Uri.parse('$baseUrl/updateexpert/$expertId'),
+        'POST',
+        Uri.parse('$baseUrl/uploadProfileImage/$userId'),
       );
       
+      request.headers['Authorization'] = 'Bearer $userId';
       request.files.add(
         await http.MultipartFile.fromPath(
           'photoFile',
@@ -321,13 +247,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
       isMobileNavOpen = false;
     });
 
-    // Close drawer immediately
     Navigator.of(context).pop();
 
-    // Navigate to the corresponding page
     switch (label) {
       case 'Payment Methods':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentDashboard()));
+        Navigator.push(context, MaterialPageRoute(builder: (context) =>  PaymentDashboard()));
         break;
       case 'Gift Card':
         Navigator.push(context, MaterialPageRoute(builder: (context) => const UserGiftCardSelectPage()));
@@ -339,9 +263,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
         Navigator.push(context, MaterialPageRoute(builder: (context) => const UserPaymentHistoryPage()));
         break;
       case 'Sign Out':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => StartPage()));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const StartPage()));
         break;
-      // 'Profile' stays on current page
     }
   }
 
@@ -357,36 +280,21 @@ class _UserProfilePageState extends State<UserProfilePage> {
     });
   }
 
+  void _navigateToProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const UserProfileScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final userName = '${firstNameController.text} ${lastNameController.text}'.trim();
+    final displayName = userName.isNotEmpty ? userName : 'User';
+
     return Scaffold(
       key: _scaffoldKey,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        title: Row(
-          children: [
-            const Text("Shourk", style: TextStyle(color: Colors.black)),
-            const Spacer(),
-            const Icon(Icons.language, color: Colors.black),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text("العربية",
-                  style: TextStyle(color: Colors.white, fontSize: 12)),
-            ),
-            const SizedBox(width: 12),
-            const Icon(Icons.notifications_none, color: Colors.black),
-            const SizedBox(width: 12),
-            const CircleAvatar(child: Text('U'))
-          ],
-        ),
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
+      appBar: UserUpperNavbar(),
       backgroundColor: Colors.grey[100],
       body: Stack(
         children: [
@@ -397,11 +305,72 @@ class _UserProfilePageState extends State<UserProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Hi, User", style: TextStyle(fontSize: 16)),
-                  const SizedBox(height: 10),
-                  const Text("Profile",
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Hi, $displayName", 
+                              style: const TextStyle(fontSize: 16)),
+                          const SizedBox(height: 4),
+                          const Text("Profile",
+                              style: TextStyle(
+                                  fontSize: 24, 
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            displayName,
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: _navigateToProfile,
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.grey[300]!, width: 2),
+                              ),
+                              child: ClipOval(
+                                child: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                                    ? Image.network(
+                                        profileImageUrl!,
+                                        fit: BoxFit.cover,
+                                        width: 40,
+                                        height: 40,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            color: Colors.grey[300],
+                                            child: const Icon(
+                                              Icons.person,
+                                              size: 20,
+                                              color: Colors.white,
+                                            ),
+                                          );
+                                        },
+                                      )
+                                    : Container(
+                                        color: Colors.grey[300],
+                                        child: const Icon(
+                                          Icons.person,
+                                          size: 20,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -419,17 +388,18 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     ],
                   ),
                   
-                  // Success Message
                   if (successMessage.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 10, bottom: 10),
                       child: Row(
                         children: [
-                          const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                          const Icon(Icons.check_circle, 
+                              color: Colors.green, size: 20),
                           const SizedBox(width: 8),
                           Text(
                             successMessage,
-                            style: const TextStyle(color: Colors.green, fontSize: 16),
+                            style: const TextStyle(
+                                color: Colors.green, fontSize: 16),
                           ),
                         ],
                       ),
@@ -437,14 +407,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   
                   Card(
                     elevation: 4,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15)),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         children: [
                           Row(
                             children: [
-                              // Profile Picture with Upload
                               GestureDetector(
                                 onTap: isEditing ? _uploadProfileImage : null,
                                 child: Stack(
@@ -454,12 +424,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                       height: 100,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.white, width: 2),
+                                        border: Border.all(
+                                            color: Colors.white, width: 2),
                                       ),
                                       child: ClipOval(
                                         child: isUploading
-                                            ? const Center(child: CircularProgressIndicator())
-                                            : (profileImageUrl != null && profileImageUrl!.isNotEmpty
+                                            ? const Center(
+                                                child: CircularProgressIndicator())
+                                            : (profileImageUrl != null &&
+                                                    profileImageUrl!.isNotEmpty
                                                 ? Image.network(
                                                     profileImageUrl!,
                                                     fit: BoxFit.cover,
@@ -468,7 +441,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                                   )
                                                 : Container(
                                                     color: Colors.grey[300],
-                                                    child: const Icon(Icons.person, size: 40, color: Colors.white),
+                                                    child: const Icon(
+                                                        Icons.person,
+                                                        size: 40,
+                                                        color: Colors.white),
                                                   )),
                                       ),
                                     ),
@@ -477,12 +453,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                         bottom: 0,
                                         right: 0,
                                         child: Container(
-                                          decoration: BoxDecoration(
+                                          decoration: const BoxDecoration(
                                             color: Colors.black54,
                                             shape: BoxShape.circle,
                                           ),
                                           padding: const EdgeInsets.all(6),
-                                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                                          child: const Icon(Icons.camera_alt,
+                                              color: Colors.white, size: 20),
                                         ),
                                       ),
                                   ],
@@ -491,10 +468,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      "${firstNameController.text} ${lastNameController.text}",
+                                      displayName,
                                       style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w600),
@@ -554,7 +532,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                              ),)
+                              ),
+                            )
                         ],
                       ),
                     ),
@@ -564,7 +543,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
             ),
           ),
           
-          // Mobile Navigation Drawer
           if (isMobileNavOpen)
             GestureDetector(
               onTap: _closeMobileNav,
@@ -628,11 +606,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
         ],
       ),
       bottomNavigationBar: UserBottomNavbar(
-        // currentIndex: 2,
-        // onTap: (index) {
-        //   // TODO: Implement navigation
-        // },
+        currentIndex: 2,
       ),
     );
   }
-}
+}  
