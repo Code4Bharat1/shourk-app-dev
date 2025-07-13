@@ -2,19 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shourk_application/expert/expert_category/home_expert.dart';
 import 'dart:convert';
-import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
-import '../../features/expert_profile/expert_detail_screen.dart';
-import '../../shared/widgets/expert_card.dart';
-import '../../shared/models/expert_model.dart';
-import '../home/category_experts_screen.dart';
 
 import '../../expert/expert_category/career_expert.dart';
 import '../../expert/expert_category/top_expert.dart';
 import '../../expert/expert_category/wellness_expert.dart';
-import '../../expert/expert_category/career_expert.dart';
 import '../../expert/expert_category/fashion_expert.dart';
+import '../home/user_expert_detailscreen.dart'; // Correct import
 
 // Moved CategoryChip to top level
 class CategoryChip extends StatelessWidget {
@@ -139,7 +134,6 @@ class _HomeScreenState extends State<HomeScreen> {
         headers: {'Content-Type': 'application/json'},
       );
 
-     
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         final List<dynamic> expertsJson = data['data'] ?? [];
@@ -224,10 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
       bottomNavigationBar: UserBottomNavbar(
-        // currentIndex: 0,
-        // onTap: (index) {
-        //   // TODO: Implement navigation
-        // },
+        currentIndex: 0,
       ),
     );
   }
@@ -680,13 +671,14 @@ class ModernExpertCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        // Navigate to expert details screen
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (_) => ExpertDetailScreen(expert: expert),
-        //   ),
-        // );
+        // NAVIGATE TO EXPERT DETAIL SCREEN WITH EXPERT ID
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            // FIXED: Corrected class name here
+            builder: (_) => UserExpertDetailscreen(expertId: expert.id),
+          ),
+        );
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(

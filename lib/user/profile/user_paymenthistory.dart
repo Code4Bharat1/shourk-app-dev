@@ -49,7 +49,6 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
       status: 'HYPERPAY PENDING',
       isCompleted: false,
     ),
-    // Add more transactions as needed
   ];
 
   // Settings menu state - matching the previous pages
@@ -87,9 +86,6 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
       case 'Payment Methods':
         Navigator.pushNamed(context, '/payment_method');
         break;
-      // case 'Payment Dashboard':
-      //   Navigator.pushNamed(context, '/payment-dashboard');
-      //   break;
       case 'Gift Card':
         Navigator.pushNamed(context, '/user-giftcard');
         break;
@@ -99,7 +95,6 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
       case 'Sign Out':
         Navigator.pushNamed(context, '/start');
         break;
-      // 'Payment History' stays on current page
     }
   }
 
@@ -124,6 +119,8 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final displayName = "User"; // Placeholder for user name
+    
     return Scaffold(
       appBar: UserUpperNavbar(),
       body: Stack(
@@ -132,7 +129,86 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
           Column(
             children: [
               // User info section
-              _buildUserInfoSection(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("Hi, $displayName", 
+                                style: const TextStyle(fontSize: 16)),
+                            const SizedBox(height: 4),
+                            const Text("Profile",
+                                style: TextStyle(
+                                    fontSize: 24, 
+                                    fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              displayName,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(width: 12),
+                            GestureDetector(
+                              onTap: () => Navigator.pushNamed(context, '/user-profile'),
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.grey[300]!, width: 2),
+                                ),
+                                child: ClipOval(
+                                  child: Container(
+                                    color: Colors.grey[300],
+                                    child: const Icon(
+                                      Icons.person,
+                                      size: 20,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Settings section added
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.settings, size: 18),
+                          const SizedBox(width: 6),
+                          const Text("Settings", style: TextStyle(fontSize: 16)),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.menu),
+                            onPressed: _openSettingsMenu,
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    const Divider(thickness: 1),
+                  ],
+                ),
+              ),
               
               // URL section
               _buildUrlSection(),
@@ -195,9 +271,6 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
                         _buildDrawerOption("Payment Methods", Icons.payment, () {
                           _navigateToPage("Payment Methods");
                         }),
-                        // _buildDrawerOption("Payment Dashboard", Icons.dashboard, () {
-                        //   _navigateToPage("Payment Dashboard");
-                        // }),
                         _buildDrawerOption("Gift Card", Icons.card_giftcard, () {
                           _navigateToPage("Gift Card");
                         }),
@@ -219,69 +292,7 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
           ),
         ],
       ),
-      bottomNavigationBar: UserBottomNavbar(),
-    );
-  }
-
-  Widget _buildUserInfoSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Hi, User', style: TextStyle(fontSize: 18)),
-                  SizedBox(height: 4),
-                  Text('Profile', style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold, // Made bold
-                  )),
-                ],
-              ),
-              // Profile icon removed
-            ],
-          ),
-          const SizedBox(height: 16),
-          
-          // Settings section added
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              // color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              // boxShadow: [
-              //   BoxShadow(
-              //     color: Colors.grey.withOpacity(0.1),
-              //     spreadRadius: 1,
-              //     blurRadius: 5,
-              //     offset: const Offset(0, 2),
-              //   ),
-              // ],
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.settings, size: 18),
-                const SizedBox(width: 6),
-                const Text("Settings", style: TextStyle(fontSize: 16)),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.menu),
-                  onPressed: _openSettingsMenu,
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          const Divider(thickness: 1),
-        ],
-      ),
+      bottomNavigationBar: UserBottomNavbar(currentIndex: 2),
     );
   }
 

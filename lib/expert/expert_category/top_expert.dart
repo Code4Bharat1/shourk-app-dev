@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
+import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import 'dart:convert';
 import 'package:shourk_application/shared/models/expert_model.dart';
 import 'package:shourk_application/expert/expert_category/home_expert.dart';
@@ -207,24 +209,7 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text("Shourk", style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: const BackButton(color: Colors.black),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black),
-            onPressed: fetchExperts,
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.filter_alt_outlined, color: Colors.black),
-            onPressed: _openFilterDialog,
-          ),
-          const SizedBox(width: 12),
-        ],
-      ),
+      appBar: ExpertUpperNavbar(),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -363,7 +348,9 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
           ),
         ],
       ),
-    );
+      bottomNavigationBar: ExpertBottomNavbar(currentIndex: 0),
+      );
+    
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shourk_application/expert/Book_Video_Call/expert_schedule_videocall.dart';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
+import 'package:shourk_application/expert/profile/giftcard_selection_option.dart';
 import '../../shared/models/expert_model.dart';
 
 class ExpertDetailScreen extends StatefulWidget {
@@ -213,74 +214,80 @@ List<Widget> _buildExpectationsList(String duration) {
             ),
           ),
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: Image.network(
-                      expert.imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder:
-                          (context, error, stackTrace) =>
-                              const Icon(Icons.person, size: 100),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  expert.name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  expert.title ?? '',
-                  style: const TextStyle(color: Colors.black54),
-                ),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.orange),
-                    Text(expert.rating.toString()),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  "About Me",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-                Text(expert.experience ?? 'No description available'),
-                const SizedBox(height: 12),
-                const Text(
-                  "Strengths",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  children:
-                      expert.strengths
-                          .map(
-                            (s) => Chip(
-                              label: Text(s),
-                              backgroundColor: Colors.grey[300],
-                            ),
-                          )
-                          .toList(),
-                ),
-              ],
+  margin: const EdgeInsets.symmetric(horizontal: 16),
+  padding: const EdgeInsets.all(16),
+  decoration: BoxDecoration(
+    color: Colors.grey[100],
+    borderRadius: BorderRadius.circular(16),
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(
+            minHeight: 150,
+            maxHeight: 250,
+          ),
+          child: Image.network(
+            expert.imageUrl,
+            fit: BoxFit.contain,
+            width: double.infinity,
+            errorBuilder: (context, error, stackTrace) => Container(
+              height: 200,
+              alignment: Alignment.center,
+              child: const Icon(Icons.person, size: 100),
             ),
           ),
+        ),
+      ),
+      const SizedBox(height: 12),
+      Text(
+        expert.name,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      Text(
+        expert.title ?? '',
+        style: const TextStyle(color: Colors.black54),
+      ),
+      Row(
+        children: [
+          const Icon(Icons.star, color: Colors.orange),
+          Text(expert.rating.toString()),
+        ],
+      ),
+      const SizedBox(height: 12),
+      const Text(
+        "About Me",
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 6),
+      Text(expert.experience ?? 'No description available'),
+      const SizedBox(height: 12),
+      const Text(
+        "Strengths",
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 6),
+      Wrap(
+        spacing: 8,
+        children: expert.strengths
+            .map(
+              (s) => Chip(
+                label: Text(s),
+                backgroundColor: Colors.grey[300],
+              ),
+            )
+            .toList(),
+      ),
+    ],
+  ),
+),
           const SizedBox(height: 20),
           // 1:1 Video Call Section
 Padding(
@@ -328,8 +335,8 @@ Padding(
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
-          "Starting at SAR 950",
+        Text(
+          "Starting at SAR ${expert.price}",
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -340,11 +347,15 @@ Padding(
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Icon(
-              Icons.card_giftcard,
-              color: Colors.blue,
-              size: 30,
-            ),
+            IconButton(
+            icon: const Icon(Icons.card_giftcard, color: Colors.blue),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const GiftCardSelectPage()),
+              );
+            },
+          ),
             SizedBox(
               width: 300,
               child: ElevatedButton(
@@ -434,6 +445,12 @@ Padding(
               width: 300,
               child: ElevatedButton(
                 onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const GiftCardSelectPage(),
+                    ),
+                  );
                   // Handle gift card action
                 },
                 style: ElevatedButton.styleFrom(

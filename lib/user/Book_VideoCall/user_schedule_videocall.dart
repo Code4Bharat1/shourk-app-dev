@@ -2,26 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
-import 'package:shourk_application/expert/Book_Video_Call/expert_booking_profile.dart';
-import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
-import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
-import 'package:shourk_application/shared/models/expert_model.dart';
+import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
+import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
+import 'package:shourk_application/user/Book_VideoCall/user_booking_profile.dart';
 
 
-class ExpertVideoCallBookingPage extends StatefulWidget {
+class UserScheduleVideocall extends StatefulWidget {
   final String expertId;
 
-  const ExpertVideoCallBookingPage({super.key, required this.expertId});
+  const UserScheduleVideocall({Key? key, required this.expertId}) : super(key: key);
 
   @override
   _VideoCallBookingPageState createState() => _VideoCallBookingPageState();
 }
 
-class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
-  ExpertModel? _expert;
-  bool _isLoading = true;
-  String _error = '';
-
+class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
   String selectedSessionType = '';
   List<String> selectedTimeSlots = [];
   bool isLoading = true;
@@ -40,71 +35,40 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
   void initState() {
     super.initState();
     _fetchExpertAvailability();
-    _fetchExpert();
-  }
-
-  Future<void> _fetchExpert() async {
-    try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5070/api/expertauth/${widget.expertId}'),
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _expert = ExpertModel.fromJson(data['data']);
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _error = 'Failed to load expert: ${response.statusCode}';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _error = 'Error fetching expert: $e';
-        _isLoading = false;
-      });
-    }
   }
 
   Future<void> _fetchExpertAvailability() async {
     try {
       final response = await http.get(
-        Uri.parse(
-          'http://localhost:5070/api/expertauth/availability/${widget.expertId}',
-        ),
+        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/availability/${widget.expertId}'),
         headers: {'Content-Type': 'application/json'},
       );
-
+     
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['data'] != null && data['data']['availability'] != null) {
           final availability = data['data']['availability'] as List;
           final List<Map<String, dynamic>> processedSlots = [];
-
+          
           for (var slot in availability) {
             final date = slot['date'] as String?;
             if (date == null) continue;
-
+            
             final times = slot['times'] as Map<String, dynamic>?;
             if (times == null) continue;
-
-            final availableTimes =
-                times.entries
-                    .where((entry) => entry.value == true)
-                    .map((entry) => entry.key)
-                    .toList();
-
+            
+            final availableTimes = times.entries
+                .where((entry) => entry.value == true)
+                .map((entry) => entry.key)
+                .toList();
+            
             processedSlots.add({
               'date': date,
               'formattedDate': _formatDate(date),
               'times': availableTimes,
             });
           }
-
+          
           setState(() {
             availabilitySlots = processedSlots;
             isLoading = false;
@@ -134,13 +98,11 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
     return DateFormat('EEEE, MMM d').format(date);
   }
 
-  
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: ExpertUpperNavbar(),
+      appBar: UserUpperNavbar(),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -155,17 +117,22 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
               ),
             ),
             const SizedBox(height: 10),
-
+            
             const Text(
               'Select one of the available time slots below:',
-              style: TextStyle(fontSize: 20, color: Colors.black),
+              style: TextStyle(
+                fontSize: 20,
+                color: Colors.black,
+              ),
             ),
             const SizedBox(height: 20),
-
+            
             // Session Type Buttons
             Row(
               children: [
-                Expanded(child: _buildSessionButton('Quick - 15min', 'quick')),
+                Expanded(
+                  child: _buildSessionButton('Quick - 15min', 'quick'),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _buildSessionButton('Regular - 30min', 'regular'),
@@ -175,18 +142,17 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(child: _buildSessionButton('Extra - 45min', 'extra')),
+                Expanded(
+                  child: _buildSessionButton('Extra - 45min', 'extra'),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildSessionButton(
-                    'All Access - 60min',
-                    'all_access',
-                  ),
+                  child: _buildSessionButton('All Access - 60min', 'all_access'),
                 ),
               ],
             ),
             const SizedBox(height: 30),
-
+            
             // Selection counter and limit message
             if (selectedTimeSlots.isNotEmpty)
               Padding(
@@ -194,7 +160,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Show limit message when 5 slots are selected
+                   // Show limit message when 5 slots are selected
                     if (selectedTimeSlots.length == 5)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
@@ -210,17 +176,12 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                   ],
                 ),
               ),
-
+            
             // Time Slots Section
             if (isLoading)
               const Center(child: CircularProgressIndicator())
             else if (errorMessage.isNotEmpty)
-              Center(
-                child: Text(
-                  errorMessage,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              )
+              Center(child: Text(errorMessage, style: const TextStyle(color: Colors.red)))
             else if (availabilitySlots.isEmpty)
               const Center(child: Text('No available time slots'))
             else
@@ -229,32 +190,27 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      ...availabilitySlots.map(
-                        (slot) => _buildDaySection(
-                          slot['formattedDate'],
-                          slot['date'],
-                          slot['times'],
-                        ),
-                      ),
+                      ...availabilitySlots.map((slot) => 
+                        _buildDaySection(slot['formattedDate'], slot['date'], slot['times']))
                     ],
                   ),
                 ),
               ),
-
+            
             const SizedBox(height: 30),
-
+            
             // Divider
             Container(
               height: 1,
               color: Colors.black,
               margin: const EdgeInsets.symmetric(vertical: 20),
             ),
-
+            
             // Price and Rating Section
             Row(
               children: [
-                Text(
-                  "SAR ${_expert?.price}",
+                const Text(
+                  '\$550',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -264,24 +220,28 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                 const SizedBox(width: 5),
                 const Text(
                   '•',
-                  style: TextStyle(fontSize: 20, color: Colors.black),
+                  style: TextStyle(
+                    fontSize: 20,
+                    color: Colors.black,
+                  ),
                 ),
                 const SizedBox(width: 5),
                 const Text(
                   'Session',
-                  style: TextStyle(fontSize: 16, color: Colors.black),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-
+            
             // Rating
             Row(
               children: [
-                ...List.generate(
-                  5,
-                  (index) =>
-                      const Icon(Icons.star, color: Colors.orange, size: 20),
+                ...List.generate(5, (index) => 
+                  const Icon(Icons.star, color: Colors.orange, size: 20)
                 ),
                 const SizedBox(width: 8),
                 const Text(
@@ -295,25 +255,18 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
               ],
             ),
             const SizedBox(height: 30),
-
+            
             // Request Button
             Container(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
-                  if (_expert != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                ExpertBookingScreen(expertId: _expert!.id),
-                      ),
-                    );
-                  }
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => UserBookingProfile()),
+                  );
                 },
-
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
                   shape: RoundedRectangleBorder(
@@ -333,7 +286,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
           ],
         ),
       ),
-      bottomNavigationBar: const ExpertBottomNavbar(currentIndex: 1),
+      bottomNavigationBar: const UserBottomNavbar(currentIndex: 0),
     );
   }
 
@@ -364,11 +317,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
     );
   }
 
-  Widget _buildDaySection(
-    String formattedDay,
-    String originalDate,
-    List<String> times,
-  ) {
+  Widget _buildDaySection(String formattedDay, String originalDate, List<String> times) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -395,7 +344,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
           ),
         ),
         const SizedBox(height: 15),
-
+        
         if (times.isEmpty)
           Container(
             width: double.infinity,
@@ -433,16 +382,14 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                   if (isDisabled) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: const Text(
-                          'Maximum 5 slots selected. Remove some to select more.',
-                        ),
+                        content: const Text('Maximum 5 slots selected. Remove some to select more.'),
                         backgroundColor: Colors.red[700],
                         duration: const Duration(seconds: 2),
                       ),
                     );
                     return;
                   }
-
+                  
                   setState(() {
                     if (isSelected) {
                       selectedTimeSlots.remove(uniqueKey);
@@ -453,17 +400,11 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                 },
                 child: Container(
                   decoration: BoxDecoration(
-                    color:
-                        isSelected
-                            ? const Color(0xFFEDECE8)
-                            : (isDisabled
-                                ? Colors.grey.shade100
-                                : Colors.white),
+                    color: isSelected 
+                        ? const Color(0xFFEDECE8) 
+                        : (isDisabled ? Colors.grey.shade100 : Colors.white),
                     border: Border.all(
-                      color:
-                          isDisabled
-                              ? Colors.grey.shade300
-                              : Colors.grey.shade400,
+                      color: isDisabled ? Colors.grey.shade300 : Colors.grey.shade400,
                       width: 1,
                     ),
                     borderRadius: BorderRadius.circular(14),
@@ -481,9 +422,9 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                 ),
               );
             },
-          ),
+          ),   
         const SizedBox(height: 25),
-      ],
+      ],     
     );
   }
 }

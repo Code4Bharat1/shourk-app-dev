@@ -1,14 +1,6 @@
 import 'package:flutter/material.dart';
-// import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
-// import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import '../navbar/user_bottom_navbar.dart';
 import '../navbar/user_upper_navbar.dart';
-import '../profile/user_contactus.dart';
-import '../profile/user_profile_screen.dart';
-// import '../profile/user_detectiveaccount.dart';
-import '../profile/user_giftcard.dart';
-import '../profile/user_payment_method.dart';
-import '../profile/user_paymenthistory.dart';
 
 class UserContactUsScreen extends StatefulWidget {
   const UserContactUsScreen({super.key});
@@ -49,9 +41,6 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
       case 'Payment Methods':
         Navigator.pushNamed(context, '/payment_method');
         break;
-      // case 'Payment Dashboard':
-      //   Navigator.pushNamed(context, '/payment-dashboard');
-      //   break;
       case 'Gift Card':
         Navigator.pushNamed(context, '/user-giftcard');
         break;
@@ -61,7 +50,6 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
       case 'Sign Out':
         Navigator.pushNamed(context, '/start');
         break;
-      // 'Contact Us' stays on current page
     }
   }
 
@@ -89,6 +77,8 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final displayName = "User"; // Placeholder for user name
+    
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: UserUpperNavbar(),
@@ -102,62 +92,59 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
               children: [
                 // Profile Header
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Hi, User\nProfile',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Hi, $displayName", 
+                            style: const TextStyle(fontSize: 16)),
+                        const SizedBox(height: 4),
+                        const Text("Profile",
+                            style: TextStyle(
+                                fontSize: 24, 
+                                fontWeight: FontWeight.bold)),
+                      ],
                     ),
-                    
-                    // const Spacer(),
-                    // Language Toggle
-                    // Container(
-                    //   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    //   decoration: BoxDecoration(
-                    //     color: Colors.black,
-                    //     borderRadius: BorderRadius.circular(20),
-                    //   ),
-                    //   child: const Row(
-                    //     mainAxisSize: MainAxisSize.min,
-                    //     children: [
-                    //       Icon(Icons.language, color: Colors.white, size: 16),
-                    //       SizedBox(width: 4),
-                    //       Text(
-                    //         'العربية',
-                    //         style: TextStyle(color: Colors.white, fontSize: 12),
-                    //       ),
-                    //     ],
-                    //   ),
-                    // ),
-                    // const SizedBox(width: 8),
-                    // // Profile Picture
-                    // CircleAvatar(
-                    //   radius: 20,
-                    //   backgroundColor: Colors.grey[300],
-                    //   child: const Icon(Icons.person, color: Colors.grey),
-                    // ),
-                    // const SizedBox(width: 8),
-                    // const Text(
-                    //   'Aquib',
-                    //   style: TextStyle(
-                    //     fontSize: 16,
-                    //     fontWeight: FontWeight.w500,
-                    //   ),
-                    // ),
+                    Row(
+                      children: [
+                        Text(
+                          displayName,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: () => Navigator.pushNamed(context, '/user-profile'),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.grey[300]!, width: 2),
+                            ),
+                            child: ClipOval(
+                              child: Container(
+                                color: Colors.grey[300],
+                                child: const Icon(
+                                  Icons.person,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-                const SizedBox(height: 30),
-
-                // Settings Section - Updated with hamburger functionality
-
+                const SizedBox(height: 16),
+                
+                // Settings Section
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    // color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -211,14 +198,6 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
                       // Social Media Icons
                       Row(
                         children: [
-                          // Container(
-                          //   padding: const EdgeInsets.all(8),
-                          //   decoration: BoxDecoration(
-                          //     border: Border.all(color: Colors.grey.shade300),
-                          //     borderRadius: BorderRadius.circular(8),
-                          //   ),
-                          //   child: const Icon(Icons.link, size: 20),
-                          // ),
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.all(8),
@@ -349,16 +328,7 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    // color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    // boxShadow: [
-                    //   BoxShadow(
-                    //     color: Colors.grey.withOpacity(0.1),
-                    //     spreadRadius: 1,
-                    //     blurRadius: 5,
-                    //     offset: const Offset(0, 2),
-                    //   ),
-                    // ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,9 +415,6 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
                             _navigateToPage("Payment Methods");
                           },
                         ),
-                        // _buildDrawerOption("Payment Dashboard", Icons.dashboard, () {
-                        //   _navigateToPage("Payment Dashboard");
-                        // }),
                         _buildDrawerOption(
                           "Gift Card",
                           Icons.card_giftcard,
@@ -477,7 +444,7 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const UserBottomNavbar(), // Profile tab selected
+      bottomNavigationBar: const UserBottomNavbar(currentIndex: 2,), // Profile tab selected
     );
   }
 }
