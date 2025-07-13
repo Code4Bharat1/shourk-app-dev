@@ -70,7 +70,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
     try {
       print('Fetching bookings...');
       final response = await http.get(
-        Uri.parse('https://amd-api.code4bharat.com/api/session/mybookings'),
+        Uri.parse('http://localhost:5070/api/session/mybookings'),
         headers: {
           'Authorization': 'Bearer $_authToken',
           'Content-Type': 'application/json',
@@ -140,7 +140,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
     try {
       print('Fetching sessions...');
       final response = await http.get(
-        Uri.parse('https://amd-api.code4bharat.com/api/session/getexpertsession'),
+        Uri.parse('http://localhost:5070/api/session/getexpertsession'),
         headers: {
           'Authorization': 'Bearer $_authToken',
           'Content-Type': 'application/json',
