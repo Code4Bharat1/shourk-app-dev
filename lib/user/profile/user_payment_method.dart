@@ -83,10 +83,7 @@ class _PaymentDashboardState extends State<PaymentDashboard> {
     super.initState();
     selectedOption = 'Payment Methods'; // Set this to match the active page
   }
-  
   Widget build(BuildContext context) {
-    final displayName = "User"; // Placeholder for user name
-    
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: UserUpperNavbar(),
@@ -99,54 +96,16 @@ class _PaymentDashboardState extends State<PaymentDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header section with proper spacing
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Hi, $displayName", 
-                            style: const TextStyle(fontSize: 16)),
-                        const SizedBox(height: 4),
-                        const Text("Profile",
-                            style: TextStyle(
-                                fontSize: 24, 
-                                fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          displayName,
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                        const SizedBox(width: 12),
-                        GestureDetector(
-                          onTap: () => Navigator.pushNamed(context, '/user-profile'),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey[300]!, width: 2),
-                            ),
-                            child: ClipOval(
-                              child: Container(
-                                color: Colors.grey[300],
-                                child: const Icon(
-                                  Icons.person,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                const Text(
+                  "Hi, user",
+                  style: TextStyle(fontSize: 18, color: Colors.black),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                const Text(
+                  "Profile",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
                 
                 // Settings row
                 Row(

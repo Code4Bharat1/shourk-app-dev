@@ -4,7 +4,12 @@ import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
 
 class PaymentCardPage extends StatefulWidget {
   final double amount;
-  const PaymentCardPage({super.key, required this.amount});
+  final String redirectUrl;
+  const PaymentCardPage({
+  super.key, 
+  required this.redirectUrl,
+  required this.amount
+  });
 
   @override
   State<PaymentCardPage> createState() => _PaymentCardPageState();

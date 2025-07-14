@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../navbar/user_bottom_navbar.dart';
 import '../navbar/user_upper_navbar.dart';
 
@@ -11,49 +14,134 @@ class UserPaymentHistoryPage extends StatefulWidget {
 }
 
 class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
-  final List<Transaction> transactions = [
-    Transaction(
-      id: 'bdda35',
-      amount: 100.00,
-      service: 'Full consultation',
-      date: DateTime(2025, 7, 8, 11, 40),
-      status: 'HYPERPAY PENDING',
-      isCompleted: false,
-    ),
-    Transaction(
-      id: '9920b9',
-      amount: 100.00,
-      service: 'Full consultation',
-      date: DateTime(2025, 7, 8, 12, 2),
-      status: 'HYPERPAY PENDING',
-      isCompleted: false,
-    ),
-    Transaction(
-      amount: 200.00,
-      service: 'Full consultation',
-      date: DateTime(2025, 6, 23, 14, 22),
-      status: 'WALLET COMPLETED',
-      isCompleted: true,
-    ),
-    Transaction(
-      amount: 1000.00,
-      service: 'Full consultation',
-      date: DateTime(2025, 6, 23, 14, 7),
-      status: 'HYPERPAY COMPLETED',
-      isCompleted: true,
-    ),
-    Transaction(
-      amount: 1000.00,
-      service: 'Full consultation',
-      date: DateTime(2025, 6, 23, 12, 41),
-      status: 'HYPERPAY PENDING',
-      isCompleted: false,
-    ),
-  ];
+  List<Transaction> transactions = [];
+  bool isLoading = true;
+  String? userId;
+  String? userToken;
 
   // Settings menu state - matching the previous pages
   String selectedOption = 'Payment History';
   bool isMobileNavOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeUserData();
+  }
+
+  Future<void> _initializeUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      userToken = prefs.getString('userToken');
+      
+      if (userToken != null) {
+        // Decode JWT token to get userId
+        final parts = userToken!.split('.');
+        if (parts.length == 3) {
+          final payload = parts[1];
+          // Add padding if needed
+          final normalizedPayload = payload.padRight(
+            (payload.length + 3) & ~3, '=');
+          final decodedBytes = base64Decode(normalizedPayload);
+          final decodedToken = json.decode(utf8.decode(decodedBytes));
+          userId = decodedToken['_id'];
+          
+          if (userId != null) {
+            await _fetchPaymentHistory();
+          }
+        }
+      } else {
+        _showError('User token not found');
+      }
+    } catch (error) {
+      print('Error parsing userToken: $error');
+      _showError('Failed to load user data');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchPaymentHistory() async {
+    if (userId == null || userToken == null) return;
+
+    try {
+      final response = await http.get(
+        Uri.parse('https://amd-api.code4bharat.com/api/userauth/getTransactionHistory/$userId'),
+        headers: {
+          'Authorization': 'Bearer $userToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> transactionData = data['data'];
+        
+        // Format transactions similar to JS frontend
+        List<Transaction> formattedTransactions = transactionData.map((item) {
+          return Transaction(
+            id: item['_id'],
+            shortId: item['_id'].substring(item['_id'].length - 6),
+            amount: double.parse(item['amount'].toString()),
+            service: 'Video consultation', // Default service type
+            date: DateTime.parse(item['createdAt']),
+            status: _formatStatus(item['status'] ?? 'Completed'),
+            isCompleted: _isStatusCompleted(item['status'] ?? 'Completed'),
+            paymentMethod: item['paymentMethod'] ?? 'Credit Card',
+          );
+        }).toList();
+
+        // Sort by date (newest first)
+        formattedTransactions.sort((a, b) => b.date.compareTo(a.date));
+
+        if (mounted) {
+          setState(() {
+            transactions = formattedTransactions;
+          });
+        }
+      } else {
+        _showError('Failed to load payment history');
+      }
+    } catch (error) {
+      print('Error fetching payment history: $error');
+      _showError('Failed to load payment history');
+    }
+  }
+
+  String _formatStatus(String status) {
+    // Format status similar to JS frontend
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'success':
+        return 'COMPLETED';
+      case 'pending':
+        return 'PENDING';
+      case 'failed':
+      case 'cancelled':
+        return 'FAILED';
+      default:
+        return status.toUpperCase();
+    }
+  }
+
+  bool _isStatusCompleted(String status) {
+    return status.toLowerCase() == 'completed' || status.toLowerCase() == 'success';
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   double get totalAmount {
     return transactions.fold(0, (sum, transaction) => sum + transaction.amount);
@@ -143,7 +231,7 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
                             Text("Hi, $displayName", 
                                 style: const TextStyle(fontSize: 16)),
                             const SizedBox(height: 4),
-                            const Text("Profile",
+                            const Text("Payment History",
                                 style: TextStyle(
                                     fontSize: 24, 
                                     fontWeight: FontWeight.bold)),
@@ -213,19 +301,18 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
               // URL section
               _buildUrlSection(),
               
-              // Transactions list
+              // Content based on loading state
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: transactions.length,
-                  itemBuilder: (context, index) {
-                    return _buildTransactionCard(transactions[index]);
-                  },
-                ),
+                child: isLoading
+                    ? _buildLoadingState()
+                    : transactions.isEmpty
+                        ? _buildEmptyState()
+                        : _buildTransactionsList(),
               ),
               
-              // Total section
-              _buildTotalSection(),
+              // Total section (only show if not loading and has transactions)
+              if (!isLoading && transactions.isNotEmpty)
+                _buildTotalSection(),
             ],
           ),
           
@@ -296,6 +383,63 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
     );
   }
 
+  Widget _buildLoadingState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        children: List.generate(3, (index) => 
+          Container(
+            height: 80,
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.payment,
+            size: 64,
+            color: Colors.grey[300],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No payments yet',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionsList() {
+    return RefreshIndicator(
+      onRefresh: _fetchPaymentHistory,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: transactions.length,
+        itemBuilder: (context, index) {
+          return _buildTransactionCard(transactions[index]);
+        },
+      ),
+    );
+  }
+
   Widget _buildUrlSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -342,19 +486,21 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status indicator
+            // Status indicator with video icon
             Container(
-              width: 40,
-              height: 40,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: transaction.isCompleted 
-                  ? Colors.green[100] 
-                  : Colors.orange[100],
+                  ? Colors.blue[50] 
+                  : Colors.orange[50],
                 shape: BoxShape.circle,
               ),
-              child: transaction.isCompleted
-                ? const Icon(Icons.check, color: Colors.green, size: 24)
-                : const SizedBox.shrink(),
+              child: Icon(
+                Icons.videocam,
+                color: transaction.isCompleted ? Colors.blue : Colors.orange,
+                size: 24,
+              ),
             ),
             
             const SizedBox(width: 16),
@@ -364,58 +510,25 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ID if exists
-                  if (transaction.id != null) ...[
-                    Text(
-                      transaction.id!,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                  
-                  // Service type
+                  // Short ID and Amount in same row
                   Row(
                     children: [
-                      if (!transaction.isCompleted)
-                        Container(
-                          width: 16,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      if (!transaction.isCompleted) const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          transaction.service,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Amount
-                  Row(
-                    children: [
-                      const Text(
-                        'SAR',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
                       Text(
-                        transaction.amount.toStringAsFixed(2),
+                        transaction.shortId,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '•',
+                        style: TextStyle(color: Colors.grey[400]),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '\$${transaction.amount.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -424,41 +537,99 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
                     ],
                   ),
                   
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   
-                  // Date and time
+                  // Service type
                   Text(
-                    '${dateFormat.format(transaction.date)}  ${timeFormat.format(transaction.date)}',
-                    style: const TextStyle(
+                    transaction.service,
+                    style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey,
+                      color: Colors.grey[600],
                     ),
                   ),
                 ],
               ),
             ),
             
-            // Payment status
+            // Right section - Date, Time, Payment Method, Status
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  transaction.status.split(' ')[0],
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
+                // Date and time
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      dateFormat.format(transaction.date),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      timeFormat.format(transaction.date),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  transaction.status.split(' ')[1],
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: transaction.status.contains('COMPLETED')
-                      ? Colors.green
-                      : Colors.orange,
-                  ),
+                
+                const SizedBox(height: 8),
+                
+                // Payment method and status
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.credit_card,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          transaction.paymentMethod,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(transaction.status),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _getStatusIcon(transaction.status),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _getStatusTextColor(transaction.status),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            transaction.status,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: _getStatusTextColor(transaction.status),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -468,13 +639,52 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
     );
   }
 
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return Colors.green[100]!;
+      case 'pending':
+        return Colors.orange[100]!;
+      case 'failed':
+        return Colors.red[100]!;
+      default:
+        return Colors.grey[100]!;
+    }
+  }
+
+  Color _getStatusTextColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return Colors.green[700]!;
+      case 'pending':
+        return Colors.orange[700]!;
+      case 'failed':
+        return Colors.red[700]!;
+      default:
+        return Colors.grey[700]!;
+    }
+  }
+
+  String _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return '✓';
+      case 'pending':
+        return '⏳';
+      case 'failed':
+        return '✗';
+      default:
+        return '•';
+    }
+  }
+
   Widget _buildTotalSection() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        border: const Border(
-          top: BorderSide(color: Colors.grey, width: 0.5),
+        color: Colors.grey[50],
+        border: Border(
+          top: BorderSide(color: Colors.grey[200]!, width: 1),
         ),
       ),
       child: Row(
@@ -482,22 +692,25 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
         children: [
           Text(
             '${transactions.length} transactions',
-            style: const TextStyle(fontSize: 16),
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
           ),
           RichText(
             text: TextSpan(
               children: [
-                const TextSpan(
-                  text: 'Total: SAR ',
+                TextSpan(
+                  text: 'Total Spent: ',
                   style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black,
+                    fontSize: 14,
+                    color: Colors.grey[600],
                   ),
                 ),
                 TextSpan(
-                  text: totalAmount.toStringAsFixed(2),
+                  text: '\$${totalAmount.toStringAsFixed(2)}',
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
                   ),
@@ -512,19 +725,23 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
 }
 
 class Transaction {
-  final String? id;
+  final String id;
+  final String shortId;
   final double amount;
   final String service;
   final DateTime date;
   final String status;
   final bool isCompleted;
+  final String paymentMethod;
 
   Transaction({
-    this.id,
+    required this.id,
+    required this.shortId,
     required this.amount,
     required this.service,
     required this.date,
     required this.status,
     required this.isCompleted,
+    required this.paymentMethod,
   });
 }

@@ -16,6 +16,7 @@ import 'expert/profile/account_deactivate.dart';
 import 'expert/profile/contact_us_screen.dart';
 
 import 'expert/navbar/expert_serach_screen.dart';
+import 'user/profile/user_payment_method.dart';
 
 // import 'package:shourk_application/expert/screens/search_experts_screen.dart';
 // import 'package:shourk_application/expert/screens/video_call_screen.dart';
@@ -105,6 +106,11 @@ class MyApp extends StatelessWidget {
           '/career-experts': (context) => CareerExpertsScreen(),
           '/fashion-experts': (context) => FashionBeautyExpertsScreen(),
          '/wellness-experts': (context) => WellnessExpertsScreen(),
+
+
+
+         '/user-payment-method': (context) =>  PaymentDashboard(),
+         '/user-giftcard-select': (context) => const UserGiftCardSelectPage(),
       },
     );
   }

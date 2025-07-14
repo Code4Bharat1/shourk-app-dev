@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:googleapis/androidmanagement/v1.dart';
 import 'package:http/http.dart' as http;
 import 'package:shourk_application/expert/expert_category/home_expert.dart';
 import 'dart:convert';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
+import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
 
 import '../../expert/expert_category/career_expert.dart';
 import '../../expert/expert_category/top_expert.dart';
@@ -190,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: ExpertUpperNavbar(),
+      appBar: UserUpperNavbar(),
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())

@@ -36,7 +36,7 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const UserUpperNavbar(),
+      appBar: UserUpperNavbar(),
       backgroundColor: const Color(0xFFFCFAF6),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

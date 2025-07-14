@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../navbar/user_upper_navbar.dart';
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
 
@@ -16,17 +20,33 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController messageController = TextEditingController();
-
+  bool sendAnonymously = false;
   bool showCustomField = false;
+  bool isSubmitting = false;
+  String? token;
 
-  // Settings menu state - matching the PaymentDashboard structure
+  // Settings menu state
   String selectedOption = 'Gift Card';
   bool isMobileNavOpen = false;
 
-  bool get isContinueEnabled =>
-      selectedAmount != null && emailController.text.isNotEmpty;
+  @override
+  void initState() {
+    super.initState();
+    _loadToken();
+  }
 
-  // Settings Menu Drawer - using the same pattern as PaymentDashboard
+  void _loadToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      token = prefs.getString('userToken');
+    });
+  }
+
+  bool get isContinueEnabled =>
+      (selectedAmount != null || customAmountController.text.isNotEmpty) &&
+      emailController.text.isNotEmpty;
+
+  // Settings Menu Drawer
   void _openSettingsMenu() {
     setState(() {
       isMobileNavOpen = true;
@@ -45,7 +65,6 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
       isMobileNavOpen = false;
     });
 
-    // Navigate to the corresponding page
     switch (label) {
       case 'Profile':
         Navigator.pushNamed(context, '/user-profile');
@@ -68,7 +87,6 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
     }
   }
 
-  // Drawer option widget - exactly matching PaymentDashboard
   Widget _buildDrawerOption(String label, IconData icon, VoidCallback onTap) {
     final bool isSelected = selectedOption == label;
     return Container(
@@ -81,10 +99,109 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
         selected: isSelected,
         selectedColor: Colors.white,
         leading: Icon(icon, color: isSelected ? Colors.white : Colors.black),
-        title: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.black)),
+        title: Text(label,
+            style: TextStyle(color: isSelected ? Colors.white : Colors.black)),
         onTap: onTap,
       ),
     );
+  }
+
+  Future<void> handlePurchaseAttempt() async {
+    if (!isContinueEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all required fields')),
+      );
+      return;
+    }
+
+    // Validate email format
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(emailController.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid recipient email format')),
+      );
+      return;
+    }
+
+    // Determine amount
+    double amount;
+    if (selectedAmount != null) {
+      amount = double.parse(selectedAmount!);
+    } else {
+      amount = double.tryParse(customAmountController.text) ?? 0;
+    }
+
+    if (amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid gift card amount')),
+      );
+      return;
+    }
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Authentication error. Please log in again')),
+      );
+      return;
+    }
+
+    setState(() {
+      isSubmitting = true;
+    });
+
+    try {
+      final url = Uri.parse('https://amd-api.code4bharat.com/api/giftcard/purchase');
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      };
+
+      final payload = {
+        'amount': amount,
+        'recipientEmail': emailController.text.trim(),
+        if (phoneController.text.trim().isNotEmpty)
+          'recipientPhone': phoneController.text.trim(),
+        if (messageController.text.trim().isNotEmpty)
+          'recipientMessage': messageController.text.trim(),
+        'sendAnonymously': sendAnonymously,
+      };
+
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode(payload),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData['paymentUrl'] != null) {
+          if (await canLaunchUrl(Uri.parse(responseData['paymentUrl']))) {
+            await launchUrl(
+              Uri.parse(responseData['paymentUrl']),
+              mode: LaunchMode.externalApplication,
+            );
+          } else {
+            throw 'Could not launch payment URL';
+          }
+        } else {
+          throw responseData['message'] ?? 'Payment URL not found';
+        }
+      } else {
+        final errorData = json.decode(response.body);
+        final errorMessage = errorData['message'] ?? 
+            (errorData['errors']?.map((e) => e['msg']).join(', ') ?? 
+            'Failed to initiate gift card purchase');
+        throw errorMessage;
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $error')),
+      );
+    } finally {
+      setState(() {
+        isSubmitting = false;
+      });
+    }
   }
 
   @override
@@ -98,7 +215,7 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
     final displayName = "User"; // Placeholder for user name
 
     return Scaffold(
-      appBar: const UserUpperNavbar(),
+      appBar: UserUpperNavbar(),
       bottomNavigationBar: const UserBottomNavbar(currentIndex: 2),
       body: Stack(
         children: [
@@ -158,7 +275,7 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Settings row - matching PaymentDashboard structure
+                // Settings row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -364,14 +481,32 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 16),
+                
+                // Added Send Anonymously checkbox
+                Row(
+                  children: [
+                    Checkbox(
+                      value: sendAnonymously,
+                      onChanged: (value) {
+                        setState(() {
+                          sendAnonymously = value ?? false;
+                        });
+                      },
+                      activeColor: Colors.black,
+                      checkColor: Colors.white,
+                    ),
+                    const Text('Send Anonymously'),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.person_off, size: 20),
+                  ],
+                ),
+                const SizedBox(height: 24),
 
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: isContinueEnabled
-                        ? () => Navigator.pushNamed(context, '/gift-card-form')
-                        : null,
+                    onPressed: isSubmitting ? null : handlePurchaseAttempt,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 18),
@@ -379,10 +514,38 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'Proceed to Payment',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
+                    child: isSubmitting
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text('Processing...',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white)),
+                            ],
+                          )
+                        : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.send, color: Colors.white, size: 20),
+                              SizedBox(width: 8),
+                              Text('Proceed to Payment',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white)),
+                            ],
+                          ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -390,7 +553,7 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
             ),
           ),
           
-          // Mobile Navigation Drawer - exactly matching PaymentDashboard
+          // Mobile Navigation Drawer
           if (isMobileNavOpen)
             GestureDetector(
               onTap: _closeMobileNav,
