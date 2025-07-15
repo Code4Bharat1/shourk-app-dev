@@ -1,6 +1,89 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import '../navbar/user_bottom_navbar.dart';
 import '../navbar/user_upper_navbar.dart';
+
+// Reusable header widget - copied from gift card page
+class ProfileHeader extends StatelessWidget {
+  final String displayName;
+  final String title;
+  final String? profileImageUrl;
+  final VoidCallback? onProfileTap;
+
+  const ProfileHeader({
+    required this.displayName,
+    required this.title,
+    this.profileImageUrl,
+    this.onProfileTap,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Hi, $displayName", style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 4),
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        Row(
+          children: [
+            Text(displayName, style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: onProfileTap,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey[300]!, width: 2),
+                ),
+                child: ClipOval(
+                  child: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                      ? Image.network(
+                          profileImageUrl!,
+                          fit: BoxFit.cover,
+                          width: 40,
+                          height: 40,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[300],
+                              child: const Icon(
+                                Icons.person,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        )
+                      : Container(
+                          color: Colors.grey[300],
+                          child: const Icon(
+                            Icons.person,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
 
 class UserContactUsScreen extends StatefulWidget {
   const UserContactUsScreen({super.key});
@@ -10,11 +93,54 @@ class UserContactUsScreen extends StatefulWidget {
 }
 
 class _UserContactUsScreenState extends State<UserContactUsScreen> {
-  // Settings menu state - matching the UserGiftCardSelectPage structure
+  // Settings menu state
   String selectedOption = 'Contact Us';
   bool isMobileNavOpen = false;
 
-  // Settings Menu Drawer - using the same pattern as UserGiftCardSelectPage
+  // Profile header variables
+  String _displayName = 'User';
+  String? _profileImageUrl;
+  String _headerTitle = 'Profile';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  // Load user profile for header - same as gift card page
+  Future<void> _loadUserProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('userToken');
+    
+    if (token == null) return;
+    
+    try {
+      Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+      final userId = decodedToken['_id'];
+      
+      final response = await http.get(
+        Uri.parse('https://amd-api.code4bharat.com/api/userauth/$userId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final userData = data['data'];
+          setState(() {
+            _displayName = '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'.trim();
+            if (_displayName.isEmpty) _displayName = 'User';
+            _profileImageUrl = userData['photoFile'];
+          });
+        }
+      }
+    } catch (e) {
+      print("Error loading user profile: $e");
+    }
+  }
+
+  // Settings Menu Drawer
   void _openSettingsMenu() {
     setState(() {
       isMobileNavOpen = true;
@@ -53,7 +179,7 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
     }
   }
 
-  // Drawer option widget - exactly matching UserGiftCardSelectPage
+  // Drawer option widget
   Widget _buildDrawerOption(String label, IconData icon, VoidCallback onTap) {
     final bool isSelected = selectedOption == label;
     return Container(
@@ -77,8 +203,6 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = "User"; // Placeholder for user name
-    
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: UserUpperNavbar(),
@@ -90,53 +214,12 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Profile Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Hi, $displayName", 
-                            style: const TextStyle(fontSize: 16)),
-                        const SizedBox(height: 4),
-                        const Text("Profile",
-                            style: TextStyle(
-                                fontSize: 24, 
-                                fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          displayName,
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                        const SizedBox(width: 12),
-                        GestureDetector(
-                          onTap: () => Navigator.pushNamed(context, '/user-profile'),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey[300]!, width: 2),
-                            ),
-                            child: ClipOval(
-                              child: Container(
-                                color: Colors.grey[300],
-                                child: const Icon(
-                                  Icons.person,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                // Profile Header using the reusable widget
+                ProfileHeader(
+                  displayName: _displayName,
+                  title: _headerTitle,
+                  profileImageUrl: _profileImageUrl,
+                  onProfileTap: () => Navigator.pushNamed(context, '/user-profile'),
                 ),
                 const SizedBox(height: 16),
                 
@@ -368,7 +451,7 @@ class _UserContactUsScreenState extends State<UserContactUsScreen> {
             ),
           ),
 
-          // Mobile Navigation Drawer - exactly matching UserGiftCardSelectPage
+          // Mobile Navigation Drawer
           if (isMobileNavOpen)
             GestureDetector(
               onTap: _closeMobileNav,

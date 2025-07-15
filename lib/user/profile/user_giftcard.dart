@@ -3,8 +3,88 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import '../navbar/user_upper_navbar.dart';
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
+
+// Reusable header widget
+class ProfileHeader extends StatelessWidget {
+  final String displayName;
+  final String title;
+  final String? profileImageUrl;
+  final VoidCallback? onProfileTap;
+
+  const ProfileHeader({
+    required this.displayName,
+    required this.title,
+    this.profileImageUrl,
+    this.onProfileTap,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Hi, $displayName", style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 4),
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        Row(
+          children: [
+            Text(displayName, style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: onProfileTap,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey[300]!, width: 2),
+                ),
+                child: ClipOval(
+                  child: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                      ? Image.network(
+                          profileImageUrl!,
+                          fit: BoxFit.cover,
+                          width: 40,
+                          height: 40,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[300],
+                              child: const Icon(
+                                Icons.person,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        )
+                      : Container(
+                          color: Colors.grey[300],
+                          child: const Icon(
+                            Icons.person,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
 
 class UserGiftCardSelectPage extends StatefulWidget {
   const UserGiftCardSelectPage({super.key});
@@ -29,10 +109,16 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
   String selectedOption = 'Gift Card';
   bool isMobileNavOpen = false;
 
+  // Profile header variables
+  String _displayName = 'User';
+  String? _profileImageUrl;
+  String _headerTitle = 'Gift Card';
+
   @override
   void initState() {
     super.initState();
     _loadToken();
+    _loadUserProfile();
   }
 
   void _loadToken() async {
@@ -40,6 +126,38 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
     setState(() {
       token = prefs.getString('userToken');
     });
+  }
+
+  // Load user profile for header
+  Future<void> _loadUserProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('userToken');
+    
+    if (token == null) return;
+    
+    try {
+      Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+      final userId = decodedToken['_id'];
+      
+      final response = await http.get(
+        Uri.parse('https://amd-api.code4bharat.com/api/userauth/$userId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final userData = data['data'];
+          setState(() {
+            _displayName = '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'.trim();
+            if (_displayName.isEmpty) _displayName = 'User';
+            _profileImageUrl = userData['photoFile'];
+          });
+        }
+      }
+    } catch (e) {
+      print("Error loading user profile: $e");
+    }
   }
 
   bool get isContinueEnabled =>
@@ -211,8 +329,6 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
     final chipPadding = isSmallScreen
         ? const EdgeInsets.symmetric(horizontal: 16, vertical: 10)
         : const EdgeInsets.symmetric(horizontal: 24, vertical: 12);
-    
-    final displayName = "User"; // Placeholder for user name
 
     return Scaffold(
       appBar: UserUpperNavbar(),
@@ -225,53 +341,12 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header section with proper spacing
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Hi, $displayName", 
-                            style: const TextStyle(fontSize: 16)),
-                        const SizedBox(height: 4),
-                        const Text("Profile",
-                            style: TextStyle(
-                                fontSize: 24, 
-                                fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          displayName,
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                        const SizedBox(width: 12),
-                        GestureDetector(
-                          onTap: () => Navigator.pushNamed(context, '/user-profile'),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey[300]!, width: 2),
-                            ),
-                            child: ClipOval(
-                              child: Container(
-                                color: Colors.grey[300],
-                                child: const Icon(
-                                  Icons.person,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                // Header section using ProfileHeader widget
+                ProfileHeader(
+                  displayName: _displayName,
+                  title: _headerTitle,
+                  profileImageUrl: _profileImageUrl,
+                  onProfileTap: () => Navigator.pushNamed(context, '/user-profile'),
                 ),
                 const SizedBox(height: 16),
                 
@@ -483,7 +558,7 @@ class _UserGiftCardSelectPageState extends State<UserGiftCardSelectPage> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Added Send Anonymously checkbox
+                // Send Anonymously checkbox
                 Row(
                   children: [
                     Checkbox(

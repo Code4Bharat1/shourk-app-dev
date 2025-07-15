@@ -6,11 +6,21 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
 import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
+import 'package:shourk_application/expert/navbar/video_call.dart'; // Added video call import
 
 class UserBookingProfile extends StatefulWidget {
   final String expertId;
+  final String selectedSessionType;
+  final String selectedDate;
+  final String selectedTime;
 
-  const UserBookingProfile({super.key, required this.expertId});
+  const UserBookingProfile({
+    super.key,
+    required this.expertId,
+    required this.selectedSessionType,
+    required this.selectedDate,
+    required this.selectedTime,
+  });
 
   @override
   _BookingFormScreenState createState() => _BookingFormScreenState();
@@ -20,14 +30,13 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
   ExpertModel? expert;
   bool isLoading = true;
   String error = '';
-  double discountAmount = 0.0; // For promo code discounts
+  double discountAmount = 0.0;
   double walletBalance = 0.0;
   bool isWalletLoading = true;
   bool isBookingInProgress = false;
   String? authToken;
   String? currentUserId;
 
-  // Add missing form key and controllers
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -36,16 +45,21 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _promoController = TextEditingController();
 
+  late String sessionType;
+  late String sessionDate;
+  late String sessionTime;
+
   @override
   void initState() {
     super.initState();
+    sessionType = widget.selectedSessionType;
+    sessionDate = widget.selectedDate;
+    sessionTime = widget.selectedTime;
     _initializeData();
   }
 
   Future<void> _initializeData() async {
-    // Get auth token from SharedPreferences (same pattern as ProfileSettingsScreen)
     await _getAuthToken();
-    
     await Future.wait([
       fetchExpert(),
       fetchWalletBalance(),
@@ -64,7 +78,6 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
           currentUserId = decodedToken['_id'];
         });
       } else {
-        // Handle case where user is not authenticated
         setState(() {
           authToken = null;
           currentUserId = null;
@@ -82,7 +95,6 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
   Future<void> fetchWalletBalance() async {
     try {
       if (authToken == null) {
-        // Handle case where user is not authenticated
         setState(() {
           isWalletLoading = false;
           walletBalance = 0.0;
@@ -101,8 +113,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-         walletBalance = (data['data']['spending'] ?? 0.0).toDouble(); // ✅ correct key
-
+          walletBalance = (data['data']['spending'] ?? 0.0).toDouble();
           isWalletLoading = false;
         });
       } else {
@@ -122,7 +133,6 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
 
   @override
   void dispose() {
-    // Dispose controllers to prevent memory leaks
     _firstNameController.dispose();
     _lastNameController.dispose();
     _phoneController.dispose();
@@ -158,32 +168,36 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
     }
   }
 
-  // Helper method to get session fee
   double get sessionFee => expert?.price ?? 0.0;
-
-  // Helper method to get total amount after discount
   double get totalAmount => sessionFee - discountAmount;
-
-  // Helper method to check if this is a free session
   bool get isFirstSession => expert?.freeSessionEnabled ?? false;
-
-  // Helper method to get final price after considering free session
   double get finalPriceAfterGiftCard => isFirstSession ? 0.0 : totalAmount;
 
-  // Helper method to apply promo code
+  String _mapSessionDurationLabel(String type) {
+    switch (type) {
+      case 'quick':
+        return 'Quick - 15min';
+      case 'regular':
+        return 'Regular - 30min';
+      case 'extra':
+        return 'Extra - 45min';
+      case 'all_access':
+        return 'All Access - 60min';
+      default:
+        return 'Regular - 30min';
+    }
+  }
+
   void _applyPromoCode() {
     final promoCode = _promoController.text.trim();
     if (promoCode.isNotEmpty) {
-      // Add your promo code logic here
-      // For example, a simple discount logic:
       setState(() {
         if (promoCode.toUpperCase() == 'SAVE10') {
-          discountAmount = sessionFee * 0.1; // 10% discount
+          discountAmount = sessionFee * 0.1;
         } else if (promoCode.toUpperCase() == 'SAVE20') {
-          discountAmount = sessionFee * 0.2; // 20% discount
+          discountAmount = sessionFee * 0.2;
         } else {
           discountAmount = 0.0;
-          // Show error message for invalid promo code
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Invalid promo code')),
           );
@@ -215,6 +229,64 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildExpertCard(),
+            const SizedBox(height: 20),
+            
+            // Dynamic session info
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 20, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Date: ',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Text(sessionDate, style: TextStyle(fontSize: 16)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time, size: 20, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Time: ',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Text(sessionTime, style: TextStyle(fontSize: 16)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.timer, size: 20, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Duration: ',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Text(_mapSessionDurationLabel(sessionType), style: TextStyle(fontSize: 16)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 20),
             _buildBookingForm(),
             const SizedBox(height: 20),
@@ -341,7 +413,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Monday, July 14, 2025',
+                  sessionDate,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[700],
@@ -353,7 +425,21 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                     Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 8),
                     Text(
-                      '2:00 PM',
+                      sessionTime,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.timer, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Text(
+                      _mapSessionDurationLabel(sessionType),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[700],
@@ -393,115 +479,133 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
     );
   }
 
-  Widget _buildBookingForm() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+Widget _buildBookingForm() {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          spreadRadius: 1,
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Complete Your Booking',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ],
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Complete Your Booking',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: _firstNameController,
+                  label: 'First Name',
+                  hint: 'Enter your first name',
+                  prefixIcon: Icons.person_outline,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Name fields
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTextField(
-                    controller: _firstNameController,
-                    label: 'First Name',
-                    hint: 'Enter your first name',
-                    prefixIcon: Icons.person_outline,
-                  ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  controller: _lastNameController,
+                  label: 'Last Name',
+                  hint: 'Enter your last name',
+                  prefixIcon: Icons.person_outline,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTextField(
-                    controller: _lastNameController,
-                    label: 'Last Name',
-                    hint: 'Enter your last name',
-                    prefixIcon: Icons.person_outline,
-                  ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: _phoneController,
+                  label: 'Mobile Number',
+                  hint: '+1 (555) 000-0000',
+                  prefixIcon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Phone and Email
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTextField(
-                    controller: _phoneController,
-                    label: 'Mobile Number',
-                    hint: '+1 (555) 000-0000',
-                    prefixIcon: Icons.phone_outlined,
-                    keyboardType: TextInputType.phone,
-                  ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  controller: _emailController,
+                  label: 'Email',
+                  hint: 'your.email@example.com',
+                  prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTextField(
-                    controller: _emailController,
-                    label: 'Email',
-                    hint: 'your.email@example.com',
-                    prefixIcon: Icons.email_outlined,
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Note to Expert
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Text(
-                      'Note to Expert',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Text(
+                    'Note to Expert',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
-                    Spacer(),
-                    Text(
-                      '0/25 words minimum',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.red,
-                      ),
+                  ),
+                  Spacer(),
+                  Text(
+                    '0/25 words minimum',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.red,
                     ),
-                  ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _noteController,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText:
+                      'Introduce yourself and describe what you\'d like to discuss in the session (minimum 25 words)...',
+                  hintStyle: TextStyle(color: Colors.grey[500]),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.blue),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
                 ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _noteController,
-                  maxLines: 4,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _promoController,
                   decoration: InputDecoration(
-                    hintText: 'Introduce yourself and describe what you\'d like to discuss in the session (minimum 25 words)...',
-                    hintStyle: TextStyle(color: Colors.grey[500]),
+                    labelText: 'Gift Card / Promo Code',
+                    hintText: 'Enter gift or promo code',
+                    prefixIcon: const Icon(Icons.card_giftcard_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(color: Colors.grey[300]!),
@@ -510,54 +614,31 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.blue),
                     ),
-                    contentPadding: const EdgeInsets.all(12),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Promo Code
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _promoController,
-                    decoration: InputDecoration(
-                      labelText: 'Gift Card / Promo Code',
-                      hintText: 'Enter gift or promo code',
-                      prefixIcon: const Icon(Icons.card_giftcard_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.blue),
-                      ),
-                    ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _applyPromoCode,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[800],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _applyPromoCode,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[800],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Apply'),
-                ),
-              ],
-            ),
-          ],
-        ),
+                child: const Text('Apply'),
+              ),
+            ],
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   Widget _buildTextField({
     required TextEditingController controller,
@@ -655,8 +736,6 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
             ),
           ),
           const SizedBox(height: 16),
-          
-          // Show insufficient balance warning if needed
           if (!isWalletLoading && finalPriceAfterGiftCard > walletBalance && !isFirstSession) ...[
             Container(
               padding: const EdgeInsets.all(12),
@@ -683,7 +762,6 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
             ),
             const SizedBox(height: 16),
           ],
-          
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -703,8 +781,6 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
               ),
             ],
           ),
-          
-          // Show free session discount if applicable
           if (isFirstSession) ...[
             const SizedBox(height: 8),
             Row(
@@ -727,8 +803,6 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
               ],
             ),
           ],
-          
-          // Show promo code discount if applicable
           if (discountAmount > 0) ...[
             const SizedBox(height: 8),
             Row(
@@ -751,7 +825,6 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
               ],
             ),
           ],
-          
           const SizedBox(height: 8),
           const Divider(),
           const SizedBox(height: 8),
@@ -845,69 +918,52 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
   }
 
   Future<void> _handleBooking() async {
-   if (authToken == null || currentUserId == null) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Login required or user ID missing. Please re-login.')),
-  );
-  return;
-}
-
+    if (authToken == null || currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login required or user ID missing. Please re-login.')),
+      );
+      return;
+    }
 
     setState(() {
       isBookingInProgress = true;
     });
 
-String _mapSessionDurationLabel(String durationCode) {
-  switch (durationCode) {
-    case '15':
-      return 'Quick - 15min';
-    case '30':
-      return 'Regular - 30min';
-    case '45':
-      return 'Extra - 45min';
-    case '60':
-      return 'All Access - 60min';
-    default:
-      return 'Regular - 30min'; // fallback
-  }
-}
-
-
-int _mapDurationToBackend(String durationStr) {
-  // Convert string to int and validate it
-  final validDurations = [15, 30, 45, 60];
-  final parsed = int.tryParse(durationStr) ?? 30;
-  return validDurations.contains(parsed) ? parsed : 30;
-}
-
+    String _validateAreaOfExpertise(String? input) {
+      const allowed = [
+        'Home',
+        'Digital Marketing',
+        'Technology',
+        'Style and Beauty',
+        'Health and Wellness',
+        'Career and Business'
+      ];
+      return allowed.contains(input) ? input! : 'Home';
+    }
 
     try {
-      // Prepare booking data
- final bookingData = {
-  'consultingExpertID': widget.expertId,      // ✅ Expert being booked
-  'expertId': currentUserId,                  // ✅ Logged-in expert who is booking
-  'areaOfExpertise': expert?.areaOfExpertise ?? 'Home',
-  'duration': _mapSessionDurationLabel(expert?.sessionDuration ?? '30'),
-  'firstName': _firstNameController.text.trim(),
-  'lastName': _lastNameController.text.trim(),
-  'phone': _phoneController.text.trim(),
-  'email': _emailController.text.trim(),
-  'note': _noteController.text.trim(),
-  'promoCode': _promoController.text.trim(),
-  'sessionDate': '2025-07-14',
-  'sessionTime': '14:00',
-  'price': sessionFee,
-  'discountAmount': discountAmount,
-  'finalAmount': finalPriceAfterGiftCard,
-};
+      final bookingData = {
+        'consultingExpertID': widget.expertId,
+        'expertId': currentUserId,
+        'areaOfExpertise': _validateAreaOfExpertise(expert?.areaOfExpertise),
+        'duration': _mapSessionDurationLabel(sessionType),
+        'firstName': _firstNameController.text.trim(),
+        'lastName': _lastNameController.text.trim(),
+        'mobile': _phoneController.text.trim(),
+        'email': _emailController.text.trim(),
+        'note': _noteController.text.trim(),
+        'price': sessionFee.toString(),
+        'redemptionCode': _promoController.text.trim(),
+        'slots': [
+          {
+            'selectedDate': sessionDate,
+            'selectedTime': sessionTime,
+          }
+        ],
+      };
 
+      print("📦 Booking Payload: consultingExpertID=${widget.expertId}, expertId=$currentUserId");
 
-
-
-print("📦 Booking Payload: consultingExpertID=${currentUserId}, expertId=${widget.expertId}");
-
-
-      // First create the session
       final sessionResponse = await http.post(
         Uri.parse('http://localhost:5070/api/session/experttoexpertsession'),
         headers: {
@@ -924,7 +980,6 @@ print("📦 Booking Payload: consultingExpertID=${currentUserId}, expertId=${wid
       final sessionData = jsonDecode(sessionResponse.body);
       final sessionId = sessionData['session']['_id'];
 
-      // If not a free session and there's a cost, make the payment
       if (!isFirstSession && finalPriceAfterGiftCard > 0) {
         final paymentResponse = await http.post(
           Uri.parse('http://localhost:5070/api/expertwallet/spending/pay'),
@@ -935,6 +990,7 @@ print("📦 Booking Payload: consultingExpertID=${currentUserId}, expertId=${wid
           body: jsonEncode({
             'sessionId': sessionId,
             'amount': finalPriceAfterGiftCard,
+            'payeeExpertId': widget.expertId,
           }),
         );
 
@@ -942,13 +998,11 @@ print("📦 Booking Payload: consultingExpertID=${currentUserId}, expertId=${wid
           throw Exception('Payment failed: ${paymentResponse.body}');
         }
 
-        // Update local wallet balance after successful payment
         setState(() {
           walletBalance = walletBalance - finalPriceAfterGiftCard;
         });
       }
 
-      // Show success confirmation
       _showBookingConfirmation(sessionId);
 
     } catch (e) {
@@ -996,10 +1050,18 @@ print("📦 Booking Payload: consultingExpertID=${currentUserId}, expertId=${wid
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.of(context).pop(); // Go back to previous screen
+                Navigator.of(context).pop();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VideoCallPage(
+                      sessionId: sessionId,
+                      key: UniqueKey(),
+                    ),
+                  ),
+                );
               },
-              child: const Text('OK'),
+              child: const Text('Go to Video Calls'),
             ),
           ],
         );

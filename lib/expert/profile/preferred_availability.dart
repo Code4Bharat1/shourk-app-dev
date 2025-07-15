@@ -4,23 +4,25 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:intl/intl.dart';
-import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart'; 
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 
 class PreferredAvailabilityScreen extends StatefulWidget {
   const PreferredAvailabilityScreen({super.key});
 
   @override
-  State<PreferredAvailabilityScreen> createState() => _PreferredAvailabilityScreenState();
+  State<PreferredAvailabilityScreen> createState() =>
+      _PreferredAvailabilityScreenState();
 }
 
-class _PreferredAvailabilityScreenState extends State<PreferredAvailabilityScreen> {
+class _PreferredAvailabilityScreenState
+    extends State<PreferredAvailabilityScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   Map<String, Map<String, bool>> _availability = {};
   List<String> _timeSlots = [];
   List<DateTime> _monthDays = [];
 
-  final String baseUrl = "http://localhost:5070/api/expertauth";
+  final String baseUrl = "https://amd-api.code4bharat.com/api/expertauth";
 
   @override
   void initState() {
@@ -30,21 +32,20 @@ class _PreferredAvailabilityScreenState extends State<PreferredAvailabilityScree
     _loadAvailability();
   }
 
-void _initializeTimeSlots() {
-  _timeSlots = List.generate(17, (index) {
-    final hour = 6 + index;
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final hour12 = hour > 12 ? hour - 12 : hour;
-    return '$hour12 $period';  // ✅ Remove ":00" to match backend
-  });
-}
-
+  void _initializeTimeSlots() {
+    _timeSlots = List.generate(17, (index) {
+      final hour = 6 + index;
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final hour12 = hour > 12 ? hour - 12 : hour;
+      return '$hour12:00 $period'; // Match React format with ":00"
+    });
+  }
 
   void _generateMonthDays() {
     final now = DateTime.now();
     final firstDay = DateTime(now.year, now.month, 1);
     final lastDay = DateTime(now.year, now.month + 1, 0);
-    
+
     _monthDays = [];
     for (int i = 0; i < lastDay.day; i++) {
       _monthDays.add(firstDay.add(Duration(days: i)));
@@ -52,16 +53,15 @@ void _initializeTimeSlots() {
   }
 
   void _initializeEmptyAvailability() {
-  _availability = {};
-  for (var day in _monthDays) {
-    final dayKey = DateFormat('yyyy-MM-dd').format(day);
-    _availability[dayKey] = {};
-    for (var timeSlot in _timeSlots) {
-      _availability[dayKey]![timeSlot] = false;
+    _availability = {};
+    for (var day in _monthDays) {
+      final dayKey = DateFormat('yyyy-MM-dd').format(day);
+      _availability[dayKey] = {};
+      for (var timeSlot in _timeSlots) {
+        _availability[dayKey]![timeSlot] = false;
+      }
     }
   }
-}
-
 
   Future<void> _loadAvailability() async {
     try {
@@ -105,17 +105,17 @@ void _initializeTimeSlots() {
 
   void _mergeAvailabilityWithGenerated(List<dynamic> loadedAvailability) {
     _initializeEmptyAvailability();
-    
+
     for (var dayData in loadedAvailability) {
       final dayKey = dayData['date'];
-      final timeSlots = dayData['timeSlots'] ?? [];
-      
-      if (_availability.containsKey(dayKey)) {
-        for (var timeSlot in timeSlots) {
-          if (_availability[dayKey]!.containsKey(timeSlot)) {
-            _availability[dayKey]![timeSlot] = true;
+      final timesMap = dayData['times'] as Map<String, dynamic>?;
+
+      if (timesMap != null && _availability.containsKey(dayKey)) {
+        timesMap.forEach((timeSlot, isSelected) {
+          if (_availability[dayKey]!.containsKey(timeSlot) ){
+            _availability[dayKey]![timeSlot] = isSelected == true;
           }
-        }
+        });
       }
     }
   }
@@ -123,7 +123,7 @@ void _initializeTimeSlots() {
   Future<void> _saveAvailability() async {
     try {
       setState(() => _isSaving = true);
-      
+
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('expertToken');
 
@@ -132,22 +132,13 @@ void _initializeTimeSlots() {
       final decodedToken = JwtDecoder.decode(token);
       final expertId = decodedToken['_id'];
 
-      // Convert availability to API format
-      List<Map<String, dynamic>> availabilityData = [];
-      _availability.forEach((date, timeSlots) {
-        List<String> selectedSlots = [];
-        timeSlots.forEach((timeSlot, isSelected) {
-          if (isSelected) {
-            selectedSlots.add(timeSlot);
-          }
-        });
-        if (selectedSlots.isNotEmpty) {
-          availabilityData.add({
-            'date': date,
-            'timeSlots': selectedSlots,
-          });
-        }
-      });
+      // Convert to React-compatible format
+      final availabilityData = _availability.entries.map((entry) {
+        return {
+          'date': entry.key,
+          'times': entry.value,
+        };
+      }).toList();
 
       final response = await http.put(
         Uri.parse('$baseUrl/availability/$expertId'),
@@ -168,12 +159,12 @@ void _initializeTimeSlots() {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save availability: ${response.body}')),
+          SnackBar(content: Text('Failed to save: ${response.body}')),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving availability: $e')),
+        SnackBar(content: Text('Error: $e')),
       );
     } finally {
       setState(() => _isSaving = false);
@@ -196,14 +187,12 @@ void _initializeTimeSlots() {
     });
   }
 
-  void _toggleRepeatDay(String dayOfWeek, bool value) {
+  void _repeatDayPattern(String dayOfWeek, Map<String, bool> pattern) {
     setState(() {
       for (var day in _monthDays) {
         if (DateFormat('EEEE').format(day) == dayOfWeek) {
           final dayKey = DateFormat('yyyy-MM-dd').format(day);
-          _availability[dayKey]!.forEach((timeSlot, _) {
-            _availability[dayKey]![timeSlot] = value;
-          });
+          _availability[dayKey] = Map<String, bool>.from(pattern);
         }
       }
     });
@@ -226,7 +215,7 @@ void _initializeTimeSlots() {
             ),
             child: Center(
               child: Text(
-                timeSlot,
+                timeSlot.replaceAll(':00', ''), // Remove :00 for display
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
@@ -244,9 +233,6 @@ void _initializeTimeSlots() {
     final dayKey = DateFormat('yyyy-MM-dd').format(day);
     final dayName = DateFormat('EEEE, MMM d').format(day);
     final dayOfWeek = DateFormat('EEEE').format(day);
-    
-    // Check if all time slots are selected for this day
-    bool allSelected = _availability[dayKey]?.values.every((selected) => selected) ?? false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,10 +259,9 @@ void _initializeTimeSlots() {
                 color: Colors.black,
               ),
             ),
-            Switch(
-              value: allSelected,
-              onChanged: (value) => _toggleRepeatDay(dayOfWeek, value),
-              activeColor: Colors.black,
+            IconButton(
+              icon: const Icon(Icons.repeat, color: Colors.blue),
+              onPressed: () => _repeatDayPattern(dayOfWeek, _availability[dayKey]!),
             ),
           ],
         ),
@@ -382,11 +367,8 @@ void _initializeTimeSlots() {
                 ),
               ],
             ),
-                bottomNavigationBar: ExpertBottomNavbar(
+      bottomNavigationBar: ExpertBottomNavbar(
         currentIndex: 3,
-        // onTap: (index) {
-        //   // TODO: Implement navigation
-        // },
       ),
     );
   }

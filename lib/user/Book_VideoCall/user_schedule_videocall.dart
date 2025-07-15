@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
-import 'package:shourk_application/expert/Book_Video_Call/expert_booking_profile.dart';
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
 import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
@@ -27,8 +26,7 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
   bool isLoading = true;
   String errorMessage = '';
   List<Map<String, dynamic>> availabilitySlots = [];
-  bool showLimitMessage = false;
-  bool showDurationWarning = false; // Added to control duration warning display
+  bool showDurationWarning = false;
 
   final List<Map<String, String>> sessionTypes = [
     {'label': 'Quick - 15min', 'value': 'quick'},
@@ -135,6 +133,15 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
     return DateFormat('EEEE, MMM d').format(date);
   }
 
+  // Find the date for a selected time slot (expects uniqueKey as 'date-time')
+  String _findSelectedDateForTime(String uniqueKey) {
+    final parts = uniqueKey.split('-');
+    if (parts.length < 2) return '';
+    final time = parts.last;
+    final date = parts.sublist(0, parts.length - 1).join('-');
+    return date;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -239,7 +246,7 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
             else if (availabilitySlots.isEmpty)
               const Center(child: Text('No available time slots'))
             else
-              Container(
+              SizedBox(
                 height: MediaQuery.of(context).size.height * 0.5,
                 child: SingleChildScrollView(
                   child: Column(
@@ -269,8 +276,8 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
             Row(
               children: [
                 Text(
-                  "SAR ${_expert?.price}",
-                  style: TextStyle(
+                  "SAR ${_expert?.price ?? 'N/A'}",
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
@@ -312,7 +319,7 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
             const SizedBox(height: 30),
 
             // Request Button
-            Container(
+            SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
@@ -321,14 +328,22 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                UserBookingProfile(expertId: _expert!.id),
+                        builder: (context) => UserBookingProfile(
+                          expertId: _expert!.id,
+                          selectedSessionType: selectedSessionType.isNotEmpty 
+                              ? selectedSessionType 
+                              : 'regular',
+                          selectedDate: selectedTimeSlots.isNotEmpty 
+                              ? _findSelectedDateForTime(selectedTimeSlots.first) 
+                              : '',
+                          selectedTime: selectedTimeSlots.isNotEmpty 
+                              ? selectedTimeSlots.first 
+                              : '',
+                        ),
                       ),
                     );
                   }
                 },
-
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
                   shape: RoundedRectangleBorder(
@@ -358,7 +373,7 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
       onTap: () {
         setState(() {
           selectedSessionType = value;
-          showDurationWarning = false; // Hide warning when duration is selected
+          showDurationWarning = false;
         });
       },
       child: Container(
@@ -446,7 +461,6 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
 
               return GestureDetector(
                 onTap: () {
-                  // Show duration warning if no duration selected
                   if (selectedSessionType.isEmpty) {
                     setState(() {
                       showDurationWarning = true;
@@ -454,7 +468,6 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
                     return;
                   }
 
-                  // Show message when trying to select beyond limit
                   if (isDisabledByLimit) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(

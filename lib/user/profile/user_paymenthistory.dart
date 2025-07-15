@@ -3,8 +3,88 @@ import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import '../navbar/user_bottom_navbar.dart';
 import '../navbar/user_upper_navbar.dart';
+
+// Reusable header widget
+class ProfileHeader extends StatelessWidget {
+  final String displayName;
+  final String title;
+  final String? profileImageUrl;
+  final VoidCallback? onProfileTap;
+
+  const ProfileHeader({
+    required this.displayName,
+    required this.title,
+    this.profileImageUrl,
+    this.onProfileTap,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Hi, $displayName", style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 4),
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        Row(
+          children: [
+            Text(displayName, style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: onProfileTap,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey[300]!, width: 2),
+                ),
+                child: ClipOval(
+                  child: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                      ? Image.network(
+                          profileImageUrl!,
+                          fit: BoxFit.cover,
+                          width: 40,
+                          height: 40,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[300],
+                              child: const Icon(
+                                Icons.person,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        )
+                      : Container(
+                          color: Colors.grey[300],
+                          child: const Icon(
+                            Icons.person,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
 
 class UserPaymentHistoryPage extends StatefulWidget {
   const UserPaymentHistoryPage({super.key});
@@ -18,8 +98,13 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
   bool isLoading = true;
   String? userId;
   String? userToken;
+  
+  // Profile header variables
+  String _displayName = 'User';
+  String? _profileImageUrl;
+  String _headerTitle = 'Payment History';
 
-  // Settings menu state - matching the previous pages
+  // Settings menu state
   String selectedOption = 'Payment History';
   bool isMobileNavOpen = false;
 
@@ -48,6 +133,7 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
           
           if (userId != null) {
             await _fetchPaymentHistory();
+            await _loadUserProfile(); // Load user profile for header
           }
         }
       } else {
@@ -62,6 +148,32 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
           isLoading = false;
         });
       }
+    }
+  }
+
+  // Load user profile for header
+  Future<void> _loadUserProfile() async {
+    if (userToken == null || userId == null) return;
+    
+    try {
+      final response = await http.get(
+        Uri.parse('https://amd-api.code4bharat.com/api/userauth/$userId'),
+        headers: {'Authorization': 'Bearer $userToken'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final userData = data['data'];
+          setState(() {
+            _displayName = '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'.trim();
+            if (_displayName.isEmpty) _displayName = 'User';
+            _profileImageUrl = userData['photoFile'];
+          });
+        }
+      }
+    } catch (e) {
+      print("Error loading user profile: $e");
     }
   }
 
@@ -147,7 +259,7 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
     return transactions.fold(0, (sum, transaction) => sum + transaction.amount);
   }
 
-  // Settings Menu Drawer - using the same pattern as previous pages
+  // Settings Menu Drawer
   void _openSettingsMenu() {
     setState(() {
       isMobileNavOpen = true;
@@ -186,7 +298,7 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
     }
   }
 
-  // Drawer option widget - exactly matching previous pages
+  // Drawer option widget
   Widget _buildDrawerOption(String label, IconData icon, VoidCallback onTap) {
     final bool isSelected = selectedOption == label;
     return Container(
@@ -207,8 +319,6 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = "User"; // Placeholder for user name
-    
     return Scaffold(
       appBar: UserUpperNavbar(),
       body: Stack(
@@ -216,87 +326,44 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
           // Main content
           Column(
             children: [
-              // User info section
+              // User info section using ProfileHeader
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Hi, $displayName", 
-                                style: const TextStyle(fontSize: 16)),
-                            const SizedBox(height: 4),
-                            const Text("Payment History",
-                                style: TextStyle(
-                                    fontSize: 24, 
-                                    fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Text(
-                              displayName,
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const SizedBox(width: 12),
-                            GestureDetector(
-                              onTap: () => Navigator.pushNamed(context, '/user-profile'),
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.grey[300]!, width: 2),
-                                ),
-                                child: ClipOval(
-                                  child: Container(
-                                    color: Colors.grey[300],
-                                    child: const Icon(
-                                      Icons.person,
-                                      size: 20,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Settings section added
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.settings, size: 18),
-                          const SizedBox(width: 6),
-                          const Text("Settings", style: TextStyle(fontSize: 16)),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.menu),
-                            onPressed: _openSettingsMenu,
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    const Divider(thickness: 1),
-                  ],
+                child: ProfileHeader(
+                  displayName: _displayName,
+                  title: _headerTitle,
+                  profileImageUrl: _profileImageUrl,
+                  onProfileTap: () => Navigator.pushNamed(context, '/user-profile'),
                 ),
               ),
+              const SizedBox(height: 16),
+              
+              // Settings section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.settings, size: 18),
+                      const SizedBox(width: 6),
+                      const Text("Settings", style: TextStyle(fontSize: 16)),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.menu),
+                        onPressed: _openSettingsMenu,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              const Divider(thickness: 1),
               
               // URL section
               _buildUrlSection(),
@@ -316,7 +383,7 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
             ],
           ),
           
-          // Mobile Navigation Drawer - exactly matching previous pages
+          // Mobile Navigation Drawer
           if (isMobileNavOpen)
             GestureDetector(
               onTap: _closeMobileNav,

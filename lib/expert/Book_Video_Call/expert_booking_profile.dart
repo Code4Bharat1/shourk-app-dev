@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
+import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import 'package:shourk_application/expert/navbar/video_call.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
 
@@ -239,18 +241,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Book Session',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
-        ),
-      ),
+      appBar: ExpertUpperNavbar(),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -326,6 +317,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: ExpertBottomNavbar(currentIndex: 1),
     );
   }
 
