@@ -268,7 +268,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     switch (label) {
       case 'Payment Methods':
-        Navigator.push(context, MaterialPageRoute(builder: (context) =>  PaymentDashboard()));
+        Navigator.push(context, MaterialPageRoute(builder: (context) =>  UserPaymentMethod()));
         break;
       case 'Gift Card':
         Navigator.push(context, MaterialPageRoute(builder: (context) => const UserGiftCardSelectPage()));

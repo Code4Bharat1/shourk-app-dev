@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shourk_application/features/expert_profile/expert_detail_screen.dart';
+import 'package:shourk_application/user/Book_VideoCall/user_payment_screen.dart';
 // Screens
 import 'package:shourk_application/user/user_login.dart';
 import 'package:shourk_application/user/user_register.dart';
@@ -67,7 +68,7 @@ class MyApp extends StatelessWidget {
 
         // '/user_profile_screen': (context) => const UserProfilePage(),
         '/user_profile_screen': (context) => const UserProfileScreen(),
-        '/payment_method': (context) => PaymentDashboard(),
+        '/payment_method': (context) => UserPaymentMethod(),
             // '/search': (context) => SearchPage(),
             // '/video_call': (context) => VideoCallPage(),
             // '/user-profile': (context) => UserProfilePage(),
@@ -75,6 +76,7 @@ class MyApp extends StatelessWidget {
             '/user-giftcard': (context) => UserGiftCardSelectPage(),
             '/user-contactus': (context) => UserContactUsScreen(),
             '/user-paymenthistory': (context) => UserPaymentHistoryPage(),
+            '/user-payment-method': (context) => UserPaymentScreen(),
             
 
         // Expert Routes
@@ -109,7 +111,7 @@ class MyApp extends StatelessWidget {
 
 
 
-         '/user-payment-method': (context) =>  PaymentDashboard(),
+         '/user-payment-method': (context) =>  UserPaymentMethod(),
          '/user-giftcard-select': (context) => const UserGiftCardSelectPage(),
       },
     );

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -7,10 +6,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
-import 'package:shourk_application/expert/profile/contact_us_screen.dart';
 import 'package:shourk_application/expert/profile/account_deactivate.dart';
 import 'package:shourk_application/expert/profile/payment_option.dart';
 import 'package:shourk_application/expert/profile/giftcard_selection_option.dart';
+import 'package:shourk_application/expert/profile/payment_history.dart';
 
 // Reusable SettingsDrawer widget
 class SettingsDrawer extends StatelessWidget {
@@ -194,8 +193,10 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
         _closeMobileNav();
         break;
       case 'Payment History':
-        // Handle payment history navigation
-        _closeMobileNav();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const PaymentHistoryPage()),
+        );
         break;
       case 'Deactivate account':
         Navigator.pushReplacement(
