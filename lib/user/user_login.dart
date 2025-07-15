@@ -4,9 +4,10 @@ import 'dart:convert';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:shourk_application/expert/expert_register.dart';
 import 'package:shourk_application/expert/home/expert_home_screen.dart';
-import '../user/user_register.dart'; // Make sure this path is correct
+import '../user/user_register.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shourk_application/user/home/home_screen.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 class UserLogin extends StatefulWidget {
   const UserLogin({Key? key}) : super(key: key);
@@ -22,8 +23,9 @@ class _UserLoginState extends State<UserLogin> {
   bool _isPhoneMode = false;
   String _phoneNumber = '';
 
-  // Replace with your actual IP address or ngrok HTTPS URL
-  final String baseUrl = "http://localhost:5070/api/userauth"; // Replace this with your actual backend URL
+  // Updated base URL - replace with your actual backend URL
+  // For testing on physical device, use your computer's IP address or ngrok
+  final String baseUrl = "http://localhost:5070/api/userauth"; // Updated to match your video call page
 
   void _toggleInputMode() {
     setState(() {
@@ -56,7 +58,7 @@ class _UserLoginState extends State<UserLogin> {
         body: jsonEncode({
           _isPhoneMode ? 'phone' : 'email': contactInfo,
         }),
-      );
+      ).timeout(Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -66,9 +68,10 @@ class _UserLoginState extends State<UserLogin> {
           ),
         );
       } else {
+        final errorData = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to send OTP'),
+            content: Text('Failed to send OTP: ${errorData['message'] ?? 'Unknown error'}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -76,10 +79,11 @@ class _UserLoginState extends State<UserLogin> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
+          content: Text('Network error: Please check your connection'),
           backgroundColor: Colors.red,
         ),
       );
+      print('Send OTP Error: $e');
     }
   }
 
@@ -107,7 +111,7 @@ class _UserLoginState extends State<UserLogin> {
           _isPhoneMode ? 'phone' : 'email': contactInfo,
           'otp': otp,
         }),
-      );
+      ).timeout(Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
@@ -125,15 +129,21 @@ class _UserLoginState extends State<UserLogin> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('userToken', token);
 
+          // Also save refresh token if available
+          if (responseData['data']['refreshToken'] != null) {
+            await prefs.setString('userRefreshToken', responseData['data']['refreshToken']);
+          }
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const HomeScreen()),
           );
         }
       } else {
+        final errorData = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid OTP'),
+          SnackBar(
+            content: Text('Invalid OTP: ${errorData['message'] ?? 'Please try again'}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -141,11 +151,86 @@ class _UserLoginState extends State<UserLogin> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
+          content: Text('Network error: Please check your connection'),
           backgroundColor: Colors.red,
         ),
       );
+      print('Proceed Error: $e');
     }
+  }
+
+  // Add refresh token functionality
+  Future<void> _refreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final refreshToken = prefs.getString('userRefreshToken');
+    
+    if (refreshToken == null) {
+      print("No refresh token found");
+      Navigator.pushReplacementNamed(context, '/userlogin');
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/refresh-token'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refreshToken': refreshToken}),
+      ).timeout(Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        final newToken = responseData['data']['token'];
+        
+        await prefs.setString('userToken', newToken);
+        print("Token refreshed successfully");
+        
+        // Update the token in your current context if needed
+        // You might want to call setState here if needed
+        
+      } else {
+        print("Token refresh failed: ${response.statusCode}");
+        await prefs.remove('userToken');
+        await prefs.remove('userRefreshToken');
+        Navigator.pushReplacementNamed(context, '/userlogin');
+      }
+    } catch (e) {
+      print("Token refresh error: $e");
+      await prefs.remove('userToken');
+      await prefs.remove('userRefreshToken');
+      Navigator.pushReplacementNamed(context, '/userlogin');
+    }
+  }
+
+  // Check if user is already logged in
+  Future<void> _checkExistingLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('userToken');
+    
+    if (token != null) {
+      try {
+        // Check if token is expired
+        if (JwtDecoder.isExpired(token)) {
+          await _refreshToken();
+        } else {
+          // Token is valid, navigate to home
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
+      } catch (e) {
+        print("Error checking existing login: $e");
+        // Clear invalid token
+        await prefs.remove('userToken');
+        await prefs.remove('userRefreshToken');
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _checkExistingLogin();
   }
 
   @override
@@ -170,7 +255,7 @@ class _UserLoginState extends State<UserLogin> {
               const SizedBox(height: 40),
               const Center(
                 child: Text(
-                  'Create an Account',
+                  'Login to Your Account',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w600,

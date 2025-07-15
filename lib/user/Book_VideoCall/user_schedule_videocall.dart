@@ -6,6 +6,7 @@ import 'package:shourk_application/expert/Book_Video_Call/expert_booking_profile
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
 import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
+import 'package:shourk_application/user/Book_VideoCall/user_booking_profile.dart';
 
 class UserScheduleVideocall extends StatefulWidget {
   final String expertId;
@@ -322,7 +323,7 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
                       MaterialPageRoute(
                         builder:
                             (context) =>
-                                ExpertBookingScreen(expertId: _expert!.id),
+                                UserBookingProfile(expertId: _expert!.id),
                       ),
                     );
                   }
