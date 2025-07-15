@@ -7,7 +7,6 @@ import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
 
-
 class ExpertVideoCallBookingPage extends StatefulWidget {
   final String expertId;
 
@@ -27,7 +26,8 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
   bool isLoading = true;
   String errorMessage = '';
   List<Map<String, dynamic>> availabilitySlots = [];
-  bool showLimitMessage = false; // Added to control limit message display
+  bool showLimitMessage = false;
+  bool showDurationWarning = false; // Added to control duration warning display
 
   final List<Map<String, String>> sessionTypes = [
     {'label': 'Quick - 15min', 'value': 'quick'},
@@ -134,8 +134,6 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
     return DateFormat('EEEE, MMM d').format(date);
   }
 
-  
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -185,7 +183,23 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 10),
+            
+            // Duration warning message
+            if (showDurationWarning)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  "Please select the Video Call Duration first.",
+                  style: TextStyle(
+                    color: Colors.red[700],
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            
+            const SizedBox(height: 20),
 
             // Selection counter and limit message
             if (selectedTimeSlots.isNotEmpty)
@@ -358,6 +372,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
       onTap: () {
         setState(() {
           selectedSessionType = value;
+          showDurationWarning = false; // Hide warning when duration is selected
         });
       },
       child: Container(
@@ -440,12 +455,21 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
               final timeSlot = times[index];
               final uniqueKey = '$originalDate-$timeSlot';
               final isSelected = selectedTimeSlots.contains(uniqueKey);
-              final isDisabled = !isSelected && selectedTimeSlots.length >= 5;
+              final isDisabledByLimit = !isSelected && selectedTimeSlots.length >= 5;
+              final isDisabledByDuration = selectedSessionType.isEmpty;
 
               return GestureDetector(
                 onTap: () {
+                  // Show duration warning if no duration selected
+                  if (selectedSessionType.isEmpty) {
+                    setState(() {
+                      showDurationWarning = true;
+                    });
+                    return;
+                  }
+
                   // Show message when trying to select beyond limit
-                  if (isDisabled) {
+                  if (isDisabledByLimit) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: const Text(
@@ -471,12 +495,12 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                     color:
                         isSelected
                             ? const Color(0xFFEDECE8)
-                            : (isDisabled
+                            : (isDisabledByLimit || isDisabledByDuration
                                 ? Colors.grey.shade100
                                 : Colors.white),
                     border: Border.all(
                       color:
-                          isDisabled
+                          (isDisabledByLimit || isDisabledByDuration)
                               ? Colors.grey.shade300
                               : Colors.grey.shade400,
                       width: 1,
@@ -487,7 +511,9 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                     child: Text(
                       timeSlot,
                       style: TextStyle(
-                        color: isDisabled ? Colors.grey : Colors.black,
+                        color: (isDisabledByLimit || isDisabledByDuration) 
+                                ? Colors.grey 
+                                : Colors.black,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),

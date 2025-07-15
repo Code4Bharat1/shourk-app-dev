@@ -444,10 +444,15 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(
-                        Icons.card_giftcard,
-                        color: Colors.blue,
-                        size: 30,
+                      IconButton(
+                        icon: const Icon(Icons.card_giftcard, color: Colors.blue),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const UserGiftCardSelectPage()),
+                          );
+                        },
                       ),
                       SizedBox(
                         width: 300,
@@ -456,7 +461,7 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const GiftCardSelectPage(),
+                                builder: (context) => const UserGiftCardSelectPage(),
                               ),
                             );
                           },

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shourk_application/user/home/home_screen.dart'; // Update with actual paths
 // import 'package:shourk_application/user/video_call/user_video_call.dart';
 import 'package:shourk_application/user/profile/user_profile_screen.dart';
+import 'user_video_call.dart';
 
 class UserBottomNavbar extends StatefulWidget {
   final int currentIndex;
@@ -26,9 +27,9 @@ class _UserBottomNavbarState extends State<UserBottomNavbar> {
       case 0:
         destination = const HomeScreen(); // Update with your actual home screen
         break;
-      // case 1:
-      //   destination = const UserVideoCallPage(); // Update with your actual video call screen
-      //   break;
+      case 1:
+        destination = const UserVideoCallPage(); // Update with your actual video call screen
+        break;
       case 2:
         destination = const UserProfileScreen(); // Update with your actual profile screen
         break;

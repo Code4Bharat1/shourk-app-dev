@@ -1,3 +1,4 @@
+// user_profile_screen.dart
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -12,20 +13,6 @@ import 'package:shourk_application/user/profile/user_giftcard.dart';
 import 'package:shourk_application/user/profile/user_payment_method.dart';
 import 'package:shourk_application/user/profile/user_contactus.dart';
 import 'package:shourk_application/user/profile/user_paymenthistory.dart';
-// import 'package:shourk_application/user/profile/account_deactivate.dart';
-
-// Placeholder pages for navigation options
-class UserPaymentMethodsPage extends StatelessWidget {
-  const UserPaymentMethodsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Payment Methods')),
-      body: const Center(child: Text('Payment Methods Page')),
-    );
-  }
-}
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -43,25 +30,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   final TextEditingController emailController = TextEditingController();
   final String baseUrl = "https://amd-api.code4bharat.com/api/userauth";
   String? userId;
+  String? token;
   String? profileImageUrl;
   String successMessage = "";
   String selectedOption = 'Profile';
   bool isMobileNavOpen = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _getUserId();
+    _getUserToken();
   }
 
-  Future<void> _getUserId() async {
+  Future<void> _getUserToken() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('userToken');
+    token = prefs.getString('userToken');
 
     if (token != null) {
       try {
-        Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+        Map<String, dynamic> decodedToken = JwtDecoder.decode(token!);
         setState(() {
           userId = decodedToken['_id'];
         });
@@ -70,43 +59,61 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         }
       } catch (e) {
         print("Error parsing token: $e");
+        setState(() => _isLoading = false);
       }
     } else {
       print("User token not found");
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _loadUserProfile() async {
+    if (userId == null || token == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/$userId'),
-        headers: {'Authorization': 'Bearer $userId'},
+        headers: {'Authorization': 'Bearer $token'},
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body)['data'];
-        setState(() {
-          firstNameController.text = data['firstName'] ?? '';
-          lastNameController.text = data['lastName'] ?? '';
-          mobileController.text = data['phone'] ?? '';
-          emailController.text = data['email'] ?? '';
-          profileImageUrl = data['photoFile'];
-        });
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final userData = data['data'];
+          setState(() {
+            firstNameController.text = userData['firstName'] ?? '';
+            lastNameController.text = userData['lastName'] ?? '';
+            mobileController.text = userData['phone'] ?? '';
+            emailController.text = userData['email'] ?? '';
+            profileImageUrl = userData['photoFile'];
+            _isLoading = false;
+          });
+        } else {
+          print("Failed to load user data: ${data['message']}");
+          setState(() => _isLoading = false);
+        }
       } else {
         print("Failed to load user data: ${response.body}");
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       print("Error fetching user data: $e");
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _saveProfile() async {
+    if (userId == null || token == null) return;
+
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/updateuser/$userId'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $userId'
+          'Authorization': 'Bearer $token'
         },
         body: jsonEncode({
           'firstName': firstNameController.text.trim(),
@@ -117,15 +124,20 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       );
 
       if (response.statusCode == 200) {
-        setState(() {
-          isEditing = false;
-          successMessage = "Changes Saved!";
-        });
-        Future.delayed(const Duration(seconds: 3), () {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
           setState(() {
-            successMessage = "";
+            isEditing = false;
+            successMessage = "Changes Saved!";
           });
-        });
+          Future.delayed(const Duration(seconds: 3), () {
+            setState(() {
+              successMessage = "";
+            });
+          });
+        } else {
+          print("Failed to update profile: ${data['message']}");
+        }
       } else {
         print("Failed to update profile: ${response.body}");
       }
@@ -135,6 +147,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Future<void> _uploadProfileImage() async {
+    if (userId == null || token == null) return;
+
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
@@ -165,7 +179,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         Uri.parse('$baseUrl/uploadProfileImage/$userId'),
       );
       
-      request.headers['Authorization'] = 'Bearer $userId';
+      request.headers['Authorization'] = 'Bearer $token';
       request.files.add(
         await http.MultipartFile.fromPath(
           'photoFile',
@@ -180,11 +194,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       if (response.statusCode == 200 && jsonResponse['success']) {
         setState(() {
-          profileImageUrl = jsonResponse['data']['photoFile'];
+          profileImageUrl = jsonResponse['user']['photoFile'];
+          successMessage = "Profile image updated successfully!";
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Profile picture updated successfully!")),
-        );
+        Future.delayed(const Duration(seconds: 3), () {
+          setState(() {
+            successMessage = "";
+          });
+        });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Failed to update: ${jsonResponse['message']}")),
@@ -263,9 +280,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         Navigator.push(context, MaterialPageRoute(builder: (context) => const UserPaymentHistoryPage()));
         break;
       case 'Sign Out':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const StartPage()));
+        _handleSignOut();
         break;
     }
+  }
+
+  void _handleSignOut() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('userToken');
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const StartPage()),
+    );
   }
 
   void _openSettingsMenu() {
@@ -280,13 +306,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     });
   }
 
-  void _navigateToProfile() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const UserProfileScreen()),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final userName = '${firstNameController.text} ${lastNameController.text}'.trim();
@@ -296,318 +315,320 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       key: _scaffoldKey,
       appBar: UserUpperNavbar(),
       backgroundColor: Colors.grey[100],
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Hi, $displayName", 
-                              style: const TextStyle(fontSize: 16)),
-                          const SizedBox(height: 4),
-                          const Text("Profile",
-                              style: TextStyle(
-                                  fontSize: 24, 
-                                  fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Text(
-                            displayName,
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                          const SizedBox(width: 12),
-                          GestureDetector(
-                            onTap: _navigateToProfile,
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.grey[300]!, width: 2),
-                              ),
-                              child: ClipOval(
-                                child: profileImageUrl != null && profileImageUrl!.isNotEmpty
-                                    ? Image.network(
-                                        profileImageUrl!,
-                                        fit: BoxFit.cover,
-                                        width: 40,
-                                        height: 40,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Container(
-                                            color: Colors.grey[300],
-                                            child: const Icon(
-                                              Icons.person,
-                                              size: 20,
-                                              color: Colors.white,
-                                            ),
-                                          );
-                                        },
-                                      )
-                                    : Container(
-                                        color: Colors.grey[300],
-                                        child: const Icon(
-                                          Icons.person,
-                                          size: 20,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                              ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Stack(
+              children: [
+                SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Hi, $displayName", 
+                                    style: const TextStyle(fontSize: 16)),
+                                const SizedBox(height: 4),
+                                const Text("Profile",
+                                    style: TextStyle(
+                                        fontSize: 24, 
+                                        fontWeight: FontWeight.bold)),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: const [
-                          Icon(Icons.settings, size: 18),
-                          SizedBox(width: 6),
-                          Text("Settings", style: TextStyle(fontSize: 16)),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.menu),
-                        onPressed: _openSettingsMenu,
-                      )
-                    ],
-                  ),
-                  
-                  if (successMessage.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10, bottom: 10),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.check_circle, 
-                              color: Colors.green, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            successMessage,
-                            style: const TextStyle(
-                                color: Colors.green, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ),
-                  
-                  Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              GestureDetector(
-                                onTap: isEditing ? _uploadProfileImage : null,
-                                child: Stack(
-                                  children: [
-                                    Container(
-                                      width: 100,
-                                      height: 100,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                            color: Colors.white, width: 2),
-                                      ),
-                                      child: ClipOval(
-                                        child: isUploading
-                                            ? const Center(
-                                                child: CircularProgressIndicator())
-                                            : (profileImageUrl != null &&
-                                                    profileImageUrl!.isNotEmpty
-                                                ? Image.network(
-                                                    profileImageUrl!,
-                                                    fit: BoxFit.cover,
-                                                    width: 100,
-                                                    height: 100,
-                                                  )
-                                                : Container(
-                                                    color: Colors.grey[300],
-                                                    child: const Icon(
-                                                        Icons.person,
-                                                        size: 40,
-                                                        color: Colors.white),
-                                                  )),
-                                      ),
-                                    ),
-                                    if (isEditing && !isUploading)
-                                      Positioned(
-                                        bottom: 0,
-                                        right: 0,
-                                        child: Container(
-                                          decoration: const BoxDecoration(
-                                            color: Colors.black54,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          padding: const EdgeInsets.all(6),
-                                          child: const Icon(Icons.camera_alt,
-                                              color: Colors.white, size: 20),
-                                        ),
-                                      ),
-                                  ],
+                            Row(
+                              children: [
+                                Text(
+                                  displayName,
+                                  style: const TextStyle(fontSize: 16),
                                 ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      displayName,
-                                      style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600),
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTap: () {},
+                                  child: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.grey[300]!, width: 2),
                                     ),
-                                    const SizedBox(height: 4),
-                                    const Text("India",
-                                        style: TextStyle(
-                                            fontSize: 14, color: Colors.grey)),
-                                  ],
-                                ),
-                              ),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  setState(() {
-                                    isEditing = !isEditing;
-                                    successMessage = "";
-                                  });
-                                },
-                                icon: const Icon(Icons.edit, size: 18),
-                                label: const Text("Edit"),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.grey[200],
-                                  foregroundColor: Colors.black,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                                    child: ClipOval(
+                                      child: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                                          ? Image.network(
+                                              profileImageUrl!,
+                                              fit: BoxFit.cover,
+                                              width: 40,
+                                              height: 40,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return Container(
+                                                  color: Colors.grey[300],
+                                                  child: const Icon(
+                                                    Icons.person,
+                                                    size: 20,
+                                                    color: Colors.white,
+                                                  ),
+                                                );
+                                              },
+                                            )
+                                          : Container(
+                                              color: Colors.grey[300],
+                                              child: const Icon(
+                                                Icons.person,
+                                                size: 20,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          _buildTextField(
-                              label: "First Name",
-                              controller: firstNameController,
-                              enabled: isEditing),
-                          _buildTextField(
-                              label: "Last Name",
-                              controller: lastNameController,
-                              enabled: isEditing),
-                          _buildTextField(
-                              label: "Mobile Number",
-                              controller: mobileController,
-                              enabled: isEditing),
-                          _buildTextField(
-                              label: "Email",
-                              controller: emailController,
-                              enabled: isEditing),
-                          const SizedBox(height: 12),
-                          if (isEditing)
-                            ElevatedButton(
-                              onPressed: _saveProfile,
-                              child: const Text("Save"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.black,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(double.infinity, 50),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: const [
+                                Icon(Icons.settings, size: 18),
+                                SizedBox(width: 6),
+                                Text("Settings", style: TextStyle(fontSize: 16)),
+                              ],
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.menu),
+                              onPressed: _openSettingsMenu,
                             )
-                        ],
-                      ),
-                    ),
-                  )
-                ],
-              ),
-            ),
-          ),
-          
-          if (isMobileNavOpen)
-            GestureDetector(
-              onTap: _closeMobileNav,
-              child: Container(
-                color: Colors.black54,
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height,
-              ),
-            ),
-          
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            right: isMobileNavOpen ? 0 : -MediaQuery.of(context).size.width * 0.7,
-            top: 0,
-            bottom: 0,
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.7,
-              color: Colors.white,
-              child: Column(
-                children: [
-                  AppBar(
-                    backgroundColor: Colors.white,
-                    elevation: 0,
-                    automaticallyImplyLeading: false,
-                    title: const Text("Settings"),
-                    actions: [
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: _closeMobileNav,
-                      )
-                    ],
-                  ),
-                  Expanded(
-                    child: ListView(
-                      children: [
-                        _buildDrawerOption("Profile", Icons.person, () {
-                          _navigateToPage("Profile");
-                        }),
-                        _buildDrawerOption("Payment Methods", Icons.payment, () {
-                          _navigateToPage("Payment Methods");
-                        }),
-                        _buildDrawerOption("Gift Card", Icons.card_giftcard, () {
-                          _navigateToPage("Gift Card");
-                        }),
-                        _buildDrawerOption("Contact Us", Icons.chat, () {
-                          _navigateToPage("Contact Us");
-                        }),
-                        _buildDrawerOption("Payment History", Icons.history, () {
-                          _navigateToPage("Payment History");
-                        }),
-                        _buildDrawerOption("Sign Out", Icons.delete, () {
-                          _navigateToPage("Sign Out");
-                        }),
+                          ],
+                        ),
+                        
+                        if (successMessage.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10, bottom: 10),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.check_circle, 
+                                    color: Colors.green, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  successMessage,
+                                  style: const TextStyle(
+                                      color: Colors.green, fontSize: 16),
+                                ),
+                              ],
+                            ),
+                          ),
+                        
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: isEditing ? _uploadProfileImage : null,
+                                      child: Stack(
+                                        children: [
+                                          Container(
+                                            width: 100,
+                                            height: 100,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                  color: Colors.white, width: 2),
+                                            ),
+                                            child: ClipOval(
+                                              child: isUploading
+                                                  ? const Center(
+                                                      child: CircularProgressIndicator())
+                                                  : (profileImageUrl != null &&
+                                                          profileImageUrl!.isNotEmpty
+                                                      ? Image.network(
+                                                          profileImageUrl!,
+                                                          fit: BoxFit.cover,
+                                                          width: 100,
+                                                          height: 100,
+                                                        )
+                                                      : Container(
+                                                          color: Colors.grey[300],
+                                                          child: const Icon(
+                                                              Icons.person,
+                                                              size: 40,
+                                                              color: Colors.white),
+                                                        )),
+                                            ),
+                                          ),
+                                          if (isEditing && !isUploading)
+                                            Positioned(
+                                              bottom: 0,
+                                              right: 0,
+                                              child: Container(
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.black54,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                padding: const EdgeInsets.all(6),
+                                                child: const Icon(Icons.camera_alt,
+                                                    color: Colors.white, size: 20),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            displayName,
+                                            style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          const Text("India",
+                                              style: TextStyle(
+                                                  fontSize: 14, color: Colors.grey)),
+                                        ],
+                                      ),
+                                    ),
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        setState(() {
+                                          isEditing = !isEditing;
+                                          successMessage = "";
+                                        });
+                                      },
+                                      icon: const Icon(Icons.edit, size: 18),
+                                      label: const Text("Edit"),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.grey[200],
+                                        foregroundColor: Colors.black,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                _buildTextField(
+                                    label: "First Name",
+                                    controller: firstNameController,
+                                    enabled: isEditing),
+                                _buildTextField(
+                                    label: "Last Name",
+                                    controller: lastNameController,
+                                    enabled: isEditing),
+                                _buildTextField(
+                                    label: "Mobile Number",
+                                    controller: mobileController,
+                                    enabled: isEditing),
+                                _buildTextField(
+                                    label: "Email",
+                                    controller: emailController,
+                                    enabled: isEditing),
+                                const SizedBox(height: 12),
+                                if (isEditing)
+                                  ElevatedButton(
+                                    onPressed: _saveProfile,
+                                    child: const Text("Save"),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.black,
+                                      foregroundColor: Colors.white,
+                                      minimumSize: const Size(double.infinity, 50),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  )
+                              ],
+                            ),
+                          ),
+                        )
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                
+                if (isMobileNavOpen)
+                  GestureDetector(
+                    onTap: _closeMobileNav,
+                    child: Container(
+                      color: Colors.black54,
+                      width: MediaQuery.of(context).size.width,
+                      height: MediaQuery.of(context).size.height,
+                    ),
+                  ),
+                
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 300),
+                  right: isMobileNavOpen ? 0 : -MediaQuery.of(context).size.width * 0.7,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: MediaQuery.of(context).size.width * 0.7,
+                    color: Colors.white,
+                    child: Column(
+                      children: [
+                        AppBar(
+                          backgroundColor: Colors.white,
+                          elevation: 0,
+                          automaticallyImplyLeading: false,
+                          title: const Text("Settings"),
+                          actions: [
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: _closeMobileNav,
+                            )
+                          ],
+                        ),
+                        Expanded(
+                          child: ListView(
+                            children: [
+                              _buildDrawerOption("Profile", Icons.person, () {
+                                _navigateToPage("Profile");
+                              }),
+                              _buildDrawerOption("Payment Methods", Icons.payment, () {
+                                _navigateToPage("Payment Methods");
+                              }),
+                              _buildDrawerOption("Gift Card", Icons.card_giftcard, () {
+                                _navigateToPage("Gift Card");
+                              }),
+                              _buildDrawerOption("Contact Us", Icons.chat, () {
+                                _navigateToPage("Contact Us");
+                              }),
+                              _buildDrawerOption("Payment History", Icons.history, () {
+                                _navigateToPage("Payment History");
+                              }),
+                              _buildDrawerOption("Sign Out", Icons.logout, () {
+                                _navigateToPage("Sign Out");
+                              }),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
       bottomNavigationBar: UserBottomNavbar(
         currentIndex: 2,
       ),
     );
   }
-}  
+}

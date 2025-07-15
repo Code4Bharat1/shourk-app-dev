@@ -1,60 +1,40 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import './user_payment_screen.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shourk_application/shared/models/expert_model.dart';
+import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
+import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
 
 class UserBookingProfile extends StatefulWidget {
-  final Map<String, dynamic>? consultingExpert;
-  final Map<String, dynamic>? sessionData;
+  final String expertId;
 
-  const UserBookingProfile({
-    Key? key,
-    this.consultingExpert,
-    this.sessionData,
-  }) : super(key: key);
+  const UserBookingProfile({super.key, required this.expertId});
 
   @override
-  _BookingScreenState createState() => _BookingScreenState();
+  _BookingFormScreenState createState() => _BookingFormScreenState();
 }
 
-class _BookingScreenState extends State<UserBookingProfile> {
-  // Controllers for text fields
-  final TextEditingController firstNameController = TextEditingController();
-  final TextEditingController lastNameController = TextEditingController();
-  final TextEditingController mobileController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController noteController = TextEditingController();
-  final TextEditingController giftCardController = TextEditingController();
-
-  // Form key for validation
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  // Selected time slot tracking
-  String? selectedTimeSlot;
-  String? selectedDate;
-  List<Map<String, dynamic>> availableSlots = [];
-
-  // Loading states
-  bool isBooking = false;
-  bool isLoadingBalance = true;
-  bool isCheckingEligibility = true;
-  bool isCheckingGiftCard = false;
-
-  // Backend data
-  Map<String, dynamic>? consultingExpert;
-  Map<String, dynamic>? sessionData;
+class _BookingFormScreenState extends State<UserBookingProfile> {
+  ExpertModel? expert;
+  bool isLoading = true;
+  String error = '';
+  double discountAmount = 0.0; // For promo code discounts
   double walletBalance = 0.0;
-  bool isFirstSession = false;
-  int wordCount = 0;
-  String noteError = "";
+  bool isWalletLoading = true;
+  bool isBookingInProgress = false;
+  String? authToken;
+  String? currentUserId;
 
-  // Gift card state
-  Map<String, dynamic>? appliedGiftCard;
-  double giftCardDiscount = 0.0;
-
-  // API Base URL
-  static const String baseUrl = "https://amd-api.code4bharat.com";
+  // Add missing form key and controllers
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
+  final TextEditingController _promoController = TextEditingController();
 
   @override
   void initState() {
@@ -63,1049 +43,528 @@ class _BookingScreenState extends State<UserBookingProfile> {
   }
 
   Future<void> _initializeData() async {
-    await _loadStoredData();
-    await _fetchWalletBalance();
-    await _checkFirstSessionEligibility();
-    await _loadUserProfile();
-    setState(() {
-      isLoadingBalance = false;
-      isCheckingEligibility = false;
-    });
-  }
-
-  Future<void> _loadStoredData() async {
-    final prefs = await SharedPreferences.getInstance();
+    // Get auth token from SharedPreferences (same pattern as ProfileSettingsScreen)
+    await _getAuthToken();
     
-    // Load consulting expert data
-    final expertDataString = prefs.getString('consultingExpertData');
-    if (expertDataString != null) {
-      consultingExpert = json.decode(expertDataString);
-    } else if (widget.consultingExpert != null) {
-      consultingExpert = widget.consultingExpert;
-    }
-
-    // Load session data
-    final sessionDataString = prefs.getString('sessionData');
-    if (sessionDataString != null) {
-      sessionData = json.decode(sessionDataString);
-    } else if (widget.sessionData != null) {
-      sessionData = widget.sessionData;
-    }
-
-    // Load booking data
-    final bookingDataString = prefs.getString('bookingData');
-    if (bookingDataString != null) {
-      final bookingData = json.decode(bookingDataString);
-      firstNameController.text = bookingData['firstName'] ?? '';
-      lastNameController.text = bookingData['lastName'] ?? '';
-      mobileController.text = bookingData['mobileNumber'] ?? '';
-      emailController.text = bookingData['email'] ?? '';
-      noteController.text = bookingData['note'] ?? '';
-    }
-
-    // Set up available slots from session data
-    if (sessionData != null && sessionData!['slots'] != null) {
-      availableSlots = List<Map<String, dynamic>>.from(sessionData!['slots']);
-    }
+    await Future.wait([
+      fetchExpert(),
+      fetchWalletBalance(),
+    ]);
   }
 
-  Future<void> _saveBookingData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final bookingData = {
-      'firstName': firstNameController.text,
-      'lastName': lastNameController.text,
-      'mobileNumber': mobileController.text,
-      'email': emailController.text,
-      'note': noteController.text,
-      'bookingType': 'individual',
-    };
-    await prefs.setString('bookingData', json.encode(bookingData));
-  }
-
-  Future<void> _loadUserProfile() async {
+  Future<void> _getAuthToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('expertToken');
-      if (token == null) return;
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/expert/profile'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success']) {
-          final profile = data['data'];
-          firstNameController.text = profile['firstName'] ?? '';
-          lastNameController.text = profile['lastName'] ?? '';
-          mobileController.text = profile['mobileNumber'] ?? '';
-          emailController.text = profile['email'] ?? '';
-        }
+      
+      if (token != null) {
+        final decodedToken = JwtDecoder.decode(token);
+        setState(() {
+          authToken = token;
+          currentUserId = decodedToken['_id'];
+        });
+      } else {
+        // Handle case where user is not authenticated
+        setState(() {
+          authToken = null;
+          currentUserId = null;
+        });
       }
     } catch (e) {
-      print('Error loading user profile: $e');
+      print("Error getting auth token: $e");
+      setState(() {
+        authToken = null;
+        currentUserId = null;
+      });
     }
   }
 
-  Future<void> _fetchWalletBalance() async {
+  Future<void> fetchWalletBalance() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('expertToken');
-      if (token == null) {
-        _showSnackBar('Authentication error');
+      if (authToken == null) {
+        // Handle case where user is not authenticated
+        setState(() {
+          isWalletLoading = false;
+          walletBalance = 0.0;
+        });
         return;
       }
 
       final response = await http.get(
-        Uri.parse('$baseUrl/api/wallet/balance'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success']) {
-          setState(() {
-            walletBalance = (data['data']['balance'] as num).toDouble();
-          });
-        }
-      } else if (response.statusCode == 401) {
-        _showSnackBar('Authentication failed. Please log in again.');
-      }
-    } catch (e) {
-      print('Error fetching wallet balance: $e');
-      _showSnackBar('Error loading wallet balance');
-    }
-  }
-
-  Future<void> _checkFirstSessionEligibility() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('expertToken');
-      if (token == null || consultingExpert == null) return;
-
-      // Decode token to get current expert ID
-      final tokenParts = token.split('.');
-      if (tokenParts.length != 3) return;
-
-      final payload = json.decode(
-        utf8.decode(base64Url.decode(base64Url.normalize(tokenParts[1]))),
-      );
-      final currentExpertId = payload['_id'];
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/freesession/check-eligibility/$currentExpertId/${consultingExpert!['_id']}'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          isFirstSession = data['eligible'] ?? false;
-        });
-      }
-    } catch (e) {
-      print('Error checking free session eligibility: $e');
-      setState(() {
-        isFirstSession = false;
-      });
-    }
-  }
-
-  Future<void> _handleApplyGiftCard() async {
-    if (giftCardController.text.trim().isEmpty) {
-      _showSnackBar('Please enter a gift card code');
-      return;
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('expertToken');
-    if (token == null) {
-      _showSnackBar('Authentication token not found. Please log in.');
-      return;
-    }
-
-    if (isFirstSession) {
-      _showSnackBar('This is a free first session. Gift card not applicable.');
-      return;
-    }
-
-    setState(() {
-      isCheckingGiftCard = true;
-    });
-
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/giftcard/check/${giftCardController.text.trim()}'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] && data['giftCard'] != null) {
-          final card = data['giftCard'];
-          
-          if ((card['status'] != 'active' && card['status'] != 'anonymous_active') || 
-              (card['balance'] ?? 0) <= 0) {
-            _showSnackBar('This gift card is inactive or has no balance.');
-            return;
-          }
-
-          final currentSessionPrice = sessionData?['price']?.toDouble() ?? 0.0;
-          if (currentSessionPrice == 0) {
-            _showSnackBar('Cannot apply gift card to a session that is already free.');
-            return;
-          }
-
-          final cardValueForDiscount = (card['originalAmount'] ?? card['amount']).toDouble();
-          final discountToApply = (cardValueForDiscount < currentSessionPrice) 
-              ? cardValueForDiscount 
-              : currentSessionPrice;
-
-          setState(() {
-            appliedGiftCard = {...card, 'code': giftCardController.text.trim()};
-            giftCardDiscount = discountToApply;
-            giftCardController.clear();
-          });
-
-          _showSnackBar('Gift card applied! SAR ${discountToApply.toStringAsFixed(2)} discount.');
-        } else {
-          _showSnackBar('Gift card not found or has already been redeemed.');
-        }
-      } else {
-        _showSnackBar('Invalid gift card code or it may have been used.');
-      }
-    } catch (e) {
-      print('Error applying gift card: $e');
-      _showSnackBar('Failed to apply gift card. Please try again.');
-    } finally {
-      setState(() {
-        isCheckingGiftCard = false;
-      });
-    }
-  }
-
-  void _handleRemoveGiftCard() {
-    setState(() {
-      appliedGiftCard = null;
-      giftCardDiscount = 0.0;
-      giftCardController.clear();
-    });
-    _showSnackBar('Gift card removed.');
-  }
-
-  Future<void> _handleBooking() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    if (selectedTimeSlot == null || selectedDate == null) {
-      _showSnackBar('Please select a time slot');
-      return;
-    }
-
-    final noteWords = noteController.text.trim().split(RegExp(r'\s+'));
-    if (noteWords.length < 25) {
-      setState(() {
-        noteError = "Note must contain at least 25 words.";
-      });
-      _showSnackBar('✍️ Your note must be at least 25 words.');
-      return;
-    }
-
-    setState(() {
-      noteError = "";
-    });
-
-    // Calculate prices
-    final price = isFirstSession ? 0.0 : (sessionData?['price']?.toDouble() ?? 0.0);
-    final finalPriceAfterGiftCard = (price - giftCardDiscount).clamp(0.0, double.infinity);
-
-    // Check wallet balance
-    if (!isFirstSession && finalPriceAfterGiftCard > 0 && walletBalance < finalPriceAfterGiftCard) {
-      _showSnackBar(
-        'Insufficient wallet balance. Your balance (SAR ${walletBalance.toStringAsFixed(2)}) '
-        'is less than the session price (SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)}). '
-        'Please top up your wallet.' 
-      );
-      return;
-    }
-
-    setState(() {
-      isBooking = true;
-    });
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('expertToken');
-      if (token == null) throw Exception('No authentication token found');
-
-      // Prepare booking data
-      final fullBookingData = {
-        ...?sessionData,
-        'consultingExpertId': consultingExpert?['_id'],
-        'firstName': firstNameController.text,
-        'lastName': lastNameController.text,
-        'mobile': mobileController.text,
-        'email': emailController.text,
-        'note': noteController.text,
-        'bookingType': 'individual',
-        'paymentMethod': (isFirstSession || finalPriceAfterGiftCard == 0) ? 'free' : 'wallet',
-        'price': finalPriceAfterGiftCard,
-        'originalPrice': price,
-        'isFreeSession': isFirstSession,
-        'selectedDate': selectedDate,
-        'selectedTimeSlot': selectedTimeSlot,
-        if (appliedGiftCard != null) 'redemptionCode': appliedGiftCard!['code'],
-      };
-
-      // Store token before payment
-      await prefs.setString('tempExpertToken', token);
-
-      // Create session
-      final sessionResponse = await http.post(
-        Uri.parse('$baseUrl/api/session/experttoexpertsession'),
+        Uri.parse('http://localhost:5070/api/expertwallet/balances'),
         headers: {
-          'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
         },
-        body: json.encode(fullBookingData),
       );
 
-      if (sessionResponse.statusCode != 200) {
-        throw Exception('Failed to create session');
-      }
-
-      final sessionResponseData = json.decode(sessionResponse.body);
-      if (sessionResponseData['session'] == null) {
-        throw Exception('Session data not found in response');
-      }
-      final sessionId = sessionResponseData['session']['_id'] as String?;
-      if (sessionId == null) {
-        throw Exception('Session ID is null');
-      }
-
-      // Make payment if not free
-      if (!isFirstSession && finalPriceAfterGiftCard > 0) {
-        final paymentResponse = await http.post(
-          Uri.parse('$baseUrl/api/wallet/pay'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-          body: json.encode({
-            'sessionId': sessionId,
-            'amount': finalPriceAfterGiftCard,
-          }),
-        );
-
-        if (paymentResponse.statusCode != 200) {
-          throw Exception('Payment failed');
-        }
-
-        // Update local wallet balance
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
         setState(() {
-          walletBalance -= finalPriceAfterGiftCard;
+         walletBalance = (data['data']['spending'] ?? 0.0).toDouble(); // ✅ correct key
+
+          isWalletLoading = false;
+        });
+      } else {
+        setState(() {
+          walletBalance = 0.0;
+          isWalletLoading = false;
         });
       }
-
-      // Store session ID and clean up
-      await prefs.setString('pendingSessionId', sessionId);
-      await prefs.remove('sessionData');
-      await prefs.remove('consultingExpertData');
-      await prefs.remove('bookingData');
-
-      final successMessage = isFirstSession
-          ? 'Free session booked successfully! Redirecting to video call...'
-          : finalPriceAfterGiftCard == 0 && appliedGiftCard != null
-              ? 'Gift card applied! Session booked successfully. Redirecting to video call...'
-              : 'Payment successful! Redirecting to video call...';
-
-      _showSnackBar(successMessage);
-
-      // Navigate to video call after delay
-      await Future.delayed(const Duration(seconds: 2));
-      if (mounted) {
-        // Navigator.pushReplacement(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (context) => const ExpertPaymentScreen(),
-        //   ),
-        // );
-      }
     } catch (e) {
-      print('Booking error: $e');
-      _showSnackBar('Booking failed: $e');
-    } finally {
+      print("Error fetching wallet balance: $e");
       setState(() {
-        isBooking = false;
+        walletBalance = 0.0;
+        isWalletLoading = false;
       });
     }
   }
 
-  void _handleTopUpWallet() {
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(
-    //     builder: (context) => const PaymentOption(),
-    //   ),
-    // );
+  @override
+  void dispose() {
+    // Dispose controllers to prevent memory leaks
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _noteController.dispose();
+    _promoController.dispose();
+    super.dispose();
   }
 
-  void _updateWordCount(String text) {
-    final words = text.trim().split(RegExp(r'\s+'));
-    setState(() {
-      wordCount = words.where((word) => word.isNotEmpty).length;
-    });
+  Future<void> fetchExpert() async {
+    try {
+      final res = await http.get(
+        Uri.parse('http://localhost:5070/api/expertauth/${widget.expertId}'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body)['data'];
+        setState(() {
+          expert = ExpertModel.fromJson(data);
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          error = 'Failed to load expert (${res.statusCode})';
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        error = 'Error: $e';
+        isLoading = false;
+      });
+    }
   }
 
-  // Build expert photo header
- Widget _buildExpertPhotoHeader() {
-  return Center(
-    child: Column(
-      children: [
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.grey.shade300, width: 2),
-          ),
-          child: ClipOval(
-            child: consultingExpert?['profileImage'] != null
-                ? Image.network(
-                    consultingExpert!['profileImage'],
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey.shade200,
-                        child: const Icon(
-                          Icons.person,
-                          size: 40,
-                          color: Colors.grey,
-                        ),
-                      );
-                    },
-                  )
-                : Container(
-                    color: Colors.grey.shade200,
-                    child: const Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Colors.grey,
-                    ),
-                  ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          consultingExpert?['firstName'] ?? 'Expert Name',
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          consultingExpert?['areaOfExpertise'] ?? 'Professional',
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.grey,
-          ),
-        ),
-      ],
-    ),
-  );
-}  @override
- 
+  // Helper method to get session fee
+  double get sessionFee => expert?.price ?? 0.0;
+
+  // Helper method to get total amount after discount
+  double get totalAmount => sessionFee - discountAmount;
+
+  // Helper method to check if this is a free session
+  bool get isFirstSession => expert?.freeSessionEnabled ?? false;
+
+  // Helper method to get final price after considering free session
+  double get finalPriceAfterGiftCard => isFirstSession ? 0.0 : totalAmount;
+
+  // Helper method to apply promo code
+  void _applyPromoCode() {
+    final promoCode = _promoController.text.trim();
+    if (promoCode.isNotEmpty) {
+      // Add your promo code logic here
+      // For example, a simple discount logic:
+      setState(() {
+        if (promoCode.toUpperCase() == 'SAVE10') {
+          discountAmount = sessionFee * 0.1; // 10% discount
+        } else if (promoCode.toUpperCase() == 'SAVE20') {
+          discountAmount = sessionFee * 0.2; // 20% discount
+        } else {
+          discountAmount = 0.0;
+          // Show error message for invalid promo code
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid promo code')),
+          );
+        }
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (isLoadingBalance || isCheckingEligibility) {
+    if (isLoading) {
       return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    final price = isFirstSession ? 0.0 : (sessionData?['price']?.toDouble() ?? 0.0);
-    final finalPriceAfterGiftCard = (price - giftCardDiscount).clamp(0.0, double.infinity);
+    if (error.isNotEmpty) {
+      return Scaffold(
+        body: Center(child: Text(error)),
+      );
+    }
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(12.0),
-          child: Form(
-            key: _formKey,
+      backgroundColor: Colors.grey[100],
+      appBar: UserUpperNavbar(),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildExpertCard(),
+            const SizedBox(height: 20),
+            _buildBookingForm(),
+            const SizedBox(height: 20),
+            _buildPaymentSummary(),
+            const SizedBox(height: 20),
+            _buildBookButton(),
+          ],
+        ),
+      ),
+      bottomNavigationBar: const UserBottomNavbar(currentIndex: 0),
+    );
+  }
+
+  Widget _buildExpertCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundImage: NetworkImage(expert!.imageUrl),
+                backgroundColor: Colors.grey[300],
+                onBackgroundImageError: (_, __) {},
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      expert!.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      expert!.title ?? '',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: List.generate(
+                        5,
+                        (index) => Icon(
+                          Icons.star,
+                          size: 16,
+                          color: index < expert!.rating.round()
+                              ? Colors.orange
+                              : Colors.grey[400],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.attach_money, size: 16),
+                      Text(
+                        'SAR ${sessionFee.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Per Session',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header greeting
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Selected Sessions',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Text(
-                  "Hi, ${firstNameController.text.isNotEmpty ? firstNameController.text : 'Expert'}",
-                  style: const TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-                const SizedBox(height: 6),
-
-                // Page title
-                const Text(
-                  "Booking",
+                  'Monday, July 14, 2025',
                   style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.grey[700],
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                // Expert photo header at the top
-                if (consultingExpert != null) _buildExpertPhotoHeader(),
-                const SizedBox(height: 16),
-
-                // Wallet Balance Display
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.account_balance_wallet, color: Colors.blue, size: 20),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Wallet Balance',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                          Text(
-                            'SAR ${walletBalance.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
-                            ),
-                          ),
-                        ],
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Text(
+                      '2:00 PM',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
                       ),
-                      const Spacer(),
-                      if (walletBalance < finalPriceAfterGiftCard && !isFirstSession)
-                        ElevatedButton(
-                          onPressed: _handleTopUpWallet,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          child: const Text('Top Up', style: TextStyle(fontSize: 14)),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Free Session Indicator
-                if (isFirstSession)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.green.shade200),
                     ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.star, color: Colors.green, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'This is your FREE first session!',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                
-                if (isFirstSession) const SizedBox(height: 12),
-
-                // Expert details section
-                Container(
-                  color: const Color(0xFFF8F7F3),
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Sessions section
-                      const Text(
-                        "Sessions-",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Time slots
-                      ...(_buildTimeSlots()),
-
-                      const SizedBox(height: 12),
-
-                      // Important note
-                      const Text(
-                        "Note - Can add up to 5 sessions at different time slots. Any 1 timeslot might get selected.",
-                        style: TextStyle(
-                          color: Color(0xFFFE3232),
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-
-                // Form fields container
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    children: [
-                      // Change button
-                      Align(
-                        alignment: Alignment.topRight,
-                        child: GestureDetector(
-                          onTap: () {
-                            _showSnackBar("Change profile functionality");
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              "Change",
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // First Name field
-                      _buildTextFormField(
-                        label: "First Name",
-                        controller: firstNameController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your first name';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Last Name field
-                      _buildTextFormField(
-                        label: "Last Name",
-                        controller: lastNameController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your last name';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Mobile Number field
-                      _buildTextFormField(
-                        label: "Mobile Number",
-                        controller: mobileController,
-                        keyboardType: TextInputType.phone,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your mobile number';
-                          }
-                          if (value.length < 10) {
-                            return 'Please enter a valid mobile number';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Email field
-                      _buildTextFormField(
-                        label: "Email",
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your email';
-                          }
-                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                            return 'Please enter a valid email address';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Note field
-                      _buildTextFormField(
-                        label: "Note (minimum 25 words)",
-                        controller: noteController,
-                        maxLines: 4,
-                        onChanged: (value) {
-                          _updateWordCount(value);
-                          _saveBookingData();
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a note';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Word count and error
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Words: $wordCount/25',
-                            style: TextStyle(
-                              color: wordCount >= 25 ? Colors.green : Colors.red,
-                              fontSize: 10,
-                            ),
-                          ),
-                          if (noteError.isNotEmpty)
-                            Text(
-                              noteError,
-                              style: const TextStyle(
-                                color: Colors.red,
-                                fontSize: 10,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Gift Card Section (only if not first session)
-                if (!isFirstSession) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Gift Card',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        
-                        if (appliedGiftCard == null) ...[
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: giftCardController,
-                                  decoration: const InputDecoration(
-                                    hintText: "Enter gift card code",
-                                    border: OutlineInputBorder(),
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              ElevatedButton(
-                                onPressed: isCheckingGiftCard ? null : _handleApplyGiftCard,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                ),
-                                child: isCheckingGiftCard
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Text('Apply', style: TextStyle(fontSize: 12)),
-                              ),
-                            ],
-                          ),
-                        ] else ...[
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.green.shade200),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.card_giftcard, color: Colors.green, size: 16),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Gift Card Applied: ${appliedGiftCard!['code']}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.green,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Discount: SAR ${giftCardDiscount.toStringAsFixed(2)}',
-                                        style: const TextStyle(
-                                          color: Colors.green,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: _handleRemoveGiftCard,
-                                  icon: const Icon(Icons.close, color: Colors.red, size: 16),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Price Summary
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    children: [
-                      if (!isFirstSession)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              "Price",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              "SAR ${price.toStringAsFixed(2)}",
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      
-                      if (giftCardDiscount > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                "Gift Card Discount",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.green,
-                                ),
-                              ),
-                              Text(
-                                "-SAR ${giftCardDiscount.toStringAsFixed(2)}",
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      
-
-                      const SizedBox(height: 8),
-                      const Divider(height: 1, color: Colors.grey),
-                      const SizedBox(height: 8),
-                      
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            isFirstSession ? "Total" : "Final Price",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            isFirstSession
-                                ? "FREE"
-                                : "SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)}",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: isFirstSession ? Colors.green : Colors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Book Now button
-                SizedBox(
-                  width: double.infinity,
-                  height: 45,
-                  child: ElevatedButton(
-                    onPressed: isBooking ? null : _handleBooking,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                    child: isBooking
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            "BOOK NOW",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 16),
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange[200]!),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.orange[600], size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'You can add up to 5 sessions at different time slots. Any 1 time slot might get selected based on availability.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.orange[700],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingForm() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Complete Your Booking',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Name fields
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    controller: _firstNameController,
+                    label: 'First Name',
+                    hint: 'Enter your first name',
+                    prefixIcon: Icons.person_outline,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildTextField(
+                    controller: _lastNameController,
+                    label: 'Last Name',
+                    hint: 'Enter your last name',
+                    prefixIcon: Icons.person_outline,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Phone and Email
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    controller: _phoneController,
+                    label: 'Mobile Number',
+                    hint: '+1 (555) 000-0000',
+                    prefixIcon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildTextField(
+                    controller: _emailController,
+                    label: 'Email',
+                    hint: 'your.email@example.com',
+                    prefixIcon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Note to Expert
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Text(
+                      'Note to Expert',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Spacer(),
+                    Text(
+                      '0/25 words minimum',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _noteController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: 'Introduce yourself and describe what you\'d like to discuss in the session (minimum 25 words)...',
+                    hintStyle: TextStyle(color: Colors.grey[500]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.blue),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Promo Code
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _promoController,
+                    decoration: InputDecoration(
+                      labelText: 'Gift Card / Promo Code',
+                      hintText: 'Enter gift or promo code',
+                      prefixIcon: const Icon(Icons.card_giftcard_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.blue),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _applyPromoCode,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[800],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Apply'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // Helper method to build time slot buttons
- List<Widget> _buildTimeSlots() {
-    return availableSlots.map((slot) {
-      final date = slot['date'];
-      final slots = List<String>.from(slot['timeSlots']);
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            date,
-            style: const TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: slots.map((time) {
-              final isSelected = selectedDate == date && selectedTimeSlot == time;
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedDate = date;
-                    selectedTimeSlot = time;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isSelected ? Colors.black : Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: isSelected ? Colors.black : Colors.grey,
-                    ),
-                  ),
-                  child: Text(
-                    time,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 10),
-        ],
-      );
-    }).toList();
-  }
-
-
-  // Helper method to build text form fields
-  Widget _buildTextFormField({
-    required String label,
+  Widget _buildTextField({
     required TextEditingController controller,
-    TextInputType? keyboardType,
-    int? maxLines = 1,
-    String? Function(String?)? validator,
-    void Function(String)? onChanged,
+    required String label,
+    required String hint,
+    required IconData prefixIcon,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1117,30 +576,434 @@ class _BookingScreenState extends State<UserBookingProfile> {
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
-          maxLines: maxLines,
-          validator: validator,
-          onChanged: onChanged,
           decoration: InputDecoration(
-            border: const OutlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 10, vertical: 10),
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey[500]),
+            prefixIcon: Icon(prefixIcon, color: Colors.grey[600]),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.blue),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
           ),
         ),
       ],
     );
   }
 
-  // Helper method to show snackbar
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 3),
+  Widget _buildPaymentSummary() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.account_balance_wallet, color: Colors.blue[600]),
+                const SizedBox(width: 8),
+                Text(
+                  'Your Wallet Balance',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.blue[700],
+                  ),
+                ),
+                const Spacer(),
+                isWalletLoading 
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
+                      ),
+                    )
+                  : Text(
+                      'SAR ${walletBalance.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[700],
+                      ),
+                    ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Show insufficient balance warning if needed
+          if (!isWalletLoading && finalPriceAfterGiftCard > walletBalance && !isFirstSession) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_outlined, color: Colors.red[600], size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Insufficient wallet balance. Please top up your wallet.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Session Fee',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              Text(
+                'SAR ${sessionFee.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          
+          // Show free session discount if applicable
+          if (isFirstSession) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'First Session (Free)',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.green[600],
+                  ),
+                ),
+                Text(
+                  '-SAR ${sessionFee.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.green[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          
+          // Show promo code discount if applicable
+          if (discountAmount > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Discount',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.green[600],
+                  ),
+                ),
+                Text(
+                  '-SAR ${discountAmount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.green[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          
+          const SizedBox(height: 8),
+          const Divider(),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Total',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookButton() {
+    bool canBook = !isWalletLoading && 
+                   (isFirstSession || finalPriceAfterGiftCard <= walletBalance) &&
+                   !isBookingInProgress;
+    
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: canBook ? () {
+              if (_formKey.currentState!.validate()) {
+                _handleBooking();
+              }
+            } : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: canBook ? Colors.black : Colors.grey[400],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: isBookingInProgress 
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.payment),
+                    const SizedBox(width: 8),
+                    Text(
+                      isFirstSession 
+                        ? 'Book Free Session'
+                        : 'Pay SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)} & Book',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          isFirstSession 
+            ? 'By clicking "Book Free Session", you agree to our Terms of Service and Privacy Policy.'
+            : 'By clicking "Pay SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)} & Book", you agree to our Terms of Service and Privacy Policy.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleBooking() async {
+   if (authToken == null || currentUserId == null) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Login required or user ID missing. Please re-login.')),
+  );
+  return;
+}
+
+
+    setState(() {
+      isBookingInProgress = true;
+    });
+
+String _mapSessionDurationLabel(String durationCode) {
+  switch (durationCode) {
+    case '15':
+      return 'Quick - 15min';
+    case '30':
+      return 'Regular - 30min';
+    case '45':
+      return 'Extra - 45min';
+    case '60':
+      return 'All Access - 60min';
+    default:
+      return 'Regular - 30min'; // fallback
+  }
+}
+
+
+int _mapDurationToBackend(String durationStr) {
+  // Convert string to int and validate it
+  final validDurations = [15, 30, 45, 60];
+  final parsed = int.tryParse(durationStr) ?? 30;
+  return validDurations.contains(parsed) ? parsed : 30;
+}
+
+
+    try {
+      // Prepare booking data
+ final bookingData = {
+  'consultingExpertID': widget.expertId,      // ✅ Expert being booked
+  'expertId': currentUserId,                  // ✅ Logged-in expert who is booking
+  'areaOfExpertise': expert?.areaOfExpertise ?? 'Home',
+  'duration': _mapSessionDurationLabel(expert?.sessionDuration ?? '30'),
+  'firstName': _firstNameController.text.trim(),
+  'lastName': _lastNameController.text.trim(),
+  'phone': _phoneController.text.trim(),
+  'email': _emailController.text.trim(),
+  'note': _noteController.text.trim(),
+  'promoCode': _promoController.text.trim(),
+  'sessionDate': '2025-07-14',
+  'sessionTime': '14:00',
+  'price': sessionFee,
+  'discountAmount': discountAmount,
+  'finalAmount': finalPriceAfterGiftCard,
+};
+
+
+
+
+print("📦 Booking Payload: consultingExpertID=${currentUserId}, expertId=${widget.expertId}");
+
+
+      // First create the session
+      final sessionResponse = await http.post(
+        Uri.parse('http://localhost:5070/api/session/experttoexpertsession'),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(bookingData),
+      );
+
+      if (sessionResponse.statusCode != 200 && sessionResponse.statusCode != 201) {
+        throw Exception('Failed to create session: ${sessionResponse.body}');
+      }
+
+      final sessionData = jsonDecode(sessionResponse.body);
+      final sessionId = sessionData['session']['_id'];
+
+      // If not a free session and there's a cost, make the payment
+      if (!isFirstSession && finalPriceAfterGiftCard > 0) {
+        final paymentResponse = await http.post(
+          Uri.parse('http://localhost:5070/api/expertwallet/spending/pay'),
+          headers: {
+            'Authorization': 'Bearer $authToken',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'sessionId': sessionId,
+            'amount': finalPriceAfterGiftCard,
+          }),
+        );
+
+        if (paymentResponse.statusCode != 200 && paymentResponse.statusCode != 201) {
+          throw Exception('Payment failed: ${paymentResponse.body}');
+        }
+
+        // Update local wallet balance after successful payment
+        setState(() {
+          walletBalance = walletBalance - finalPriceAfterGiftCard;
+        });
+      }
+
+      // Show success confirmation
+      _showBookingConfirmation(sessionId);
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Booking failed: ${e.toString()}')),
+      );
+    } finally {
+      setState(() {
+        isBookingInProgress = false;
+      });
+    }
+  }
+
+  void _showBookingConfirmation(String sessionId) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Booking Confirmed!'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color: Colors.green,
+                size: 50,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Your session with ${expert?.name} has been booked successfully.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Session ID: $sessionId',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pop(); // Go back to previous screen
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

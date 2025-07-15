@@ -11,7 +11,7 @@ class UserUpperNavbar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: const Color(0xFFFCFAF6),
       elevation: 0,
-      titleSpacing: 0,
+      titleSpacing: 0,    
       title: Row(
         children: [
           const Text(

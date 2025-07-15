@@ -1,10 +1,11 @@
-
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/phone_number.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:shourk_application/user/home/home_screen.dart';
 
 class UserRegister extends StatefulWidget {
   const UserRegister({super.key});
@@ -23,6 +24,9 @@ class _UserRegisterState extends State<UserRegister> {
   String countryCode = '';
   bool _isLoading = false;
   String? _serverError;
+
+  // Replace with your actual backend URL
+  final String baseUrl = "http://localhost:5070/api/userauth";
 
   @override
   void initState() {
@@ -145,36 +149,60 @@ class _UserRegisterState extends State<UserRegister> {
     });
 
     try {
-      bool saved = await _saveRegistrationData();
+      // Save registration data locally first
+      await _saveRegistrationData();
 
-      if (saved) {
-        if (mounted) {
+      // Send registration data to server
+      final url = Uri.parse('$baseUrl/register');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': emailController.text.trim(),
+          'firstName': firstNameController.text.trim(),
+          'lastName': lastNameController.text.trim(),
+          'phone': phoneNumber,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['success'] == true) {
+          // Save token
+          final token = responseData['data']['token'];
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('userToken', token);
+
+          // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Registration data saved successfully!'),
+              content: Text('Registration successful!'),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
             ),
           );
 
-          await Future.delayed(const Duration(seconds: 1));
+          // Navigate to home screen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          throw Exception(responseData['message']);
         }
       } else {
-        throw Exception('Failed to save registration data');
+        throw Exception('Registration failed: ${response.statusCode}');
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _serverError = 'Failed to save registration data: ${e.toString()}';
-        });
+      setState(() {
+        _serverError = 'Failed to register: ${e.toString()}';
+      });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: Failed to save registration data'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -403,4 +431,3 @@ class _UserRegisterState extends State<UserRegister> {
     );
   }
 }
-

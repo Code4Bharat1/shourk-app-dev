@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -84,71 +83,70 @@ class _UserLoginState extends State<UserLogin> {
     }
   }
 
- void _proceed() async {
-  String contactInfo = _isPhoneMode ? _phoneNumber : _emailController.text;
-  String otp = _otpController.text.trim();
+  void _proceed() async {
+    String contactInfo = _isPhoneMode ? _phoneNumber : _emailController.text;
+    String otp = _otpController.text.trim();
 
-  if (otp.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please enter OTP'),
-        backgroundColor: Colors.red,
-      ),
-    );
-    return;
-  }
-
-  final url = Uri.parse('$baseUrl/verify-otp');
-
-  try {
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        _isPhoneMode ? 'phone' : 'email': contactInfo,
-        'otp': otp,
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      final responseData = jsonDecode(response.body);
-
-      if (responseData['data']['isNewExpert'] == true) {
-        // Expert needs to register
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const UserRegister()),
-        );
-      } else {
-        // Expert is registered, save token
-        final token = responseData['data']['token'];
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('expertToken', token);
-
-        // Redirect to home screen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
-    } else {
+    if (otp.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Invalid OTP'),
+          content: Text('Please enter OTP'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final url = Uri.parse('$baseUrl/verify-otp');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          _isPhoneMode ? 'phone' : 'email': contactInfo,
+          'otp': otp,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+
+        // Check if user exists
+        if (responseData['data']['isNewUser'] == true) {
+          // New user - navigate to registration
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const UserRegister()),
+          );
+        } else {
+          // Existing user - save token and go to home
+          final token = responseData['data']['token'];
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('userToken', token);
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid OTP'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
           backgroundColor: Colors.red,
         ),
       );
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -360,5 +358,3 @@ class _UserLoginState extends State<UserLogin> {
     );
   }
 }
-
-
