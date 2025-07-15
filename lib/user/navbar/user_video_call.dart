@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
 
@@ -10,124 +15,830 @@ class UserVideoCallPage extends StatefulWidget {
 }
 
 class _UserVideoCallPageState extends State<UserVideoCallPage> {
-  String username = "abdul maaz"; // Placeholder
-  String userInitials = "AM"; // Placeholder
+  // User data
+  String firstName = "";
+  String lastName = "";
+  String userInitials = "U";
+  String? profileImageUrl;
+  String? userToken;
+  String? userId;
+  
+  // Booking data
+  List<Booking> bookings = [];
   bool isLoading = false;
-  List<dynamic> bookings = []; // Placeholder booking data
+  String? errorMessage;
+  
+  static const String baseUrl = "https://amd-api.code4bharat.com/api";
 
   @override
   void initState() {
     super.initState();
-    _fetchUserBookings();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      await _getUserToken();
+      if (userToken != null && userId != null) {
+        await Future.wait([
+          _fetchUserProfile(),
+          _fetchUserBookings(),
+        ]);
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = "Failed to initialize data: ${e.toString()}";
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _getUserToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    userToken = prefs.getString('userToken');
+    
+    if (userToken == null) {
+      Navigator.pushReplacementNamed(context, '/userlogin');
+      return;
+    }
+
+    // Decode token to get user ID
+    try {
+      if (JwtDecoder.isExpired(userToken!)) {
+        await _refreshToken();
+      }
+      
+      Map<String, dynamic> decodedToken = JwtDecoder.decode(userToken!);
+      userId = decodedToken['_id'];
+    } catch (e) {
+      print("Error parsing token: $e");
+      Navigator.pushReplacementNamed(context, '/userlogin');
+    }
+  }
+
+  Future<void> _fetchUserProfile() async {
+    if (userId == null || userToken == null) return;
+
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/userauth/$userId'),
+        headers: {
+          'Authorization': 'Bearer $userToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final userData = data['data'];
+          setState(() {
+            firstName = userData['firstName'] ?? '';
+            lastName = userData['lastName'] ?? '';
+            profileImageUrl = userData['photoFile'];
+            userInitials = _getUserInitials(firstName, lastName);
+          });
+        }
+      } else if (response.statusCode == 401) {
+        await _refreshToken();
+        await _fetchUserProfile(); // Retry with new token
+      }
+    } catch (e) {
+      print("Error fetching user profile: $e");
+    }
   }
 
   Future<void> _fetchUserBookings() async {
-    setState(() => isLoading = true);
+    if (userToken == null) return;
 
-    // TODO: Replace this with your actual API call
-    await Future.delayed(const Duration(seconds: 1));
-    // Sample response simulation
-    setState(() {
-      isLoading = false;
-      bookings = []; // Add booking objects from API when available
-    });
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/session/Userbookings'),
+        headers: {
+          'Authorization': 'Bearer $userToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        
+        List<dynamic> bookingData = [];
+        if (responseData is List) {
+          bookingData = responseData;
+        } else if (responseData is Map) {
+          bookingData = responseData['data'] ?? responseData['bookings'] ?? [];
+        }
+
+        setState(() {
+          bookings = bookingData.map((booking) {
+            try {
+              return Booking.fromJson(Map<String, dynamic>.from(booking));
+            } catch (e) {
+              print('Error parsing booking: $e');
+              return null;
+            }
+          }).where((booking) => booking != null).cast<Booking>().toList();
+        });
+      } else if (response.statusCode == 401) {
+        await _refreshToken();
+        await _fetchUserBookings(); // Retry with new token
+      } else {
+        setState(() {
+          errorMessage = "Failed to load bookings. Please try again.";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = "Network error. Please check your connection.";
+      });
+    }
+  }
+
+  Future<void> _refreshToken() async {
+    if (userToken == null) return;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/userauth/refresh-token'),
+        headers: {
+          'Authorization': 'Bearer $userToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final newToken = data['newToken'];
+        
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userToken', newToken);
+        setState(() {
+          userToken = newToken;
+        });
+      } else {
+        // Token refresh failed, redirect to login
+        Navigator.pushReplacementNamed(context, '/userlogin');
+      }
+    } catch (e) {
+      print("Token refresh failed: $e");
+      Navigator.pushReplacementNamed(context, '/userlogin');
+    }
+  }
+
+  String _getUserInitials(String firstName, String lastName) {
+    String initials = "";
+    if (firstName.isNotEmpty) initials += firstName[0];
+    if (lastName.isNotEmpty) initials += lastName[0];
+    return initials.isNotEmpty ? initials.toUpperCase() : "U";
+  }
+
+  Future<void> _launchMeeting(String meetingLink) async {
+    try {
+      final Uri url = Uri.parse(meetingLink);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        _showSnackBar('Could not launch meeting link');
+      }
+    } catch (e) {
+      _showSnackBar('Error opening meeting: $e');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  void _showRatingDialog(Booking booking) {
+    showDialog(
+      context: context,
+      builder: (context) => RatingDialog(
+        booking: booking,
+        onRatingSubmitted: (updatedBooking) {
+          setState(() {
+            final index = bookings.indexWhere((b) => b.id == updatedBooking.id);
+            if (index != -1) {
+              bookings[index] = updatedBooking;
+            }
+          });
+        },
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'confirmed':
+        return Colors.green;
+      case 'pending':
+      case 'unconfirmed':
+        return Colors.orange;
+      case 'rejected':
+      case 'cancelled':
+        return Colors.red;
+      case 'completed':
+        return Colors.blue;
+      case 'rating submitted':
+        return Colors.green.shade700;
+      default:
+        return Colors.grey;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final userName = '$firstName $lastName'.trim();
+    final displayName = userName.isNotEmpty ? userName : 'User';
+
     return Scaffold(
       appBar: UserUpperNavbar(),
       backgroundColor: const Color(0xFFFCFAF6),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /// HEADER: Hi, Name | Language | Profile
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Hi, $username", style: const TextStyle(fontSize: 14)),
-                      const SizedBox(height: 4),
-                      const Text(
-                        "Video Call",
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.language, size: 14, color: Colors.white),
-                      SizedBox(width: 4),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                CircleAvatar(
-                  backgroundColor: Colors.deepPurple,
-                  child: Text(
-                    userInitials.toUpperCase(),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  username,
-                  style: const TextStyle(fontSize: 13, color: Colors.black, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            /// MY BOOKINGS BUTTON
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: const Text(
-                "My Bookings",
-                style: TextStyle(color: Colors.white, fontSize: 13),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            /// CONTENT
-            Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : bookings.isEmpty
-                      ? const Center(
-                          child: Text(
-                            "No bookings found for this user.",
-                            style: TextStyle(color: Colors.red, fontSize: 15),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: bookings.length,
-                          itemBuilder: (context, index) {
-                            final booking = bookings[index];
-                            return Card(
-                              child: ListTile(
-                                title: Text("Booking #${booking['id']}"),
-                                subtitle: Text("Date: ${booking['date']}"),
-                              ),
-                            );
-                          },
-                        ),
-            ),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _initializeData,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(displayName),
+              const SizedBox(height: 24),
+              _buildInfoCard(),
+              const SizedBox(height: 16),
+              _buildBookingsList(),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: const UserBottomNavbar(currentIndex: 1),
     );
   }
+
+  Widget _buildHeader(String displayName) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Hi, $displayName",
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                "Video Calls",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+        CircleAvatar(
+          radius: 24,
+          backgroundColor: Colors.deepPurple,
+          backgroundImage: profileImageUrl != null 
+              ? NetworkImage(profileImageUrl!) 
+              : null,
+          child: profileImageUrl == null
+              ? Text(
+                  userInitials,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.blue, size: 20),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              "Your upcoming video calls will appear here. Make sure to test your audio/video before joining.",
+              style: TextStyle(fontSize: 14, color: Colors.blue),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingsList() {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Text(
+              "My Bookings",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _buildBookingsContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingsContent() {
+    if (isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Loading your bookings...'),
+          ],
+        ),
+      );
+    }
+
+    if (errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+            const SizedBox(height: 16),
+            Text(
+              errorMessage!,
+              style: const TextStyle(fontSize: 16, color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _initializeData,
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (bookings.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.calendar_today, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No Bookings Yet',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Your upcoming video call bookings will appear here',
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: bookings.length,
+      itemBuilder: (context, index) => _buildBookingCard(bookings[index]),
+    );
+  }
+
+  Widget _buildBookingCard(Booking booking) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildBookingHeader(booking),
+            const SizedBox(height: 12),
+            _buildBookingDetails(booking),
+            const SizedBox(height: 12),
+            _buildParticipants(booking),
+            const SizedBox(height: 16),
+            _buildActionButtons(booking),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookingHeader(Booking booking) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            booking.formattedDate,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.blue,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: _getStatusColor(booking.status).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            booking.status.toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _getStatusColor(booking.status),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBookingDetails(Booking booking) {
+    return Row(
+      children: [
+        const Icon(Icons.access_time, size: 16, color: Colors.blue),
+        const SizedBox(width: 8),
+        Text(
+          '${booking.sessionTime ?? 'TBD'} • ${booking.duration ?? 'TBD'}',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            booking.sessionType,
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildParticipants(Booking booking) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.person, size: 16, color: Colors.blue),
+              const SizedBox(width: 8),
+              const Text('You:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+              const SizedBox(width: 4),
+              Text('$firstName $lastName', style: const TextStyle(fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.person_outline, size: 16, color: Colors.blue),
+              const SizedBox(width: 8),
+              const Text('Expert:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+              const SizedBox(width: 4),
+              Text(booking.expertName, style: const TextStyle(fontSize: 12)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(Booking booking) {
+    List<Widget> buttons = [];
+
+    if (booking.status.toLowerCase() == 'confirmed') {
+      buttons.add(
+        OutlinedButton.icon(
+          onPressed: () => Navigator.pushNamed(context, '/userpanel/chat'),
+          icon: const Icon(Icons.chat, size: 16),
+          label: const Text('Chat'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+        ),
+      );
+
+      if (booking.userMeetingLink != null && booking.userMeetingLink!.isNotEmpty) {
+        buttons.add(
+          ElevatedButton.icon(
+            onPressed: () => _launchMeeting(booking.userMeetingLink!),
+            icon: const Icon(Icons.videocam, size: 16),
+            label: const Text('Join Meeting'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+          ),
+        );
+      } else {
+        buttons.add(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              border: Border.all(color: Colors.orange.shade200),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Text(
+              'Meeting link pending',
+              style: TextStyle(fontSize: 12, color: Colors.orange),
+            ),
+          ),
+        );
+      }
+    }
+
+    if (booking.status.toLowerCase() == 'completed' && !booking.hasRating) {
+      buttons.add(
+        ElevatedButton.icon(
+          onPressed: () => _showRatingDialog(booking),
+          icon: const Icon(Icons.star, size: 16),
+          label: const Text('Rate Session'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+        ),
+      );
+    }
+
+    return buttons.isEmpty
+        ? const SizedBox.shrink()
+        : Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: buttons,
+          );
+  }
 }
+
+// Models
+class Booking {
+  final String id;
+  final String status;
+  final String sessionTime;
+  final String duration;
+  final String sessionType;
+  final String expertName;
+  final String? userMeetingLink;
+  final DateTime? sessionDate;
+  final bool hasRating;
+
+  Booking({
+    required this.id,
+    required this.status,
+    this.sessionTime = 'TBD',
+    this.duration = 'TBD',
+    this.sessionType = 'User To Expert',
+    this.expertName = 'Expert',
+    this.userMeetingLink,
+    this.sessionDate,
+    this.hasRating = false,
+  });
+
+  String get formattedDate {
+    if (sessionDate != null) {
+      return '${sessionDate!.day}/${sessionDate!.month}/${sessionDate!.year}';
+    }
+    return 'TBD';
+  }
+
+  factory Booking.fromJson(Map<String, dynamic> json) {
+    try {
+      // Parse session date
+      DateTime? sessionDate;
+      if (json['sessionDate'] != null) {
+        sessionDate = DateTime.tryParse(json['sessionDate'].toString());
+      }
+
+      // Parse expert name
+      String expertName = 'Expert';
+      if (json['consultingExpertID'] is Map) {
+        final expertData = json['consultingExpertID'];
+        final firstName = expertData['firstName']?.toString() ?? '';
+        final lastName = expertData['lastName']?.toString() ?? '';
+        expertName = '$firstName $lastName'.trim();
+        if (expertName.isEmpty) expertName = 'Expert';
+      }
+
+      return Booking(
+        id: json['_id']?.toString() ?? '',
+        status: json['status']?.toString() ?? 'pending',
+        sessionTime: json['sessionTime']?.toString() ?? 'TBD',
+        duration: json['duration']?.toString() ?? 'TBD',
+        sessionType: json['sessionType']?.toString() ?? 'User To Expert',
+        expertName: expertName,
+        userMeetingLink: json['userMeetingLink']?.toString(),
+        sessionDate: sessionDate,
+        hasRating: json['rating'] != null,
+      );
+    } catch (e) {
+      print('Error parsing booking: $e');
+      return Booking(
+        id: 'error',
+        status: 'error',
+        expertName: 'Error',
+      );
+    }
+  }
+}
+
+// Rating Dialog
+class RatingDialog extends StatefulWidget {
+  final Booking booking;
+  final Function(Booking) onRatingSubmitted;
+
+  const RatingDialog({
+    Key? key,
+    required this.booking,
+    required this.onRatingSubmitted,
+  }) : super(key: key);
+
+  @override
+  State<RatingDialog> createState() => _RatingDialogState();
+}
+
+class _RatingDialogState extends State<RatingDialog> {
+  int rating = 0;
+  final TextEditingController _commentController = TextEditingController();
+  bool isSubmitting = false;
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitRating() async {
+    if (rating == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a rating')),
+      );
+      return;
+    }
+
+    setState(() => isSubmitting = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('userToken');
+
+      final response = await http.post(
+        Uri.parse('https://amd-api.code4bharat.com/api/rating/rateSession'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'sessionId': widget.booking.id,
+          'rating': rating,
+          'comment': _commentController.text.trim(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final updatedBooking = Booking(
+          id: widget.booking.id,
+          status: 'rating submitted',
+          sessionTime: widget.booking.sessionTime,
+          duration: widget.booking.duration,
+          sessionType: widget.booking.sessionType,
+          expertName: widget.booking.expertName,
+          userMeetingLink: widget.booking.userMeetingLink,
+          sessionDate: widget.booking.sessionDate,
+          hasRating: true,
+        );
+
+        widget.onRatingSubmitted(updatedBooking);
+        Navigator.of(context).pop();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Rating submitted successfully!')),
+        );
+      } else {
+        throw Exception('Failed to submit rating');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error submitting rating: ${e.toString()}')),
+      );
+    } finally {
+      setState(() => isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Rate Your Session'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('How was your session with ${widget.booking.expertName}?'),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (index) {
+              return IconButton(
+                onPressed: () => setState(() => rating = index + 1),
+                icon: Icon(
+                  index < rating ? Icons.star : Icons.star_border,
+                  color: Colors.amber,
+                  size: 36,
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _commentController,
+            decoration: const InputDecoration(
+              hintText: 'Add a comment (optional)',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
+            maxLength: 500,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: isSubmitting ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: isSubmitting ? null : _submitRating,
+          child: isSubmitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Submit'),
+        ),
+      ],
+    );
+  }
+}
+
