@@ -3,12 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shourk_application/expert/navbar/video_call.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
 
 class ExpertBookingScreen extends StatefulWidget {
   final String expertId;
+  final String selectedSessionType;
+  final String selectedDate;
+  final String selectedTime;
 
-  const ExpertBookingScreen({super.key, required this.expertId});
+  const ExpertBookingScreen({
+    super.key,
+    required this.expertId,
+    required this.selectedSessionType,
+    required this.selectedDate,
+    required this.selectedTime,
+  });
 
   @override
   _BookingFormScreenState createState() => _BookingFormScreenState();
@@ -25,6 +35,10 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
   String? authToken;
   String? currentUserId;
 
+  late String sessionType;
+  late String sessionDate;
+  late String sessionTime;
+
   // Add missing form key and controllers
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _firstNameController = TextEditingController();
@@ -37,6 +51,9 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
   @override
   void initState() {
     super.initState();
+    sessionType = widget.selectedSessionType;
+    sessionDate = widget.selectedDate;
+    sessionTime = widget.selectedTime;
     _initializeData();
   }
 
@@ -168,6 +185,22 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
   // Helper method to get final price after considering free session
   double get finalPriceAfterGiftCard => isFirstSession ? 0.0 : totalAmount;
 
+  // Map session type to user-friendly label
+  String _mapSessionDurationLabel(String type) {
+    switch (type) {
+      case 'quick':
+        return 'Quick - 15min';
+      case 'regular':
+        return 'Regular - 30min';
+      case 'extra':
+        return 'Extra - 45min';
+      case 'all_access':
+        return 'All Access - 60min';
+      default:
+        return 'Regular - 30min';
+    }
+  }
+
   // Helper method to apply promo code
   void _applyPromoCode() {
     final promoCode = _promoController.text.trim();
@@ -224,6 +257,66 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildExpertCard(),
+            const SizedBox(height: 20),
+
+            // Dynamic session info
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 20, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Date: ',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Text(sessionDate, style: TextStyle(fontSize: 16)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time, size: 20, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Time: ',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Text(sessionTime, style: TextStyle(fontSize: 16)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.timer, size: 20, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Duration: ',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Text(_mapSessionDurationLabel(sessionType), style: TextStyle(fontSize: 16)),
+
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 20),
             _buildBookingForm(),
             const SizedBox(height: 20),
@@ -298,7 +391,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
                 ),
               ),
               Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
@@ -349,7 +442,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Monday, July 14, 2025',
+                  sessionDate,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[700],
@@ -361,7 +454,21 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
                     Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 8),
                     Text(
-                      '2:00 PM',
+                      sessionTime,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.timer, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Text(
+                      _mapSessionDurationLabel(sessionType),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[700],
@@ -888,31 +995,50 @@ int _mapDurationToBackend(String durationStr) {
   return validDurations.contains(parsed) ? parsed : 30;
 }
 
+String _validateAreaOfExpertise(String? input) {
+  const allowed = [
+    'Home',
+    'Digital Marketing',
+    'Technology',
+    'Style and Beauty',
+    'HEalth and Wellness',
+    'Career and Business'
+  ];
+  return allowed.contains(input) ? input! : 'Home';
+}
+
+
 
     try {
       // Prepare booking data
- final bookingData = {
-  'consultingExpertID': widget.expertId,      // ✅ Expert being booked
-  'expertId': currentUserId,                  // ✅ Logged-in expert who is booking
-  'areaOfExpertise': expert?.areaOfExpertise ?? 'Home',
+final bookingData = {
+  'consultingExpertID': widget.expertId, // ✅ Expert being booked
+  'expertId': currentUserId,             // ✅ Logged-in expert
+  'areaOfExpertise': _validateAreaOfExpertise(expert?.areaOfExpertise),
   'duration': _mapSessionDurationLabel(expert?.sessionDuration ?? '30'),
   'firstName': _firstNameController.text.trim(),
   'lastName': _lastNameController.text.trim(),
-  'phone': _phoneController.text.trim(),
+  'mobile': _phoneController.text.trim(),
   'email': _emailController.text.trim(),
   'note': _noteController.text.trim(),
-  'promoCode': _promoController.text.trim(),
-  'sessionDate': '2025-07-14',
-  'sessionTime': '14:00',
-  'price': sessionFee,
-  'discountAmount': discountAmount,
-  'finalAmount': finalPriceAfterGiftCard,
+  'price': sessionFee.toString(),
+  'redemptionCode': _promoController.text.trim(), // map to gift card
+  'slots': [
+    {
+      'selectedDate': sessionDate,
+      'selectedTime': sessionTime,
+    }
+  ],
 };
 
 
 
 
-print("📦 Booking Payload: consultingExpertID=${currentUserId}, expertId=${widget.expertId}");
+
+print("📦 Booking Payload: consultingExpertID=${widget.expertId}, expertId=${currentUserId}");
+
+print("Final bookingData: ${jsonEncode(bookingData)}");
+
 
 
       // First create the session
@@ -943,6 +1069,7 @@ print("📦 Booking Payload: consultingExpertID=${currentUserId}, expertId=${wid
           body: jsonEncode({
             'sessionId': sessionId,
             'amount': finalPriceAfterGiftCard,
+            'payeeExpertId': widget.expertId,
           }),
         );
 
@@ -1005,9 +1132,17 @@ print("📦 Booking Payload: consultingExpertID=${currentUserId}, expertId=${wid
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop(); // Close dialog
-                Navigator.of(context).pop(); // Go back to previous screen
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VideoCallPage(
+                      sessionId: sessionId,
+                      key: UniqueKey(), // Ensures full rebuild and reload
+                    ),
+                  ),
+                );
               },
-              child: const Text('OK'),
+              child: const Text('Go to Video Calls'),
             ),
           ],
         );

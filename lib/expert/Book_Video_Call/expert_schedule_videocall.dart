@@ -306,9 +306,12 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                ExpertBookingScreen(expertId: _expert!.id),
+                        builder: (context) => ExpertBookingScreen(
+                          expertId: _expert!.id,
+                          selectedSessionType: selectedSessionType.isNotEmpty ? selectedSessionType : 'regular',
+                          selectedDate: selectedTimeSlots.isNotEmpty ? _findSelectedDateForTime(selectedTimeSlots.first) : '', // TODO: Replace with actual selected date logic
+                          selectedTime: selectedTimeSlots.isNotEmpty ? selectedTimeSlots.first : '', // TODO: Replace with actual selected time logic
+                        ),
                       ),
                     );
                   }
@@ -335,6 +338,18 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
       ),
       bottomNavigationBar: const ExpertBottomNavbar(currentIndex: 1),
     );
+  }
+
+  // Find the date for a selected time slot (expects uniqueKey as 'date-time')
+  String _findSelectedDateForTime(String uniqueKey) {
+    // uniqueKey is in the format 'date-time'
+    final parts = uniqueKey.split('-');
+    if (parts.length < 2) return '';
+    // The first part(s) are the date, the last part is the time
+    // If date itself contains '-', recombine all but last as date
+    final time = parts.last;
+    final date = parts.sublist(0, parts.length - 1).join('-');
+    return date;
   }
 
   Widget _buildSessionButton(String label, String value) {

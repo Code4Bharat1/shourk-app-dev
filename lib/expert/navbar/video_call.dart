@@ -7,6 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 class VideoCallPage extends StatefulWidget {
+  final String? sessionId;
+
+  const VideoCallPage({super.key, this.sessionId});
+
   @override
   _VideoCallPageState createState() => _VideoCallPageState();
 }
@@ -21,10 +25,13 @@ class _VideoCallPageState extends State<VideoCallPage> {
   String? _bookingsError;
   String? _sessionsError;
   String? _authToken;
+  final ScrollController _scrollController = ScrollController();
+  String? _highlightedSessionId;
 
   @override
   void initState() {
     super.initState();
+    _highlightedSessionId = widget.sessionId;
     _initializeApp();
   }
 
@@ -62,6 +69,21 @@ class _VideoCallPageState extends State<VideoCallPage> {
       _fetchBookings(),
       _fetchSessions(),
     ]);
+
+    if (_highlightedSessionId != null) {
+      _scrollToHighlightedSession();
+    }
+  }
+
+  void _scrollToHighlightedSession() {
+    final index = _sessions.indexWhere((s) => s.id == _highlightedSessionId);
+    if (index != -1) {
+      _scrollController.animateTo(
+        index * 200.0, // Approximate height of a session card
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Future<void> _fetchBookings() async {
@@ -586,7 +608,8 @@ class _VideoCallPageState extends State<VideoCallPage> {
 
   Widget _buildSessionCard(Session session) {
     final isUnconfirmed = session.status == "unconfirmed";
-    
+    final isHighlighted = session.id == _highlightedSessionId;
+
     return Card(
       margin: EdgeInsets.only(bottom: 16),
       elevation: 0,
@@ -596,7 +619,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Color(0xFFEEEEEE)),
+          border: Border.all(color: isHighlighted ? Colors.blue : Color(0xFFEEEEEE), width: isHighlighted ? 2 : 1),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -821,6 +844,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
       body: Stack(
         children: [
           SingleChildScrollView(
+            controller: _scrollController,
             padding: EdgeInsets.all(16),
             child: Column(
               children: [
