@@ -67,7 +67,7 @@ class ExpertModel {
   String get imageUrl {
     if (photoFile == null) return '';
     if (photoFile!.startsWith('http')) return photoFile!;
-    return 'http://localhost:5070$photoFile';
+    return 'https://amd-api.code4bharat.com$photoFile';
   }
 
   factory ExpertModel.fromJson(Map<String, dynamic> json) {

@@ -132,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<List<ExpertModel>> _fetchExpertsByCategory(String category) async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5070/api/expertauth/area/$category'),
+        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/area/$category'),
         headers: {'Content-Type': 'application/json'},
       );
 

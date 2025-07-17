@@ -103,7 +103,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
       }
 
       final response = await http.get(
-        Uri.parse('http://localhost:5070/api/expertwallet/balances'),
+        Uri.parse('https://amd-api.code4bharat.com/api/expertwallet/balances'),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
@@ -145,7 +145,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
   Future<void> fetchExpert() async {
     try {
       final res = await http.get(
-        Uri.parse('http://localhost:5070/api/expertauth/${widget.expertId}'),
+        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}'),
         headers: {'Content-Type': 'application/json'},
       );
       if (res.statusCode == 200) {
@@ -965,7 +965,7 @@ Widget _buildBookingForm() {
       print("📦 Booking Payload: consultingExpertID=${widget.expertId}, expertId=$currentUserId");
 
       final sessionResponse = await http.post(
-        Uri.parse('http://localhost:5070/api/session/experttoexpertsession'),
+        Uri.parse('https://amd-api.code4bharat.com/api/session/experttoexpertsession'),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
@@ -982,7 +982,7 @@ Widget _buildBookingForm() {
 
       if (!isFirstSession && finalPriceAfterGiftCard > 0) {
         final paymentResponse = await http.post(
-          Uri.parse('http://localhost:5070/api/expertwallet/spending/pay'),
+          Uri.parse('https://amd-api.code4bharat.com/api/expertwallet/spending/pay'),
           headers: {
             'Authorization': 'Bearer $authToken',
             'Content-Type': 'application/json',

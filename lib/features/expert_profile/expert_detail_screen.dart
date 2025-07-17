@@ -161,7 +161,7 @@ List<Widget> _buildExpectationsList(String duration) {
   Future<void> _fetchExpertData() async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5070/api/expertauth/${widget.expertId}'),
+        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}'),
         headers: {'Content-Type': 'application/json'},
       );
 

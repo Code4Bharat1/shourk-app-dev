@@ -3,11 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import '../navbar/user_bottom_navbar.dart';
 import '../navbar/user_upper_navbar.dart';
 
-// Reusable header widget
 class ProfileHeader extends StatelessWidget {
   final String displayName;
   final String title;
@@ -98,13 +96,12 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
   bool isLoading = true;
   String? userId;
   String? userToken;
+  String? errorMessage;
   
-  // Profile header variables
   String _displayName = 'User';
   String? _profileImageUrl;
   String _headerTitle = 'Payment History';
 
-  // Settings menu state
   String selectedOption = 'Payment History';
   bool isMobileNavOpen = false;
 
@@ -119,39 +116,67 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
       final prefs = await SharedPreferences.getInstance();
       userToken = prefs.getString('userToken');
       
-      if (userToken != null) {
-        // Decode JWT token to get userId
-        final parts = userToken!.split('.');
-        if (parts.length == 3) {
-          final payload = parts[1];
-          // Add padding if needed
-          final normalizedPayload = payload.padRight(
-            (payload.length + 3) & ~3, '=');
-          final decodedBytes = base64Decode(normalizedPayload);
-          final decodedToken = json.decode(utf8.decode(decodedBytes));
-          userId = decodedToken['_id'];
-          
-          if (userId != null) {
-            await _fetchPaymentHistory();
-            await _loadUserProfile(); // Load user profile for header
-          }
-        }
-      } else {
-        _showError('User token not found');
-      }
-    } catch (error) {
-      print('Error parsing userToken: $error');
-      _showError('Failed to load user data');
-    } finally {
-      if (mounted) {
+      if (userToken == null || userToken!.isEmpty) {
         setState(() {
+          errorMessage = 'User token not found. Please login again.';
           isLoading = false;
         });
+        return;
       }
+
+      // Decode JWT token to get userId
+      bool tokenParsed = await _parseJWTToken();
+      
+      if (!tokenParsed) {
+        setState(() {
+          errorMessage = 'Invalid user token. Please login again.';
+          isLoading = false;
+        });
+        return;
+      }
+      
+      if (userId != null) {
+        await _loadUserProfile();
+        await _fetchPaymentHistory();
+      }
+    } catch (error) {
+      print('Error initializing user data: $error');
+      setState(() {
+        errorMessage = 'Failed to initialize user data. Please try again.';
+        isLoading = false;
+      });
     }
   }
 
-  // Load user profile for header
+  Future<bool> _parseJWTToken() async {
+    try {
+      if (userToken == null || userToken!.isEmpty) return false;
+      
+      final parts = userToken!.split('.');
+      if (parts.length != 3) return false;
+      
+      final payload = parts[1];
+      // Add padding if needed
+      String normalizedPayload = payload;
+      while (normalizedPayload.length % 4 != 0) {
+        normalizedPayload += '=';
+      }
+      
+      final decodedBytes = base64Decode(normalizedPayload);
+      final decodedToken = json.decode(utf8.decode(decodedBytes));
+      
+      if (decodedToken['_id'] != null) {
+        userId = decodedToken['_id'];
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      print('Error parsing JWT token: $error');
+      return false;
+    }
+  }
+
   Future<void> _loadUserProfile() async {
     if (userToken == null || userId == null) return;
     
@@ -163,17 +188,20 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['success'] == true) {
+        if (data['success'] == true && data['data'] != null) {
           final userData = data['data'];
           setState(() {
-            _displayName = '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'.trim();
+            String firstName = userData['firstName']?.toString() ?? '';
+            String lastName = userData['lastName']?.toString() ?? '';
+            _displayName = '$firstName $lastName'.trim();
             if (_displayName.isEmpty) _displayName = 'User';
-            _profileImageUrl = userData['photoFile'];
+            _profileImageUrl = userData['photoFile']?.toString();
           });
         }
       }
     } catch (e) {
       print("Error loading user profile: $e");
+      // Don't set error message for profile loading failure
     }
   }
 
@@ -189,43 +217,108 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
         },
       );
 
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final List<dynamic> transactionData = data['data'];
         
-        // Format transactions similar to JS frontend
-        List<Transaction> formattedTransactions = transactionData.map((item) {
-          return Transaction(
-            id: item['_id'],
-            shortId: item['_id'].substring(item['_id'].length - 6),
-            amount: double.parse(item['amount'].toString()),
-            service: 'Video consultation', // Default service type
-            date: DateTime.parse(item['createdAt']),
-            status: _formatStatus(item['status'] ?? 'Completed'),
-            isCompleted: _isStatusCompleted(item['status'] ?? 'Completed'),
-            paymentMethod: item['paymentMethod'] ?? 'Credit Card',
-          );
-        }).toList();
+        if (data['success'] == true) {
+          final List<dynamic> transactionData = data['data'] ?? [];
+          
+          if (transactionData.isEmpty) {
+            setState(() {
+              transactions = [];
+              isLoading = false;
+              errorMessage = null;
+            });
+            return;
+          }
+          
+          List<Transaction> formattedTransactions = [];
+          
+          for (var item in transactionData) {
+            try {
+              if (item != null && item['_id'] != null) {
+                // Safe amount parsing
+                double amount = 0.0;
+                if (item['amount'] != null) {
+                  if (item['amount'] is String) {
+                    amount = double.tryParse(item['amount']) ?? 0.0;
+                  } else if (item['amount'] is num) {
+                    amount = item['amount'].toDouble();
+                  }
+                }
+                
+                // Safe date parsing
+                DateTime date = DateTime.now();
+                if (item['createdAt'] != null) {
+                  try {
+                    date = DateTime.parse(item['createdAt']);
+                  } catch (e) {
+                    print('Error parsing date: $e');
+                  }
+                }
+                
+                String id = item['_id'].toString();
+                String shortId = id.length > 6 ? id.substring(id.length - 6) : id;
+                
+                formattedTransactions.add(Transaction(
+                  id: id,
+                  shortId: shortId,
+                  amount: amount,
+                  date: date,
+                  status: _formatStatus(item['status']?.toString() ?? 'Unknown'),
+                  paymentMethod: item['paymentMethod']?.toString() ?? 'Unknown',
+                ));
+              }
+            } catch (e) {
+              print('Error processing transaction item: $e');
+              continue;
+            }
+          }
 
-        // Sort by date (newest first)
-        formattedTransactions.sort((a, b) => b.date.compareTo(a.date));
+          // Sort by date (newest first)
+          formattedTransactions.sort((a, b) => b.date.compareTo(a.date));
 
-        if (mounted) {
           setState(() {
             transactions = formattedTransactions;
+            isLoading = false;
+            errorMessage = null;
+          });
+        } else {
+          setState(() {
+            errorMessage = data['message'] ?? 'Failed to fetch transaction history';
+            isLoading = false;
           });
         }
+      } else if (response.statusCode == 404) {
+        setState(() {
+          transactions = [];
+          isLoading = false;
+          errorMessage = null;
+        });
+      } else if (response.statusCode == 500) {
+        setState(() {
+          errorMessage = 'Server error occurred. Please try again later.';
+          isLoading = false;
+        });
       } else {
-        _showError('Failed to load payment history');
+        setState(() {
+          errorMessage = 'Failed to fetch data. Server returned ${response.statusCode}';
+          isLoading = false;
+        });
       }
     } catch (error) {
       print('Error fetching payment history: $error');
-      _showError('Failed to load payment history');
+      setState(() {
+        errorMessage = 'Network error. Please check your connection and try again.';
+        isLoading = false;
+      });
     }
   }
 
   String _formatStatus(String status) {
-    // Format status similar to JS frontend
     switch (status.toLowerCase()) {
       case 'completed':
       case 'success':
@@ -259,7 +352,6 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
     return transactions.fold(0, (sum, transaction) => sum + transaction.amount);
   }
 
-  // Settings Menu Drawer
   void _openSettingsMenu() {
     setState(() {
       isMobileNavOpen = true;
@@ -278,7 +370,6 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
       isMobileNavOpen = false;
     });
 
-    // Navigate to the corresponding page
     switch (label) {
       case 'Profile':
         Navigator.pushNamed(context, '/user-profile');
@@ -298,7 +389,6 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
     }
   }
 
-  // Drawer option widget
   Widget _buildDrawerOption(String label, IconData icon, VoidCallback onTap) {
     final bool isSelected = selectedOption == label;
     return Container(
@@ -323,10 +413,8 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
       appBar: UserUpperNavbar(),
       body: Stack(
         children: [
-          // Main content
           Column(
             children: [
-              // User info section using ProfileHeader
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: ProfileHeader(
@@ -338,7 +426,6 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
               ),
               const SizedBox(height: 16),
               
-              // Settings section
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Container(
@@ -365,25 +452,21 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
               const SizedBox(height: 16),
               const Divider(thickness: 1),
               
-              // URL section
-              _buildUrlSection(),
-              
-              // Content based on loading state
               Expanded(
                 child: isLoading
                     ? _buildLoadingState()
-                    : transactions.isEmpty
-                        ? _buildEmptyState()
-                        : _buildTransactionsList(),
+                    : errorMessage != null
+                        ? _buildErrorState()
+                        : transactions.isEmpty
+                            ? _buildEmptyState()
+                            : _buildTransactionsList(),
               ),
               
-              // Total section (only show if not loading and has transactions)
-              if (!isLoading && transactions.isNotEmpty)
+              if (!isLoading && transactions.isNotEmpty && errorMessage == null)
                 _buildTotalSection(),
             ],
           ),
           
-          // Mobile Navigation Drawer
           if (isMobileNavOpen)
             GestureDetector(
               onTap: _closeMobileNav,
@@ -471,21 +554,77 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
     );
   }
 
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red[300],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[700],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              errorMessage ?? 'An error occurred',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  isLoading = true;
+                  errorMessage = null;
+                });
+                _initializeUserData();
+              },
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.payment,
+            Icons.attach_money,
             size: 64,
             color: Colors.grey[300],
           ),
           const SizedBox(height: 16),
           Text(
-            'No payments yet',
+            'No transactions found',
             style: TextStyle(
               fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Your payment history will appear here',
+            style: TextStyle(
+              fontSize: 14,
               color: Colors.grey[500],
             ),
           ),
@@ -496,7 +635,13 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
 
   Widget _buildTransactionsList() {
     return RefreshIndicator(
-      onRefresh: _fetchPaymentHistory,
+      onRefresh: () async {
+        setState(() {
+          isLoading = true;
+          errorMessage = null;
+        });
+        await _fetchPaymentHistory();
+      },
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: transactions.length,
@@ -507,39 +652,10 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
     );
   }
 
-  Widget _buildUrlSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Text(
-              'shourk.com/expertpanel/expertpanelpr...',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.blue,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          TextButton(
-            onPressed: () {},
-            child: const Text('Download', style: TextStyle(fontSize: 14)),
-          ),
-          const Text('|', style: TextStyle(color: Colors.grey)),
-          TextButton(
-            onPressed: () {},
-            child: const Text('Node.js', style: TextStyle(fontSize: 14)),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTransactionCard(Transaction transaction) {
     final dateFormat = DateFormat('MMM d, yyyy');
     final timeFormat = DateFormat('hh:mm a');
+    final isCompleted = _isStatusCompleted(transaction.status);
     
     return Card(
       elevation: 0,
@@ -553,31 +669,26 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status indicator with video icon
             Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: transaction.isCompleted 
-                  ? Colors.blue[50] 
-                  : Colors.orange[50],
+                color: isCompleted ? Colors.blue[50] : Colors.orange[50],
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.videocam,
-                color: transaction.isCompleted ? Colors.blue : Colors.orange,
+                color: isCompleted ? Colors.blue : Colors.orange,
                 size: 24,
               ),
             ),
             
             const SizedBox(width: 16),
             
-            // Transaction details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Short ID and Amount in same row
                   Row(
                     children: [
                       Text(
@@ -606,9 +717,8 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
                   
                   const SizedBox(height: 4),
                   
-                  // Service type
                   Text(
-                    transaction.service,
+                    'Video consultation',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -618,11 +728,9 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
               ),
             ),
             
-            // Right section - Date, Time, Payment Method, Status
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Date and time
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -646,7 +754,6 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
                 
                 const SizedBox(height: 8),
                 
-                // Payment method and status
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -795,20 +902,16 @@ class Transaction {
   final String id;
   final String shortId;
   final double amount;
-  final String service;
   final DateTime date;
   final String status;
-  final bool isCompleted;
   final String paymentMethod;
 
   Transaction({
     required this.id,
     required this.shortId,
     required this.amount,
-    required this.service,
     required this.date,
     required this.status,
-    required this.isCompleted,
     required this.paymentMethod,
   });
 }

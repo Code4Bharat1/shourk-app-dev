@@ -18,7 +18,7 @@ class _EnableCharityScreenState extends State<EnableCharityScreen> {
   bool _isCharityEnabled = false;
   bool _isLoading = true;
 
-  final String baseUrl = "http://localhost:5070/api/expertauth"; // Define baseUrl
+  final String baseUrl = "https://amd-api.code4bharat.com/api/expertauth"; // Define baseUrl
 
   @override
   void initState() {

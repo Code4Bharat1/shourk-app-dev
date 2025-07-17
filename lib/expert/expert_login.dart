@@ -23,7 +23,7 @@ class _LoginPageState extends State<LoginPage> {
   String _phoneNumber = '';
 
   // Replace with your actual IP address or ngrok HTTPS URL
-  final String baseUrl = "http://localhost:5070/api/expertauth"; // Replace this with your actual backend URL
+  final String baseUrl = "https://amd-api.code4bharat.com/api/expertauth"; // Replace this with your actual backend URL
 
   void _toggleInputMode() {
     setState(() {

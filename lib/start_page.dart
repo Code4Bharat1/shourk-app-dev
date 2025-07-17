@@ -204,7 +204,7 @@ class _StartPageState extends State<StartPage> {
 
   if (token != null) {
     final response = await http.post(
-      Uri.parse('http://localhost:5070/api/expertauth/refresh-token'),
+      Uri.parse('https://amd-api.code4bharat.com/api/expertauth/refresh-token'),
       headers: {'Authorization': 'Bearer $token'},
     );
 

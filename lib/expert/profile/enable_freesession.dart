@@ -16,7 +16,7 @@ class _EnableFreeSessionScreenState extends State<EnableFreeSessionScreen> {
   bool _isFreeSessionEnabled = false;
   bool _isLoading = true;
 
-  final String baseUrl = "http://localhost:5070/api/expertauth"; // Define baseUrl
+  final String baseUrl = "https://amd-api.code4bharat.com/api/expertauth"; // Define baseUrl
 
   @override
   void initState() {

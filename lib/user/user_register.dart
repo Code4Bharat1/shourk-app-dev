@@ -26,7 +26,7 @@ class _UserRegisterState extends State<UserRegister> {
   String? _serverError;
 
   // Replace with your actual backend URL
-  final String baseUrl = "http://localhost:5070/api/userauth";
+  final String baseUrl = "https://amd-api.code4bharat.com/api/userauth";
 
   @override
   void initState() {

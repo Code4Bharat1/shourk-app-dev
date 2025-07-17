@@ -45,7 +45,7 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
   Future<void> _fetchExpert() async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5070/api/expertauth/${widget.expertId}'),
+        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -73,7 +73,7 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
     try {
       final response = await http.get(
         Uri.parse(
-          'http://localhost:5070/api/expertauth/availability/${widget.expertId}',
+          'https://amd-api.code4bharat.com/api/expertauth/availability/${widget.expertId}',
         ),
         headers: {'Content-Type': 'application/json'},
       );

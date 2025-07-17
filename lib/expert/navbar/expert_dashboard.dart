@@ -114,7 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       // Replace with your actual API base URL
-      const String apiBaseUrl = 'http://localhost:5070'; // Replace with your actual API URL
+      const String apiBaseUrl = 'https://amd-api.code4bharat.com'; // Replace with your actual API URL
       final String apiUrl = '$apiBaseUrl/api/wallet/expert-payout-history';
 
       final response = await http.get(

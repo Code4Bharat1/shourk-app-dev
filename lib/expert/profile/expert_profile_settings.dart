@@ -45,7 +45,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       if (token != null) {
         final decodedToken = JwtDecoder.decode(token);
         final expertId = decodedToken['_id'];
-        final url = Uri.parse('http://localhost:5070/api/expertauth/$expertId');
+        final url = Uri.parse('https://amd-api.code4bharat.com/api/expertauth/$expertId');
 
         final response = await http.get(url, headers: {
           'Authorization': 'Bearer $token',

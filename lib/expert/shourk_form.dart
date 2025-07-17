@@ -227,7 +227,7 @@ class _ShourkFormState extends State<ShourkForm> {
   Future<void> _submitWithFiles() async {
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://localhost:5070/api/expertauth/register'),
+      Uri.parse('https://amd-api.code4bharat.com/api/expertauth/register'),
     );
 
     // Add text fields with updated names

@@ -96,47 +96,6 @@ class PaymentHistoryPage extends StatefulWidget {
 }
 
 class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
-  final List<Transaction> transactions = [
-    Transaction(
-      id: 'bdda35',
-      amount: 100.00,
-      service: 'Full consultation',
-      date: DateTime(2025, 7, 8, 11, 40),
-      status: 'HYPERPAY PENDING',
-      isCompleted: false,
-    ),
-    Transaction(
-      id: '9920b9',
-      amount: 100.00,
-      service: 'Full consultation',
-      date: DateTime(2025, 7, 8, 12, 2),
-      status: 'HYPERPAY PENDING',
-      isCompleted: false,
-    ),
-    Transaction(
-      amount: 200.00,
-      service: 'Full consultation',
-      date: DateTime(2025, 6, 23, 14, 22),
-      status: 'WALLET COMPLETED',
-      isCompleted: true,
-    ),
-    Transaction(
-      amount: 1000.00,
-      service: 'Full consultation',
-      date: DateTime(2025, 6, 23, 14, 7),
-      status: 'HYPERPAY COMPLETED',
-      isCompleted: true,
-    ),
-    Transaction(
-      amount: 1000.00,
-      service: 'Full consultation',
-      date: DateTime(2025, 6, 23, 12, 41),
-      status: 'HYPERPAY PENDING',
-      isCompleted: false,
-    ),
-    // Add more transactions as needed
-  ];
-
   // Drawer state variables
   bool isMobileNavOpen = false;
   String currentPage = 'Payment History';
@@ -148,6 +107,12 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
   String lastName = '';
   String currentLanguage = 'English';
   final String baseUrl = "https://amd-api.code4bharat.com/api/expertauth";
+
+  // Payment history state
+  List<Transaction> transactions = [];
+  bool isLoading = true;
+  bool hasError = false;
+  String errorMessage = '';
 
   @override
   void initState() {
@@ -166,13 +131,24 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
           expertId = decodedToken['_id'];
         });
         if (expertId != null) {
-          _loadExpertProfile();
+          await _loadExpertProfile();
+          await _fetchPaymentHistory();
         }
       } catch (e) {
         print("Error parsing token: $e");
+        setState(() {
+          hasError = true;
+          errorMessage = "Authentication error";
+          isLoading = false;
+        });
       }
     } else {
       print("Expert token not found");
+      setState(() {
+        hasError = true;
+        errorMessage = "Please login again";
+        isLoading = false;
+      });
     }
   }
 
@@ -194,6 +170,63 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
       }
     } catch (e) {
       print("Error fetching expert data: $e");
+    }
+  }
+
+  Future<void> _fetchPaymentHistory() async {
+    if (expertId == null) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('expertToken');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/getTransactionHistory/$expertId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        final List<dynamic> data = responseData['data'];
+        
+        final List<Transaction> fetchedTransactions = data.map((item) {
+          final amount = double.tryParse(item['amount'].toString()) ?? 0.0;
+          final date = DateTime.parse(item['createdAt']);
+          
+          return Transaction(
+            id: item['_id'],
+            amount: amount,
+            service: 'Full consultation',
+            date: date,
+            paymentMethod: item['paymentMethod'] ?? 'TAP',
+            status: item['status'] ?? 'PENDING',
+          );
+        }).toList();
+
+        // Sort transactions by date (newest first)
+        fetchedTransactions.sort((a, b) => b.date.compareTo(a.date));
+
+        setState(() {
+          transactions = fetchedTransactions;
+          isLoading = false;
+        });
+      } else {
+        print("Failed to load payment history: ${response.body}");
+        setState(() {
+          hasError = true;
+          errorMessage = "Failed to load payment history";
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print("Error fetching payment history: $e");
+      setState(() {
+        hasError = true;
+        errorMessage = "Network error";
+        isLoading = false;
+      });
     }
   }
 
@@ -265,6 +298,14 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
 
   double get totalAmount {
     return transactions.fold(0, (sum, transaction) => sum + transaction.amount);
+  }
+
+  void _retryPaymentHistory() {
+    setState(() {
+      isLoading = true;
+      hasError = false;
+    });
+    _fetchPaymentHistory();
   }
 
   @override
@@ -370,7 +411,7 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
               ),
               const SizedBox(height: 10),
               
-              // Settings header row - NEW SECTION ADDED
+              // Settings header row
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -392,19 +433,13 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
               ),
               const SizedBox(height: 10),
               
-              // Transactions list
+              // Content area
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: transactions.length,
-                  itemBuilder: (context, index) {
-                    return _buildTransactionCard(transactions[index]);
-                  },
-                ),
+                child: _buildContentSection(),
               ),
               
               // Total section
-              _buildTotalSection(),
+              if (transactions.isNotEmpty) _buildTotalSection(),
             ],
           ),
           
@@ -439,10 +474,76 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
     );
   }
 
+  Widget _buildContentSection() {
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (hasError) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              errorMessage,
+              style: const TextStyle(fontSize: 16, color: Colors.red),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _retryPaymentHistory,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (transactions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.credit_card_off, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            const Text(
+              'No payments yet',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: transactions.length,
+      itemBuilder: (context, index) {
+        return _buildTransactionCard(transactions[index]);
+      },
+    );
+  }
+
   Widget _buildTransactionCard(Transaction transaction) {
     final dateFormat = DateFormat('MMM d, yyyy');
     final timeFormat = DateFormat('hh:mm a');
     
+    // Get short ID (last 6 characters)
+    final shortId = transaction.id != null && transaction.id!.length > 6
+        ? transaction.id!.substring(transaction.id!.length - 6)
+        : transaction.id ?? '';
+
+    // Determine status color
+    Color statusColor;
+    if (transaction.status == 'COMPLETED' || transaction.status == 'SUCCESS') {
+      statusColor = Colors.green;
+    } else if (transaction.status == 'PENDING') {
+      statusColor = Colors.orange;
+    } else {
+      statusColor = Colors.red;
+    }
+
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 12),
@@ -452,125 +553,80 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status indicator
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: transaction.isCompleted 
-                  ? Colors.green[100] 
-                  : Colors.orange[100],
-                shape: BoxShape.circle,
-              ),
-              child: transaction.isCompleted
-                ? const Icon(Icons.check, color: Colors.green, size: 24)
-                : const SizedBox.shrink(),
-            ),
-            
-            const SizedBox(width: 16),
-            
-            // Transaction details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ID if exists
-                  if (transaction.id != null) ...[
-                    Text(
-                      transaction.id!,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                  
-                  // Service type
-                  Row(
-                    children: [
-                      if (!transaction.isCompleted)
-                        Container(
-                          width: 16,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      if (!transaction.isCompleted) const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          transaction.service,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Amount
-                  Row(
-                    children: [
-                      const Text(
-                        'SAR',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        transaction.amount.toStringAsFixed(2),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Date and time
-                  Text(
-                    '${dateFormat.format(transaction.date)}  ${timeFormat.format(transaction.date)}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Payment status
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            // ID and Amount row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Short ID
                 Text(
-                  transaction.status.split(' ')[0],
+                  shortId,
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    color: Colors.grey,
                   ),
                 ),
-                const SizedBox(height: 4),
+                
+                // Amount
                 Text(
-                  transaction.status.split(' ')[1],
+                  'SAR ${transaction.amount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Service name
+            Text(
+              transaction.service,
+              style: const TextStyle(
+                fontSize: 16,
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Date and time
+            Text(
+              '${dateFormat.format(transaction.date)}  ${timeFormat.format(transaction.date)}',
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Payment method and status
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Payment method
+                Row(
+                  children: [
+                    const Icon(Icons.attach_money, size: 16, color: Colors.green),
+                    const SizedBox(width: 4),
+                    Text(
+                      transaction.paymentMethod,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                
+                // Status
+                Text(
+                  transaction.status,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: transaction.status.contains('COMPLETED')
-                      ? Colors.green
-                      : Colors.orange,
+                    color: statusColor,
                   ),
                 ),
               ],
@@ -629,15 +685,15 @@ class Transaction {
   final double amount;
   final String service;
   final DateTime date;
+  final String paymentMethod;
   final String status;
-  final bool isCompleted;
 
   Transaction({
     this.id,
     required this.amount,
     required this.service,
     required this.date,
+    required this.paymentMethod,
     required this.status,
-    required this.isCompleted,
   });
 }

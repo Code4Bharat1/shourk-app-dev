@@ -25,7 +25,7 @@ class _UserLoginState extends State<UserLogin> {
 
   // Updated base URL - replace with your actual backend URL
   // For testing on physical device, use your computer's IP address or ngrok
-  final String baseUrl = "http://localhost:5070/api/userauth"; // Updated to match your video call page
+  final String baseUrl = "https://amd-api.code4bharat.com/api/userauth"; // Updated to match your video call page
 
   void _toggleInputMode() {
     setState(() {

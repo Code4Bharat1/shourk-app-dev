@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import './payment_card.dart';
 import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
 import 'package:shourk_application/expert/profile/contact_us_screen.dart';
@@ -10,8 +11,8 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:intl/intl.dart';
 
-// Settings Drawer Widget (Reusable)
 class SettingsDrawer extends StatelessWidget {
   final String currentPage;
   final Function(String) onSelectOption;
@@ -95,19 +96,19 @@ class PaymentMethodPage extends StatefulWidget {
 }
 
 class _PaymentMethodPageState extends State<PaymentMethodPage> {
-  final TextEditingController _spendingAmountController = TextEditingController();
+  final TextEditingController _topupAmountController = TextEditingController();
   final TextEditingController _withdrawAmountController = TextEditingController();
   final TextEditingController _accountHolderController = TextEditingController();
   final TextEditingController _accountNumberController = TextEditingController();
   final TextEditingController _ibanController = TextEditingController();
   final TextEditingController _bankNameController = TextEditingController();
 
-  int withdrawStep = 0;
+  int withdrawStep = 1;
   String selectedMethod = 'Bank Transfer';
-  double earningsBalance = 0;
-  double spendingBalance = 0;
+  double earningBalance = 0.0;
+  double spendingBalance = 0.0;
   
-  // Drawer state variables
+  // Drawer state
   bool isMobileNavOpen = false;
   String currentPage = 'Payment Methods';
   
@@ -118,10 +119,11 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
   String lastName = '';
   String currentLanguage = 'English';
   final String baseUrl = "https://amd-api.code4bharat.com/api/expertauth";
-  final String walletBaseUrl = "https://amd-api.code4bharat.com/api/wallet";
+  final String walletBaseUrl = "https://amd-api.code4bharat.com/api/expertwallet";
   final String withdrawalBaseUrl = "https://amd-api.code4bharat.com/api/expertwithdrawal";
   
-  List<Map<String, dynamic>> withdrawalHistory = [];
+  List<Map<String, dynamic>> earningHistory = [];
+  List<Map<String, dynamic>> spendingHistory = [];
   bool isLoadingHistory = false;
   bool isLoadingBalance = true;
   bool isProcessingWithdrawal = false;
@@ -145,7 +147,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
         });
         if (expertId != null) {
           await _loadExpertProfile();
-          await _fetchWalletBalance();
+          await _fetchWalletBalances();
         }
       } catch (e) {
         print("Error parsing token: $e");
@@ -157,8 +159,16 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
 
   Future<void> _loadExpertProfile() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('expertToken');
+      
+      if (token == null) return;
+      
       final response = await http.get(
         Uri.parse('$baseUrl/$expertId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -176,7 +186,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     }
   }
 
-  Future<void> _fetchWalletBalance() async {
+  Future<void> _fetchWalletBalances() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('expertToken');
@@ -184,31 +194,30 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
       if (token == null) return;
       
       final response = await http.get(
-        Uri.parse('$walletBaseUrl/balance'),
+        Uri.parse('$walletBaseUrl/balances'),
         headers: {
           'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
         },
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body)['data'];
         setState(() {
-          earningsBalance = data['earningBalance']?.toDouble() ?? 0.0;
-          spendingBalance = data['spendingBalance']?.toDouble() ?? 0.0;
+          earningBalance = data['earning']?.toDouble() ?? 0.0;
+          spendingBalance = data['spending']?.toDouble() ?? 0.0;
           isLoadingBalance = false;
         });
       } else {
-        print("Failed to fetch wallet balance: ${response.body}");
+        print("Failed to fetch wallet balances: ${response.body}");
         setState(() => isLoadingBalance = false);
       }
     } catch (e) {
-      print("Error fetching wallet balance: $e");
+      print("Error fetching wallet balances: $e");
       setState(() => isLoadingBalance = false);
     }
   }
 
-  Future<void> _fetchWithdrawalHistory() async {
+  Future<void> _fetchEarningHistory() async {
     try {
       setState(() => isLoadingHistory = true);
       final prefs = await SharedPreferences.getInstance();
@@ -217,26 +226,86 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
       if (token == null) return;
       
       final response = await http.get(
-        Uri.parse('$withdrawalBaseUrl/history'),
+        Uri.parse('$walletBaseUrl/earning/history'),
         headers: {
           'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
         },
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body)['data'];
+        final data = json.decode(response.body);
+        // Handle both possible response structures
+        final history = data['history'] ?? data['data'];
+        if (history is List) {
+          setState(() {
+            earningHistory = List<Map<String, dynamic>>.from(history);
+            isLoadingHistory = false;
+          });
+        } else {
+          setState(() {
+            earningHistory = [];
+            isLoadingHistory = false;
+          });
+        }
+      } else {
+        print("Failed to fetch earning history: ${response.body}");
         setState(() {
-          withdrawalHistory = List<Map<String, dynamic>>.from(data);
+          earningHistory = [];
           isLoadingHistory = false;
         });
-      } else {
-        print("Failed to fetch withdrawal history: ${response.body}");
-        setState(() => isLoadingHistory = false);
       }
     } catch (e) {
-      print("Error fetching withdrawal history: $e");
-      setState(() => isLoadingHistory = false);
+      print("Error fetching earning history: $e");
+      setState(() {
+        earningHistory = [];
+        isLoadingHistory = false;
+      });
+    }
+  }
+
+  Future<void> _fetchSpendingHistory() async {
+    try {
+      setState(() => isLoadingHistory = true);
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('expertToken');
+      
+      if (token == null) return;
+      
+      final response = await http.get(
+        Uri.parse('$walletBaseUrl/spending/history'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        // Handle both possible response structures
+        final history = data['history'] ?? data['data'];
+        if (history is List) {
+          setState(() {
+            spendingHistory = List<Map<String, dynamic>>.from(history);
+            isLoadingHistory = false;
+          });
+        } else {
+          setState(() {
+            spendingHistory = [];
+            isLoadingHistory = false;
+          });
+        }
+      } else {
+        print("Failed to fetch spending history: ${response.body}");
+        setState(() {
+          spendingHistory = [];
+          isLoadingHistory = false;
+        });
+      }
+    } catch (e) {
+      print("Error fetching spending history: $e");
+      setState(() {
+        spendingHistory = [];
+        isLoadingHistory = false;
+      });
     }
   }
 
@@ -250,22 +319,27 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
       
       final amount = double.tryParse(_withdrawAmountController.text) ?? 0.0;
       
+      Map<String, dynamic> body = {
+        'amount': amount,
+        'method': selectedMethod == 'Bank Transfer' ? 'bank' : 'tap',
+      };
+
+      if (selectedMethod == 'Bank Transfer') {
+        body['bankDetails'] = {
+          'accountHolderName': _accountHolderController.text,
+          'accountNumber': _accountNumberController.text,
+          'iban': _ibanController.text,
+          'bankName': _bankNameController.text,
+        };
+      }
+
       final response = await http.post(
         Uri.parse('$withdrawalBaseUrl/request'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: json.encode({
-          'amount': amount,
-          'method': 'bank',
-          'bankDetails': {
-            'accountHolderName': _accountHolderController.text,
-            'accountNumber': _accountNumberController.text,
-            'iban': _ibanController.text,
-            'bankName': _bankNameController.text,
-          }
-        }),
+        body: json.encode(body),
       );
 
       if (response.statusCode == 200) {
@@ -274,9 +348,8 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(data['message'] ?? "Withdrawal submitted successfully!")),
           );
-          // Refresh balances and history
-          await _fetchWalletBalance();
-          await _fetchWithdrawalHistory();
+          await _fetchWalletBalances();
+          await _fetchEarningHistory();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(data['message'] ?? "Withdrawal submission failed")),
@@ -302,12 +375,12 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
       setState(() => isAddingMoney = true);
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('expertToken');
-      final amount = double.tryParse(_spendingAmountController.text) ?? 0.0;
+      final amount = double.tryParse(_topupAmountController.text) ?? 0.0;
       
       if (token == null) return;
       
       final response = await http.post(
-        Uri.parse('$walletBaseUrl/topup'),
+        Uri.parse('$walletBaseUrl/spending/topup'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -367,7 +440,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
         );
         break;
       case 'Payment Methods':
-        // Already on this page
         _closeMobileNav();
         break;
       case 'Gift Card':
@@ -398,7 +470,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
   }
 
   void _showWithdrawDialog() {
-    withdrawStep = 0;
+    withdrawStep = 1;
     _withdrawAmountController.clear();
     _accountHolderController.clear();
     _accountNumberController.clear();
@@ -412,7 +484,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
           Widget content;
 
           switch (withdrawStep) {
-            case 0:
+            case 1:
               content = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -429,11 +501,23 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Text("Available: ${earningsBalance.toStringAsFixed(2)} SAR    Minimum: 10 SAR", style: TextStyle(color: Colors.grey)),
+                  Text("Available: ${earningBalance.toStringAsFixed(2)} SAR    Minimum: 10 SAR", style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      "Withdrawals up to 20% of your balance may qualify for automatic approval.",
+                      style: TextStyle(color: Colors.blue),
+                    ),
+                  ),
                 ],
               );
               break;
-            case 1:
+            case 2:
               content = Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,17 +533,50 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                     title: const Text("Bank Transfer"),
                     subtitle: const Text("Transfer directly to your bank account. Processing time: 5–7 business days."),
                   ),
+                  RadioListTile(
+                    value: 'Original Payment Method (TAP)',
+                    groupValue: selectedMethod,
+                    onChanged: (val) {
+                      setModalState(() => selectedMethod = val.toString());
+                    },
+                    title: const Text("Original Payment Method (TAP)"),
+                    subtitle: const Text("Refund to the card or account used for deposits. Processing time: 2–5 business days."),
+                  ),
                 ],
               );
               break;
-            case 2:
+            case 3:
               content = Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _textField("Account Holder Name", _accountHolderController),
-                  _textField("Account Number", _accountNumberController),
-                  _textField("IBAN / Routing Number", _ibanController),
-                  _textField("Bank Name", _bankNameController),
+                  if (selectedMethod == 'Bank Transfer') ...[
+                    _textField("Account Holder Name", _accountHolderController),
+                    _textField("Account Number", _accountNumberController),
+                    _textField("IBAN / Routing Number", _ibanController),
+                    _textField("Bank Name", _bankNameController),
+                  ] else ...[
+                    const Text("TAP Refund Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    const SizedBox(height: 10),
+                    const Text("Funds will be returned to the payment method used for your most recent deposit.",
+                      style: TextStyle(fontSize: 14)),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.yellow[50],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Important Note", style: TextStyle(fontWeight: FontWeight.bold)),
+                          SizedBox(height: 6),
+                          Text("The card used for your deposit must still be active and valid. If expired or canceled, use bank transfer instead.",
+                            style: TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    )
+                  ]
                 ],
               );
               break;
@@ -472,19 +589,25 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                   const SizedBox(height: 12),
                   _confirmRow("Amount", "${_withdrawAmountController.text} SAR"),
                   _confirmRow("Method", selectedMethod),
-                  _confirmRow("Account", _accountHolderController.text),
-                  _confirmRow("Bank", _bankNameController.text),
-                  _confirmRow("Account Number", "****${_accountNumberController.text.substring(_accountNumberController.text.length - 4)}"),
+                  if (selectedMethod == 'Bank Transfer') ...[
+                    _confirmRow("Account", _accountHolderController.text),
+                    _confirmRow("Bank", _bankNameController.text),
+                    _confirmRow("Account Number", "****${_accountNumberController.text.substring(_accountNumberController.text.length - 4)}"),
+                  ],
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.green[50],
+                      color: _isAutoApproval() ? Colors.green[50] : Colors.blue[50],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
-                      "This withdrawal amount qualifies for automatic approval. Funds should be processed within 5–7 business days.",
-                      style: TextStyle(color: Colors.green),
+                    child: Text(
+                      _isAutoApproval()
+                          ? "This withdrawal qualifies for automatic approval. Funds should be processed within 24 hours."
+                          : "This withdrawal requires manual approval. The process may take 1-3 business days.",
+                      style: TextStyle(
+                        color: _isAutoApproval() ? Colors.green : Colors.blue,
+                      ),
                     ),
                   ),
                 ],
@@ -495,7 +618,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
             title: const Text("Withdraw Funds"),
             content: SingleChildScrollView(child: content),
             actions: [
-              if (withdrawStep > 0)
+              if (withdrawStep > 1)
                 TextButton(
                   onPressed: () => setModalState(() => withdrawStep--),
                   child: const Text("Back"),
@@ -504,10 +627,27 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                 onPressed: () => Navigator.pop(context),
                 child: const Text("Cancel"),
               ),
-              if (withdrawStep < 3)
+              if (withdrawStep < 4)
                 ElevatedButton(
-                  onPressed: () => setModalState(() => withdrawStep++),
-                  child: const Text("Continue"),
+                  onPressed: () {
+                    if (withdrawStep == 1) {
+                      final amount = double.tryParse(_withdrawAmountController.text) ?? 0;
+                      if (amount < 10) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Minimum withdrawal is 10 SAR")),
+                        );
+                        return;
+                      }
+                      if (amount > earningBalance) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Insufficient balance")),
+                        );
+                        return;
+                      }
+                    }
+                    setModalState(() => withdrawStep++);
+                  },
+                  child: Text(withdrawStep == 3 ? "Review" : "Continue"),
                 )
               else
                 ElevatedButton(
@@ -527,39 +667,23 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     );
   }
 
-  void _showWalletHistory() {
-    if (withdrawalHistory.isEmpty) {
-      _fetchWithdrawalHistory();
+  void _showEarningHistory() {
+    if (earningHistory.isEmpty) {
+      _fetchEarningHistory();
     }
     
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text("Earning Wallet History"),
         content: SizedBox(
           width: double.maxFinite,
-          height: 400,
+          height: 500,
           child: isLoadingHistory
               ? const Center(child: CircularProgressIndicator())
-              : withdrawalHistory.isEmpty
-                  ? const Center(child: Text("No withdrawal history"))
-                  : ListView.builder(
-                      itemCount: withdrawalHistory.length,
-                      itemBuilder: (_, index) {
-                        final transaction = withdrawalHistory[index];
-                        return ListTile(
-                          title: Text(transaction['createdAt']?.toString() ?? "Unknown date"),
-                          subtitle: Text("${transaction['amount']?.toString() ?? "0.0"} SAR"),
-                          trailing: Text(
-                            _getStatusText(transaction['status']),
-                            style: TextStyle(
-                              color: _getStatusColor(transaction['status']),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+              : earningHistory.isEmpty
+                  ? const Center(child: Text("No transactions found", style: TextStyle(fontSize: 16)))
+                  : _buildEarningHistoryTable(),
         ),
         actions: [
           TextButton(
@@ -571,23 +695,151 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     );
   }
 
-  Color _getStatusColor(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'pending': return Colors.orange;
-      case 'approved': return Colors.green;
-      case 'completed': return Colors.blue;
-      case 'rejected': return Colors.red;
-      default: return Colors.grey;
+  void _showSpendingHistory() {
+    if (spendingHistory.isEmpty) {
+      _fetchSpendingHistory();
     }
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Spending Wallet History"),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 500,
+          child: isLoadingHistory
+              ? const Center(child: CircularProgressIndicator())
+              : spendingHistory.isEmpty
+                  ? const Center(child: Text("No transactions found", style: TextStyle(fontSize: 16)))
+                  : _buildSpendingHistoryTable(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          )
+        ],
+      ),
+    );
   }
 
-  String _getStatusText(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'pending': return 'Pending';
-      case 'approved': return 'Approved';
-      case 'completed': return 'Completed';
-      case 'rejected': return 'Rejected';
-      default: return 'Unknown';
+  Widget _buildEarningHistoryTable() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.vertical,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columns: const [
+            DataColumn(label: Text('Date & Time', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Session', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Refund', style: TextStyle(fontWeight: FontWeight.bold))),
+          ],
+          rows: earningHistory.map((transaction) {
+            final date = transaction['dateTime'] != null
+                ? DateFormat('M/d/yyyy, h:mm:ss a').format(DateTime.parse(transaction['dateTime']))
+                : 'N/A';
+            final session = transaction['sessionTitle'] ?? transaction['sessionId'] ?? 'N/A';
+            final user = transaction['userName'] ?? 'N/A';
+            final amount = transaction['amountEarned'] != null
+                ? '+${transaction['amountEarned'].toStringAsFixed(2)} SAR'
+                : 'N/A';
+            final status = transaction['status']?.toString()?.toUpperCase() ?? 'N/A';
+            final refund = transaction['refundDetails'] != null ? 'View' : '-';
+
+            return DataRow(cells: [
+              DataCell(Text(date)),
+              DataCell(Text(session)),
+              DataCell(Text(user)),
+              DataCell(Text(amount, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
+              DataCell(
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(status, style: const TextStyle(color: Colors.white)),
+                ),
+              ),
+              DataCell(Text(refund)),
+            ]);
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpendingHistoryTable() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.vertical,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columns: const [
+            DataColumn(label: Text('Date & Time', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Expert', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Session', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Method', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Refund', style: TextStyle(fontWeight: FontWeight.bold))),
+          ],
+          rows: spendingHistory.map((transaction) {
+            final date = transaction['dateTime'] != null
+                ? DateFormat('M/d/yyyy, h:mm:ss a').format(DateTime.parse(transaction['dateTime']))
+                : 'N/A';
+            final expert = transaction['expertName'] ?? 'N/A';
+            final session = transaction['sessionId'] ?? 'N/A';
+            final amount = transaction['amountPaid'] != null
+                ? '-${transaction['amountPaid'].toStringAsFixed(2)} SAR'
+                : 'N/A';
+            final method = transaction['paymentMethod'] ?? 'N/A';
+            final status = transaction['status']?.toString()?.toUpperCase() ?? 'N/A';
+            final refund = transaction['refundDetails'] != null ? 'View' : '-';
+
+            return DataRow(cells: [
+              DataCell(Text(date)),
+              DataCell(Text(expert)),
+              DataCell(Text(session)),
+              DataCell(Text(amount, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
+              DataCell(Text(method)),
+              DataCell(
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(status, style: const TextStyle(color: Colors.white)),
+                ),
+              ),
+              DataCell(Text(refund)),
+            ]);
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  bool _isAutoApproval() {
+    final amount = double.tryParse(_withdrawAmountController.text) ?? 0;
+    return amount <= earningBalance * 0.2 && amount <= 1000;
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'approved':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -620,7 +872,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
   void _toggleLanguage() {
     setState(() {
       currentLanguage = currentLanguage == 'English' ? 'Arabic' : 'English';
-      // Here you would add logic to change the app's language
     });
   }
 
@@ -637,32 +888,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     final displayName = userName.isNotEmpty ? userName : 'User';
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        title: Row(
-          children: [
-            const Text("Shourk", style: TextStyle(color: Colors.black)),
-            const Spacer(),
-            const Icon(Icons.language, color: Colors.black),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text("العربية",
-                  style: TextStyle(color: Colors.white, fontSize: 12)),
-            ),
-            const SizedBox(width: 12),
-            const Icon(Icons.notifications_none, color: Colors.black),
-            const SizedBox(width: 12),
-            const CircleAvatar(child: Text('U'))
-          ],
-        ),
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
+      appBar: ExpertUpperNavbar(),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -670,7 +896,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // New header section with greeting and profile image
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -688,7 +913,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                     ),
                     Row(
                       children: [
-                        // Language toggle button
                         ElevatedButton(
                           onPressed: _toggleLanguage,
                           style: ElevatedButton.styleFrom(
@@ -703,7 +927,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                           child: Text(currentLanguage),
                         ),
                         const SizedBox(width: 12),
-                        // Profile image container
                         GestureDetector(
                           onTap: _navigateToProfile,
                           child: Container(
@@ -755,7 +978,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Settings header row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -778,21 +1000,29 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                     style: TextStyle(color: Colors.grey, fontSize: 14)),
                 const SizedBox(height: 20),
 
+                // Earning Wallet Card
                 _walletCard(
                   title: "Earning Wallet Balance",
-                  amount: earningsBalance,
-                  showWithdraw: true,
+                  amount: earningBalance,
                   onWithdraw: _showWithdrawDialog,
-                  onHistory: _showWalletHistory,
+                  onHistory: _showEarningHistory,
                   isLoading: isLoadingBalance,
+                  backgroundColor: Colors.green[50]!,
+                  iconColor: Colors.green,
+                  icon: Icons.account_balance_wallet,
                 ),
+
                 const SizedBox(height: 20),
 
+                // Spending Wallet Card
                 _walletCard(
                   title: "Spending Wallet Balance",
                   amount: spendingBalance,
-                  onHistory: _showWalletHistory,
+                  onHistory: _showSpendingHistory,
                   isLoading: isLoadingBalance,
+                  backgroundColor: Colors.blue[50]!,
+                  iconColor: Colors.blue,
+                  icon: Icons.credit_card,
                 ),
 
                 const SizedBox(height: 20),
@@ -806,7 +1036,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                   children: [
                     Expanded(
                       child: TextField(
-                        controller: _spendingAmountController,
+                        controller: _topupAmountController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           hintText: "Enter amount",
@@ -825,7 +1055,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                   icon: const Icon(Icons.add_circle_outline),
                   label: const Text("Add Money", style: TextStyle(fontSize: 16)),
                   onPressed: () {
-                    final amount = double.tryParse(_spendingAmountController.text.trim()) ?? 0;
+                    final amount = double.tryParse(_topupAmountController.text.trim()) ?? 0;
                     if (amount >= 10) {
                       _initiateTopUp();
                     } else {
@@ -852,7 +1082,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
             ),
           ),
           
-          // Drawer overlay
           if (isMobileNavOpen)
             GestureDetector(
               onTap: _closeMobileNav,
@@ -863,7 +1092,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
               ),
             ),
           
-          // Settings drawer
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             right: isMobileNavOpen ? 0 : -MediaQuery.of(context).size.width * 0.7,
@@ -886,13 +1114,15 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     required double amount,
     VoidCallback? onWithdraw,
     VoidCallback? onHistory,
-    bool showWithdraw = false,
     bool isLoading = false,
+    required Color backgroundColor,
+    required Color iconColor,
+    required IconData icon,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: showWithdraw ? Colors.green[50] : Colors.blue[50],
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -906,16 +1136,29 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 10),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconColor),
+              ),
+              const SizedBox(width: 12),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: 16),
           isLoading
-              ? const CircularProgressIndicator()
+              ? const Center(child: CircularProgressIndicator())
               : Text("${amount.toStringAsFixed(2)} SAR", 
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           Row(
             children: [
-              if (showWithdraw)
+              if (onWithdraw != null)
                 ElevatedButton(
                   onPressed: onWithdraw,
                   style: ElevatedButton.styleFrom(
@@ -927,7 +1170,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                   ),
                   child: const Text("Withdraw", style: TextStyle(fontSize: 14)),
                 ),
-              const SizedBox(width: 12),
+              if (onWithdraw != null) const SizedBox(width: 12),
               TextButton(
                 onPressed: onHistory,
                 style: TextButton.styleFrom(
