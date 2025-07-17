@@ -4,8 +4,10 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:flutter/services.dart';
 import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
+import 'package:shourk_application/user/navbar/user_session_call.dart';
 
 class UserVideoCallPage extends StatefulWidget {
   const UserVideoCallPage({Key? key}) : super(key: key);
@@ -13,6 +15,8 @@ class UserVideoCallPage extends StatefulWidget {
   @override
   State<UserVideoCallPage> createState() => _UserVideoCallPageState();
 }
+
+
 
 class _UserVideoCallPageState extends State<UserVideoCallPage> {
   // User data
@@ -49,6 +53,102 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
     super.initState();
     _initializeData();
   }
+
+  // Add this constant at the top of your class
+static const String webBaseUrl = "https://shourk.com"; // Replace with your actual web domain
+
+Future<void> _launchMeeting(String meetingLink) async {
+  print('Original meeting link: $meetingLink');
+  
+  if (meetingLink.isEmpty) {
+    _showSnackBar('Meeting link is not available');
+    return;
+  }
+
+  try {
+    String fullUrl;
+    
+    // Check if it's a relative path or full URL
+    if (meetingLink.startsWith('/')) {
+      // It's a relative path, construct full URL
+      fullUrl = '$webBaseUrl$meetingLink';
+    } else if (meetingLink.startsWith('http://') || meetingLink.startsWith('https://')) {
+      // It's already a full URL
+      fullUrl = meetingLink;
+    } else {
+      // Add https:// if missing
+      fullUrl = 'https://$meetingLink';
+    }
+    
+    print('Full URL to launch: $fullUrl');
+    
+    final Uri url = Uri.parse(fullUrl);
+    
+    if (await canLaunchUrl(url)) {
+      bool launched = await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
+      
+      if (!launched) {
+        // Try with browser mode if external app fails
+        await launchUrl(
+          url,
+          mode: LaunchMode.inAppWebView,
+        );
+      }
+    } else {
+      // If can't launch, show dialog with copy option
+      _showMeetingLinkDialog(fullUrl);
+    }
+  } catch (e) {
+    print('Error launching meeting: $e');
+    _showMeetingLinkDialog(meetingLink);
+  }
+}
+
+// Add this function to show meeting link dialog
+void _showMeetingLinkDialog(String meetingLink) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Meeting Link'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Unable to launch meeting automatically. You can copy the link below:'),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: SelectableText(
+              meetingLink,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: meetingLink));
+            Navigator.of(context).pop();
+            _showSnackBar('Meeting link copied to clipboard');
+          },
+          child: const Text('Copy Link'),
+        ),
+      ],
+    ),
+  );
+}
 
   Future<void> _initializeData() async {
     setState(() {
@@ -302,18 +402,6 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
     return initials.isNotEmpty ? initials.toUpperCase() : "U";
   }
 
-  Future<void> _launchMeeting(String meetingLink) async {
-    try {
-      final Uri url = Uri.parse(meetingLink);
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        _showSnackBar('Could not launch meeting link');
-      }
-    } catch (e) {
-      _showSnackBar('Error opening meeting: $e');
-    }
-  }
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(
@@ -964,91 +1052,146 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
       ],
     );
   }
-
-  Widget _buildActionButtons(Booking booking) {
-    List<Widget> buttons = [];
-
-    if (booking.status.toLowerCase() == 'confirmed') {
-      buttons.add(
-        OutlinedButton.icon(
-          onPressed: () => Navigator.pushNamed(context, '/home'),
-          icon: const Icon(Icons.chat, size: 16),
-          label: const Text('Chat'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          ),
-        ),
-      );
-
-      if (booking.userMeetingLink != null &&
-          booking.userMeetingLink!.isNotEmpty) {
-        buttons.add(
-          ElevatedButton.icon(
-            onPressed: () => _launchMeeting(booking.userMeetingLink!),
-            icon: const Icon(Icons.videocam, size: 16),
-            label: const Text('Join Meeting'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            ),
-          ),
-        );
-      } else {
-        buttons.add(
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              border: Border.all(color: Colors.orange.shade200),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text(
-              'Zoom link coming soon',
-              style: TextStyle(fontSize: 12, color: Colors.orange),
-            ),
-          ),
-        );
+    // Add this helper function to extract meeting ID
+  String? _extractMeetingId(String? meetingLink) {
+    if (meetingLink == null) return null;
+    
+    try {
+      final uri = Uri.parse(meetingLink);
+      // Extract from path segments: /j/MEETING_ID
+      if (uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'j') {
+        return uri.pathSegments[1];
       }
+      // Extract from last path segment
+      return uri.pathSegments.last;
+    } catch (e) {
+      return meetingLink; // Fallback to full link
+    }
+  }
+
+Widget _buildActionButtons(Booking booking) {
+  List<Widget> buttons = [];
+
+  if (booking.status.toLowerCase() == 'confirmed') {
+    buttons.add(
+      OutlinedButton.icon(
+        onPressed: () => Navigator.pushNamed(context, '/home'),
+        icon: const Icon(Icons.chat, size: 16),
+        label: const Text('Chat'),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
+      ),
+    );
+
+    // Check for meeting link
+if (booking.userMeetingLink != null && booking.userMeetingLink!.isNotEmpty) {
+  buttons.add(
+    ElevatedButton.icon(
+  onPressed: () {
+    // Extract meeting ID from the link
+    final meetingId = _extractMeetingId(booking.userMeetingLink);
+    final sessionId = booking.id;
+
+    if (meetingId == null || meetingId.isEmpty) {
+      _showSnackBar('Meeting ID is missing');
+      return;
     }
 
-    if (booking.status.toLowerCase() == 'unconfirmed' ||
-        booking.status.toLowerCase() == 'pending') {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UserSessionCallPage(
+          meetingId: meetingId,
+          sessionId: sessionId,
+        ),
+        settings: RouteSettings(arguments: userToken),
+      ),
+    );
+  },
+  icon: const Icon(Icons.videocam, size: 16),
+  label: const Text('Join Meeting'),
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.blue,
+    foregroundColor: Colors.white,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+  ),
+),
+  );
+      
+      // Add a secondary button to copy the full link
       buttons.add(
         OutlinedButton.icon(
-          onPressed: () => _showCancelDialog(booking),
-          icon: const Icon(Icons.cancel, size: 16, color: Colors.red),
-          label: const Text('Cancel', style: TextStyle(color: Colors.red)),
+          onPressed: () {
+            String fullUrl = booking.userMeetingLink!.startsWith('/') 
+              ? '$webBaseUrl${booking.userMeetingLink!}'
+              : booking.userMeetingLink!;
+            
+            Clipboard.setData(ClipboardData(text: fullUrl));
+            _showSnackBar('Meeting link copied to clipboard');
+          },
+          icon: const Icon(Icons.copy, size: 16),
+          label: const Text('Copy Link'),
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Colors.red),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           ),
         ),
       );
-    }
-
-    if (booking.status.toLowerCase() == 'completed' && !booking.hasRating) {
+    } else {
       buttons.add(
-        ElevatedButton.icon(
-          onPressed: () => _showRatingDialog(booking),
-          icon: const Icon(Icons.star, size: 16),
-          label: const Text('Rate Session'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            border: Border.all(color: Colors.orange.shade200),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Text(
+            'Meeting link not available',
+            style: TextStyle(fontSize: 12, color: Colors.orange),
           ),
         ),
       );
     }
+  }
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.start,
-      children: buttons,
+  if (booking.status.toLowerCase() == 'unconfirmed' ||
+      booking.status.toLowerCase() == 'pending') {
+    buttons.add(
+      OutlinedButton.icon(
+        onPressed: () => _showCancelDialog(booking),
+        icon: const Icon(Icons.cancel, size: 16, color: Colors.red),
+        label: const Text('Cancel', style: TextStyle(color: Colors.red)),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Colors.red),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
+      ),
     );
   }
+
+  if (booking.status.toLowerCase() == 'completed' && !booking.hasRating) {
+    buttons.add(
+      ElevatedButton.icon(
+        onPressed: () => _showRatingDialog(booking),
+        icon: const Icon(Icons.star, size: 16),
+        label: const Text('Rate Session'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
+      ),
+    );
+  }
+
+  return Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    alignment: WrapAlignment.start,
+    children: buttons,
+  );
+}
 }
 
 class Booking {

@@ -37,6 +37,8 @@ import 'package:shourk_application/user/profile/user_giftcard.dart';
 import 'package:shourk_application/user/profile/user_contactus.dart';
 import 'package:shourk_application/user/profile/user_paymenthistory.dart';
 
+import 'package:shourk_application/user/navbar/user_session_call.dart';
+
 import 'user/navbar/user_bottom_navbar.dart';
 
 import 'start_page.dart';
@@ -77,6 +79,14 @@ class MyApp extends StatelessWidget {
             '/user-contactus': (context) => UserContactUsScreen(),
             '/user-paymenthistory': (context) => UserPaymentHistoryPage(),
             '/user-payment-method': (context) => UserPaymentScreen(),
+
+    //         '/user-sessioncall': (context) {
+    //           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    //           return UserSessionCall(
+    //           meetingId: args['meetingId'],
+    //           sessionId: args['sessionId'],
+    //   );
+    // },
             
 
         // Expert Routes
