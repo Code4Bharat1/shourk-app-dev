@@ -22,12 +22,26 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
   String? profileImageUrl;
   String? userToken;
   String? userId;
-  
+
   // Booking data
   List<Booking> bookings = [];
   bool isLoading = false;
   String? errorMessage;
-  
+
+  // Cancellation state
+  bool isCancelling = false;
+  Booking? bookingToCancel;
+  List<Map<String, dynamic>> cancellationReasons = [
+    {"id": 1, "reason": "Schedule conflict", "checked": false},
+    {"id": 2, "reason": "Found alternative solution", "checked": false},
+    {"id": 3, "reason": "Expert not suitable for my needs", "checked": false},
+    {"id": 4, "reason": "Technical issues", "checked": false},
+    {"id": 5, "reason": "Cost concerns", "checked": false},
+    {"id": 6, "reason": "Other", "checked": false},
+  ];
+  String otherReason = "";
+  bool termsAccepted = false;
+
   static const String baseUrl = "https://amd-api.code4bharat.com/api";
 
   @override
@@ -45,10 +59,7 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
     try {
       await _getUserToken();
       if (userToken != null && userId != null) {
-        await Future.wait([
-          _fetchUserProfile(),
-          _fetchUserBookings(),
-        ]);
+        await Future.wait([_fetchUserProfile(), _fetchUserBookings()]);
       }
     } catch (e) {
       setState(() {
@@ -64,18 +75,17 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
   Future<void> _getUserToken() async {
     final prefs = await SharedPreferences.getInstance();
     userToken = prefs.getString('userToken');
-    
+
     if (userToken == null) {
       Navigator.pushReplacementNamed(context, '/userlogin');
       return;
     }
 
-    // Decode token to get user ID
     try {
       if (JwtDecoder.isExpired(userToken!)) {
         await _refreshToken();
       }
-      
+
       Map<String, dynamic> decodedToken = JwtDecoder.decode(userToken!);
       userId = decodedToken['_id'];
     } catch (e) {
@@ -109,7 +119,7 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
         }
       } else if (response.statusCode == 401) {
         await _refreshToken();
-        await _fetchUserProfile(); // Retry with new token
+        await _fetchUserProfile();
       }
     } catch (e) {
       print("Error fetching user profile: $e");
@@ -130,33 +140,51 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        
+        print('API Response: ${responseData.toString()}');
+
         List<dynamic> bookingData = [];
         if (responseData is List) {
           bookingData = responseData;
         } else if (responseData is Map) {
-          bookingData = responseData['data'] ?? responseData['bookings'] ?? [];
+          bookingData = responseData['data'] ?? [];
         }
 
         setState(() {
-          bookings = bookingData.map((booking) {
-            try {
-              return Booking.fromJson(Map<String, dynamic>.from(booking));
-            } catch (e) {
-              print('Error parsing booking: $e');
-              return null;
-            }
-          }).where((booking) => booking != null).cast<Booking>().toList();
+          bookings =
+              bookingData
+                  .map((booking) {
+                    try {
+                      return Booking.fromJson(
+                        Map<String, dynamic>.from(booking),
+                      );
+                    } catch (e) {
+                      print('Error parsing booking: $e');
+                      return Booking(
+                        id: 'error',
+            status: 'error',
+            sessionTime: 'TBD',           // Add this
+            duration: 'TBD',              // Add this
+            sessionType: 'error',         // Add this
+            expertName: 'Error',
+            clientFirstName: 'Error',     // Add this
+            clientLastName: 'Error',
+                      );
+                    }
+                  })
+                  .where((booking) => booking.id != 'error')
+                  .toList();
         });
       } else if (response.statusCode == 401) {
         await _refreshToken();
-        await _fetchUserBookings(); // Retry with new token
+        await _fetchUserBookings();
       } else {
+        print('API Error: ${response.statusCode} - ${response.body}');
         setState(() {
-          errorMessage = "Failed to load bookings. Please try again.";
+          errorMessage = "No Booking found for this User.";
         });
       }
     } catch (e) {
+      print('Network Error: $e');
       setState(() {
         errorMessage = "Network error. Please check your connection.";
       });
@@ -178,19 +206,92 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final newToken = data['newToken'];
-        
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userToken', newToken);
         setState(() {
           userToken = newToken;
         });
       } else {
-        // Token refresh failed, redirect to login
-        Navigator.pushReplacementNamed(context, '/userlogin');
+        Navigator.pushReplacementNamed(context, '/');
       }
     } catch (e) {
       print("Token refresh failed: $e");
-      Navigator.pushReplacementNamed(context, '/userlogin');
+      Navigator.pushReplacementNamed(context, '/');
+    }
+  }
+
+  Future<void> _cancelSession() async {
+    if (bookingToCancel == null || userToken == null) return;
+
+    final selectedReasons =
+        cancellationReasons
+            .where((reason) => reason['checked'] == true)
+            .map((reason) => reason['reason'].toString())
+            .toList();
+
+    if (selectedReasons.isEmpty) {
+      _showSnackBar('Please select at least one reason for cancellation');
+      return;
+    }
+
+    final isOtherSelected = cancellationReasons.any(
+      (reason) => reason['id'] == 6 && reason['checked'] == true,
+    );
+
+    if (isOtherSelected && otherReason.trim().isEmpty) {
+      _showSnackBar('Please provide details for "Other" reason');
+      return;
+    }
+
+    if (!termsAccepted) {
+      _showSnackBar('Please accept the terms and conditions');
+      return;
+    }
+
+    setState(() => isCancelling = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/cancelsession/canceluser'),
+        headers: {
+          'Authorization': 'Bearer $userToken',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'sessionId': bookingToCancel!.id,
+          'reasons': selectedReasons,
+          'otherReason': isOtherSelected ? otherReason : "",
+          'sessionModel': "UserToExpertSession",
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          setState(() {
+            bookings =
+                bookings.map((booking) {
+                  if (booking.id == bookingToCancel!.id) {
+                    return booking.copyWith(status: 'cancelled');
+                  }
+                  return booking;
+                }).toList();
+          });
+
+          _showSnackBar('Session cancelled successfully');
+          Navigator.of(context).pop();
+          setState(() => bookingToCancel = null);
+        } else {
+          throw Exception(data['message'] ?? 'Failed to cancel session');
+        }
+      } else {
+        throw Exception('Failed to cancel session: ${response.statusCode}');
+      }
+    } catch (e) {
+      _showSnackBar('Error cancelling session: ${e.toString()}');
+    } finally {
+      setState(() => isCancelling = false);
     }
   }
 
@@ -215,25 +316,168 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showCancelDialog(Booking booking) {
+    setState(() {
+      bookingToCancel = booking;
+      cancellationReasons =
+          cancellationReasons
+              .map((reason) => {...reason, 'checked': false})
+              .toList();
+      otherReason = "";
+      termsAccepted = false;
+    });
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: const Text('Cancel Session'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Please select your reason for cancellation:'),
+                      const SizedBox(height: 16),
+                      ...cancellationReasons
+                          .map(
+                            (reason) => CheckboxListTile(
+                              title: Text(reason['reason']),
+                              value: reason['checked'],
+                              onChanged: (value) {
+                                setState(() {
+                                  cancellationReasons =
+                                      cancellationReasons
+                                          .map(
+                                            (r) =>
+                                                r['id'] == reason['id']
+                                                    ? {
+                                                      ...r,
+                                                      'checked': value ?? false,
+                                                    }
+                                                    : {...r, 'checked': false},
+                                          )
+                                          .toList();
+                                });
+                              },
+                            ),
+                          )
+                          .toList(),
+                      if (cancellationReasons.any(
+                        (r) => r['id'] == 6 && r['checked'] == true,
+                      ))
+                        TextField(
+                          decoration: const InputDecoration(
+                            labelText: 'Please specify',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (value) => otherReason = value,
+                        ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Back'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _showTermsDialog();
+                    },
+                    child: const Text('Next'),
+                  ),
+                ],
+              );
+            },
+          ),
+    );
+  }
+
+  void _showTermsDialog() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: const Text('Cancellation Terms'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Please review the cancellation terms:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        '1. Cancellations made within 24 hours may incur a fee\n'
+                        '2. Full refund for cancellations >24 hours in advance\n'
+                        '3. Rescheduling is subject to expert availability\n'
+                        '4. Multiple cancellations may affect future bookings',
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: termsAccepted,
+                            onChanged:
+                                (value) => setState(
+                                  () => termsAccepted = value ?? false,
+                                ),
+                          ),
+                          const Text('I accept the terms'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Back'),
+                  ),
+                  ElevatedButton(
+                    onPressed: isCancelling ? null : _cancelSession,
+                    child:
+                        isCancelling
+                            ? const CircularProgressIndicator()
+                            : const Text('Confirm Cancellation'),
+                  ),
+                ],
+              );
+            },
+          ),
     );
   }
 
   void _showRatingDialog(Booking booking) {
     showDialog(
       context: context,
-      builder: (context) => RatingDialog(
-        booking: booking,
-        onRatingSubmitted: (updatedBooking) {
-          setState(() {
-            final index = bookings.indexWhere((b) => b.id == updatedBooking.id);
-            if (index != -1) {
-              bookings[index] = updatedBooking;
-            }
-          });
-        },
-      ),
+      builder:
+          (context) => RatingDialog(
+            booking: booking,
+            onRatingSubmitted: (updatedBooking) {
+              setState(() {
+                bookings =
+                    bookings
+                        .map(
+                          (b) => b.id == updatedBooking.id ? updatedBooking : b,
+                        )
+                        .toList();
+              });
+            },
+          ),
     );
   }
 
@@ -273,7 +517,6 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
             children: [
               _buildHeader(displayName),
               const SizedBox(height: 24),
-              _buildInfoCard(),
               const SizedBox(height: 16),
               _buildBookingsList(),
             ],
@@ -310,45 +553,23 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
         CircleAvatar(
           radius: 24,
           backgroundColor: Colors.deepPurple,
-          backgroundImage: profileImageUrl != null 
-              ? NetworkImage(profileImageUrl!) 
-              : null,
-          child: profileImageUrl == null
-              ? Text(
-                  userInitials,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : null,
+          backgroundImage:
+              profileImageUrl != null ? NetworkImage(profileImageUrl!) : null,
+          child:
+              profileImageUrl == null
+                  ? Text(
+                    userInitials,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                  : null,
         ),
       ],
     );
   }
 
-  Widget _buildInfoCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.info_outline, color: Colors.blue, size: 20),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              "Your upcoming video calls will appear here. Make sure to test your audio/video before joining.",
-              style: TextStyle(fontSize: 14, color: Colors.blue),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildBookingsList() {
     return Expanded(
@@ -371,9 +592,7 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
             ),
           ),
           const SizedBox(height: 16),
-          Expanded(
-            child: _buildBookingsContent(),
-          ),
+          Expanded(child: _buildBookingsContent()),
         ],
       ),
     );
@@ -406,10 +625,10 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _initializeData,
-              child: const Text('Try Again'),
-            ),
+            // ElevatedButton(
+            //   onPressed: _initializeData,
+            //   child: const Text('Try Again'),
+            // ),
           ],
         ),
       );
@@ -453,112 +672,296 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildBookingHeader(booking),
-            const SizedBox(height: 12),
-            _buildBookingDetails(booking),
-            const SizedBox(height: 12),
-            _buildParticipants(booking),
+            // Header with session title and status
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    "Consultation with ${booking.expertName}",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(booking.status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    booking.status.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _getStatusColor(booking.status),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "(${booking.duration}) ${booking.sessionType}",
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
             const SizedBox(height: 16),
-            _buildActionButtons(booking),
+
+            // People and slots section
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 600) {
+                  return _buildMobileBookingDetails(booking);
+                } else {
+                  return _buildDesktopBookingDetails(booking);
+                }
+              },
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBookingHeader(Booking booking) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildMobileBookingDetails(Booking booking) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // People section
+        const Text(
+          "People",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: Colors.grey.shade50,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Text(
-            booking.formattedDate,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.blue,
-              fontWeight: FontWeight.w500,
-            ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.person, size: 16, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Client:',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${booking.clientFirstName} ${booking.clientLastName}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.person_outline,
+                    size: 16,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Expert:',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    booking.expertName,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
+        const SizedBox(height: 16),
+
+        // Booked slots
+        const Text(
+          "Booked Slot",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: _getStatusColor(booking.status).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: Text(
-            booking.status.toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: _getStatusColor(booking.status),
-            ),
+          child: Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 16, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(booking.formattedDate, style: const TextStyle(fontSize: 14)),
+              const SizedBox(width: 16),
+              const Icon(Icons.access_time, size: 16, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(booking.sessionTime, style: const TextStyle(fontSize: 14)),
+            ],
           ),
         ),
+        const SizedBox(height: 16),
+
+        // Actions
+        _buildActionButtons(booking),
       ],
     );
   }
 
-  Widget _buildBookingDetails(Booking booking) {
-    return Row(
+  Widget _buildDesktopBookingDetails(Booking booking) {
+    return Column(
       children: [
-        const Icon(Icons.access_time, size: 16, color: Colors.blue),
-        const SizedBox(width: 8),
-        Text(
-          '${booking.sessionTime ?? 'TBD'} • ${booking.duration ?? 'TBD'}',
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        // Header row for sections
+        const Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Text(
+                "People",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                "Booked Slots",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                "Actions",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
-        const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            booking.sessionType,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
-          ),
+        const SizedBox(height: 12),
+
+        // Content row
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // People section
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.person, size: 16, color: Colors.blue),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Client:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${booking.clientFirstName} ${booking.clientLastName}',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.person_outline,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Expert:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          booking.expertName,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // Booked slots section
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          booking.formattedDate,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          booking.sessionTime,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // Actions section
+            Expanded(flex: 2, child: _buildActionButtons(booking)),
+          ],
         ),
       ],
-    );
-  }
-
-  Widget _buildParticipants(Booking booking) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.person, size: 16, color: Colors.blue),
-              const SizedBox(width: 8),
-              const Text('You:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-              const SizedBox(width: 4),
-              Text('$firstName $lastName', style: const TextStyle(fontSize: 12)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.person_outline, size: 16, color: Colors.blue),
-              const SizedBox(width: 8),
-              const Text('Expert:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-              const SizedBox(width: 4),
-              Text(booking.expertName, style: const TextStyle(fontSize: 12)),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -568,7 +971,7 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
     if (booking.status.toLowerCase() == 'confirmed') {
       buttons.add(
         OutlinedButton.icon(
-          onPressed: () => Navigator.pushNamed(context, '/userpanel/chat'),
+          onPressed: () => Navigator.pushNamed(context, '/home'),
           icon: const Icon(Icons.chat, size: 16),
           label: const Text('Chat'),
           style: OutlinedButton.styleFrom(
@@ -577,7 +980,8 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
         ),
       );
 
-      if (booking.userMeetingLink != null && booking.userMeetingLink!.isNotEmpty) {
+      if (booking.userMeetingLink != null &&
+          booking.userMeetingLink!.isNotEmpty) {
         buttons.add(
           ElevatedButton.icon(
             onPressed: () => _launchMeeting(booking.userMeetingLink!),
@@ -600,12 +1004,27 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Text(
-              'Meeting link pending',
+              'Zoom link coming soon',
               style: TextStyle(fontSize: 12, color: Colors.orange),
             ),
           ),
         );
       }
+    }
+
+    if (booking.status.toLowerCase() == 'unconfirmed' ||
+        booking.status.toLowerCase() == 'pending') {
+      buttons.add(
+        OutlinedButton.icon(
+          onPressed: () => _showCancelDialog(booking),
+          icon: const Icon(Icons.cancel, size: 16, color: Colors.red),
+          label: const Text('Cancel', style: TextStyle(color: Colors.red)),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Colors.red),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+        ),
+      );
     }
 
     if (booking.status.toLowerCase() == 'completed' && !booking.hasRating) {
@@ -623,17 +1042,15 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
       );
     }
 
-    return buttons.isEmpty
-        ? const SizedBox.shrink()
-        : Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: buttons,
-          );
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.start,
+      children: buttons,
+    );
   }
 }
 
-// Models
 class Booking {
   final String id;
   final String status;
@@ -641,6 +1058,8 @@ class Booking {
   final String duration;
   final String sessionType;
   final String expertName;
+  final String clientFirstName;
+  final String clientLastName;
   final String? userMeetingLink;
   final DateTime? sessionDate;
   final bool hasRating;
@@ -648,10 +1067,12 @@ class Booking {
   Booking({
     required this.id,
     required this.status,
-    this.sessionTime = 'TBD',
-    this.duration = 'TBD',
-    this.sessionType = 'User To Expert',
-    this.expertName = 'Expert',
+    required this.sessionTime,
+    required this.duration,
+    required this.sessionType,
+    required this.expertName,
+    required this.clientFirstName,
+    required this.clientLastName,
     this.userMeetingLink,
     this.sessionDate,
     this.hasRating = false,
@@ -659,52 +1080,127 @@ class Booking {
 
   String get formattedDate {
     if (sessionDate != null) {
-      return '${sessionDate!.day}/${sessionDate!.month}/${sessionDate!.year}';
+      return '${_getWeekday(sessionDate!)}, ${sessionDate!.day}/${sessionDate!.month}';
     }
     return 'TBD';
   }
 
+  String _getWeekday(DateTime date) {
+    switch (date.weekday) {
+      case 1:
+        return 'Mon';
+      case 2:
+        return 'Tue';
+      case 3:
+        return 'Wed';
+      case 4:
+        return 'Thu';
+      case 5:
+        return 'Fri';
+      case 6:
+        return 'Sat';
+      case 7:
+        return 'Sun';
+      default:
+        return '';
+    }
+  }
+
+  Booking copyWith({
+    String? id,
+    String? status,
+    String? sessionTime,
+    String? duration,
+    String? sessionType,
+    String? expertName,
+    String? clientFirstName,
+    String? clientLastName,
+    String? userMeetingLink,
+    DateTime? sessionDate,
+    bool? hasRating,
+  }) {
+    return Booking(
+      id: id ?? this.id,
+      status: status ?? this.status,
+      sessionTime: sessionTime ?? this.sessionTime,
+      duration: duration ?? this.duration,
+      sessionType: sessionType ?? this.sessionType,
+      expertName: expertName ?? this.expertName,
+      clientFirstName: clientFirstName ?? this.clientFirstName,
+      clientLastName: clientLastName ?? this.clientLastName,
+      userMeetingLink: userMeetingLink ?? this.userMeetingLink,
+      sessionDate: sessionDate ?? this.sessionDate,
+      hasRating: hasRating ?? this.hasRating,
+    );
+  }
+
   factory Booking.fromJson(Map<String, dynamic> json) {
     try {
-      // Parse session date
+      // Parse session time and date
+      String sessionTime = 'TBD';
       DateTime? sessionDate;
-      if (json['sessionDate'] != null) {
-        sessionDate = DateTime.tryParse(json['sessionDate'].toString());
+
+      // Handle slots data
+      if (json['slots'] != null &&
+          json['slots'] is List &&
+          json['slots'].isNotEmpty) {
+        final outerSlot = json['slots'][0]; // First outer array
+        if (outerSlot is List && outerSlot.isNotEmpty) {
+          final firstSlot = outerSlot[0]; // First inner object
+          if (firstSlot is Map) {
+            sessionTime = firstSlot['selectedTime']?.toString() ?? 'TBD';
+
+            if (firstSlot['selectedDate'] != null) {
+              sessionDate = DateTime.tryParse(firstSlot['selectedDate']);
+            }
+          }
+        }
       }
 
       // Parse expert name
       String expertName = 'Expert';
-      if (json['consultingExpertID'] is Map) {
-        final expertData = json['consultingExpertID'];
-        final firstName = expertData['firstName']?.toString() ?? '';
-        final lastName = expertData['lastName']?.toString() ?? '';
-        expertName = '$firstName $lastName'.trim();
-        if (expertName.isEmpty) expertName = 'Expert';
+      if (json['expertId'] is Map) {
+        final expert = json['expertId'];
+        expertName =
+            '${expert['firstName'] ?? ''} ${expert['lastName'] ?? ''}'.trim();
       }
+
+      // Parse client name
+      String clientFirstName = json['firstName']?.toString() ?? '';
+      String clientLastName = json['lastName']?.toString() ?? '';
 
       return Booking(
         id: json['_id']?.toString() ?? '',
-        status: json['status']?.toString() ?? 'pending',
-        sessionTime: json['sessionTime']?.toString() ?? 'TBD',
+        status: json['status']?.toString()?.toLowerCase() ?? 'pending',
+        sessionTime: sessionTime,
         duration: json['duration']?.toString() ?? 'TBD',
-        sessionType: json['sessionType']?.toString() ?? 'User To Expert',
+        sessionType: json['sessionType']?.toString() ?? 'user-to-expert',
         expertName: expertName,
-        userMeetingLink: json['userMeetingLink']?.toString(),
+        clientFirstName: clientFirstName,
+        clientLastName: clientLastName,
+        userMeetingLink:
+            json['userMeetingLink']?.toString() ??
+            json['zoomMeetingLink']?.toString(),
         sessionDate: sessionDate,
         hasRating: json['rating'] != null,
       );
     } catch (e) {
       print('Error parsing booking: $e');
+      print('Raw JSON: $json');
       return Booking(
         id: 'error',
         status: 'error',
+        sessionTime: 'TBD',
+        duration: 'TBD',
+        sessionType: 'error',
         expertName: 'Error',
+        clientFirstName: 'Error',
+        clientLastName: 'Error',
       );
     }
   }
 }
 
-// Rating Dialog
 class RatingDialog extends StatefulWidget {
   final Booking booking;
   final Function(Booking) onRatingSubmitted;
@@ -732,9 +1228,9 @@ class _RatingDialogState extends State<RatingDialog> {
 
   Future<void> _submitRating() async {
     if (rating == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a rating')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a rating')));
       return;
     }
 
@@ -758,21 +1254,14 @@ class _RatingDialogState extends State<RatingDialog> {
       );
 
       if (response.statusCode == 200) {
-        final updatedBooking = Booking(
-          id: widget.booking.id,
+        final updatedBooking = widget.booking.copyWith(
           status: 'rating submitted',
-          sessionTime: widget.booking.sessionTime,
-          duration: widget.booking.duration,
-          sessionType: widget.booking.sessionType,
-          expertName: widget.booking.expertName,
-          userMeetingLink: widget.booking.userMeetingLink,
-          sessionDate: widget.booking.sessionDate,
           hasRating: true,
         );
 
         widget.onRatingSubmitted(updatedBooking);
         Navigator.of(context).pop();
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Rating submitted successfully!')),
         );
@@ -810,35 +1299,34 @@ class _RatingDialogState extends State<RatingDialog> {
               );
             }),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           TextField(
             controller: _commentController,
             decoration: const InputDecoration(
-              hintText: 'Add a comment (optional)',
+              labelText: 'Add a comment (optional)',
               border: OutlineInputBorder(),
             ),
             maxLines: 3,
-            maxLength: 500,
           ),
         ],
       ),
       actions: [
         TextButton(
-          onPressed: isSubmitting ? null : () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
         ElevatedButton(
           onPressed: isSubmitting ? null : _submitRating,
-          child: isSubmitting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Submit'),
+          child:
+              isSubmitting
+                  ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                  : const Text('Submit Rating'),
         ),
       ],
     );
   }
 }
-
