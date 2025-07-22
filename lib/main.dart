@@ -30,6 +30,16 @@ import 'package:shourk_application/expert/expert_category/career_expert.dart';
 import 'package:shourk_application/expert/expert_category/fashion_expert.dart';
 import 'package:shourk_application/expert/expert_category/wellness_expert.dart';
 
+
+//user category
+import 'package:shourk_application/user/user_expert_category/user_wellness_expert.dart';
+import 'package:shourk_application/user/user_expert_category/user_career_expert.dart';
+import 'package:shourk_application/user/user_expert_category/user_fashion_expert.dart';
+import 'package:shourk_application/user/user_expert_category/user_home_expert.dart';
+import 'package:shourk_application/user/user_expert_category/user_top_expert.dart';
+
+
+
 //User panel 
 import 'package:shourk_application/user/profile/user_profile_screen.dart';
 import 'package:shourk_application/user/profile/user_payment_method.dart';
@@ -124,6 +134,12 @@ class MyApp extends StatelessWidget {
           '/fashion-experts': (context) => FashionBeautyExpertsScreen(),
          '/wellness-experts': (context) => WellnessExpertsScreen(),
 
+         //user Catefory screens
+          '/user-top-experts': (context) => UserTopExpertsScreen(),
+          '/user-home-experts': (context) => UserHomeExpertsScreen(),
+          '/user-career-experts': (context) => UserCareerExpertsScreen(),
+          '/user-fashion-experts': (context) => UserFashionBeautyExpertsScreen(),
+         '/user-wellness-experts': (context) => UserWellnessExpertsScreen(),
 
 
          '/user-payment-method': (context) =>  UserPaymentMethod(),

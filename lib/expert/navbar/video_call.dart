@@ -240,8 +240,10 @@ class _VideoCallPageState extends State<VideoCallPage> {
         }
 
         // Extract sessions with type safety
-        final expertSessions = _extractSessions(convertedData, 'expertSessions');
-        final userSessions = _extractSessions(convertedData, 'userSessions');
+        final expertSessions = _extractSessions(
+          (convertedData as Map).cast<String, dynamic>(), 'expertSessions');
+        final userSessions = _extractSessions(
+          (convertedData as Map).cast<String, dynamic>(), 'userSessions');
 
         final combined = [
           ...expertSessions.map((s) => {...s, 'type': 'Expert'}),
