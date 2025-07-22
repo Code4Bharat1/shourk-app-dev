@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shourk_application/expert/navbar/expert_dashboard.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'video_call.dart';
 
 // Model classes
 class Participant {
@@ -30,12 +31,22 @@ class SessionData {
   final String expertFirstName;
   final String expertLastName;
   final int duration;
+  final String? consultingExpertID;
+  final String? expertId;
+  final String? sessionType;
+  final String? userFirstName;
+  final String? userLastName;
 
   SessionData({
     required this.sessionId,
     required this.expertFirstName,
     required this.expertLastName,
     required this.duration,
+    this.consultingExpertID,
+    this.expertId,
+    this.sessionType,
+    this.userFirstName,
+    this.userLastName,
   });
 
   factory SessionData.fromJson(Map<String, dynamic> json) {
@@ -44,19 +55,24 @@ class SessionData {
       expertFirstName: json['expertFirstName']?.toString() ?? '',
       expertLastName: json['expertLastName']?.toString() ?? '',
       duration: _parseDuration(json['duration']),
+      consultingExpertID: json['consultingExpertID']?.toString(),
+      expertId: json['expertId']?.toString(),
+      sessionType: json['sessionType']?.toString(),
+      userFirstName: json['userFirstName']?.toString(),
+      userLastName: json['userLastName']?.toString(),
     );
   }
 
   static int _parseDuration(dynamic duration) {
     if (duration == null) return 15;
-    
+
     if (duration is int) return duration;
-    
+
     if (duration is String) {
       String durationStr = duration.toLowerCase();
       RegExp regExp = RegExp(r'(\d+)');
       Match? match = regExp.firstMatch(durationStr);
-      
+
       if (match != null) {
         int value = int.parse(match.group(1)!);
         if (durationStr.contains('hour') || durationStr.contains('hr')) {
@@ -64,12 +80,15 @@ class SessionData {
         }
         return value;
       }
-      
-      if (durationStr.contains('quick')) return 15;
-      else if (durationStr.contains('standard')) return 30;
-      else if (durationStr.contains('extended')) return 60;
+
+      if (durationStr.contains('quick'))
+        return 15;
+      else if (durationStr.contains('standard'))
+        return 30;
+      else if (durationStr.contains('extended'))
+        return 60;
     }
-    
+
     try {
       return int.parse(duration.toString());
     } catch (e) {
@@ -108,31 +127,36 @@ class AuthData {
 
   static int _parseRole(dynamic role) {
     if (role == null) return 0;
-    
+
     if (role is int) return role;
-    
+
     if (role is String) {
       try {
         return int.parse(role);
       } catch (e) {
         String roleStr = role.toLowerCase();
-        if (roleStr.contains('admin') || roleStr.contains('expert')) return 1;
-        else if (roleStr.contains('user')) return 0;
+        if (roleStr.contains('admin') || roleStr.contains('expert'))
+          return 1;
+        else if (roleStr.contains('user'))
+          return 0;
       }
     }
-    
+
     return 0;
   }
 }
 
 // Service class for API calls
-class UserSessionCall {
+class ExpertSessionCall {
   static const String baseUrl = "https://amd-api.code4bharat.com";
 
-  static Future<SessionData> getSessionData(String sessionId, String token) async {
+  static Future<SessionData> getSessionData(
+    String sessionId,
+    String token,
+  ) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/zoomVideo/user-session-details/$sessionId'),
+        Uri.parse('$baseUrl/api/zoomVideo/get-session/$sessionId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -150,36 +174,38 @@ class UserSessionCall {
     }
   }
 
-  static Future<AuthData> generateUserAuth(
-      String meetingId, String sessionId, String token) async {
+  static Future<AuthData> generateExpertAuth(
+    String meetingId,
+    String sessionId,
+    String token,
+  ) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/zoomVideo/generate-user-video-token'),
+        Uri.parse('$baseUrl/api/zoomVideo/generate-expert-video-token'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: json.encode({
-          'meetingId': meetingId,
-          'sessionId': sessionId,
-        }),
+        body: json.encode({'meetingId': meetingId, 'sessionId': sessionId}),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return AuthData.fromJson(data['data'] ?? {});
       } else {
-        throw Exception('Failed to generate user auth: ${response.statusCode}');
+        throw Exception(
+          'Failed to generate expert auth: ${response.statusCode}',
+        );
       }
     } catch (e) {
       throw Exception('Authentication error: $e');
     }
   }
 
-  static Future<void> notifyUserJoined(String sessionId, String token) async {
+  static Future<void> notifyExpertJoined(String sessionId, String token) async {
     try {
       await http.post(
-        Uri.parse('$baseUrl/api/zoomVideo/user-joined'),
+        Uri.parse('$baseUrl/api/zoomVideo/expert-joined'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -187,12 +213,34 @@ class UserSessionCall {
         body: json.encode({'sessionId': sessionId}),
       );
     } catch (e) {
-      print('Failed to notify user joined: $e');
+      print('Failed to notify expert joined: $e');
     }
   }
 
-  static Future<void> completeUserSession(
-      String sessionId, int duration, String token) async {
+  static Future<void> startSession(
+    String sessionId,
+    String meetingId,
+    String token,
+  ) async {
+    try {
+      await http.post(
+        Uri.parse('$baseUrl/api/zoomVideo/start-session'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'sessionId': sessionId, 'meetingId': meetingId}),
+      );
+    } catch (e) {
+      print('Failed to start session: $e');
+    }
+  }
+
+  static Future<void> completeExpertSession(
+    String sessionId,
+    int duration,
+    String token,
+  ) async {
     try {
       await http.put(
         Uri.parse('$baseUrl/api/zoomVideo/complete-user-session'),
@@ -208,13 +256,13 @@ class UserSessionCall {
         }),
       );
     } catch (e) {
-      print('Failed to complete user session: $e');
+      print('Failed to complete expert session: $e');
     }
   }
 }
 
 // State management provider
-class UserSessionProvider with ChangeNotifier {
+class ExpertSessionProvider with ChangeNotifier {
   bool isLoading = true;
   String? error;
   AuthData? authData;
@@ -225,7 +273,7 @@ class UserSessionProvider with ChangeNotifier {
   bool isVideoOn = false;
   bool isAudioOn = false;
   bool audioJoined = false;
-  bool expertJoined = false;
+  bool userJoined = false;
   bool timerStarted = false;
   bool warningShown = false;
   String connectionStatus = "Connecting...";
@@ -235,32 +283,69 @@ class UserSessionProvider with ChangeNotifier {
   DateTime? sessionStartTime;
   List<Participant> participants = [];
   Timer? timer;
+  bool isHostExpert = true;
 
   final String meetingId;
   final String sessionId;
-  final String userToken;
+  final String expertToken;
 
-  UserSessionProvider({
+  ExpertSessionProvider({
     required this.meetingId,
     required this.sessionId,
-    required this.userToken,
+    required this.expertToken,
   }) {
     initialize();
   }
 
   Future<void> initialize() async {
     try {
-      connectionStatus = "Authenticating as User...";
+      connectionStatus = "Authenticating as Expert...";
       notifyListeners();
 
-      sessionData = await UserSessionCall.getSessionData(sessionId, userToken);
-      authData = await UserSessionCall.generateUserAuth(meetingId, sessionId, userToken);
+      sessionData = await ExpertSessionCall.getSessionData(
+        sessionId,
+        expertToken,
+      );
+      authData = await ExpertSessionCall.generateExpertAuth(
+        meetingId,
+        sessionId,
+        expertToken,
+      );
+
+      // Determine if host expert
+      if (sessionData != null) {
+        String? expertIdFromToken;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final token = prefs.getString('expertToken') ?? expertToken;
+          final payload = token.split('.')[1];
+          final decoded = utf8.decode(base64.decode(payload));
+          final jsonData = json.decode(decoded);
+          expertIdFromToken =
+              jsonData['_id']?.toString() ??
+              jsonData['id']?.toString() ??
+              jsonData['userId']?.toString();
+        } catch (e) {
+          print('Error parsing token: $e');
+        }
+
+        final consultingExpertID = sessionData!.consultingExpertID ?? '';
+        final expertID = sessionData!.expertId ?? '';
+
+        if (expertIdFromToken == consultingExpertID) {
+          isHostExpert = true;
+        } else if (expertIdFromToken == expertID) {
+          isHostExpert = false;
+        } else {
+          isHostExpert = false;
+        }
+      }
 
       sessionDuration = sessionData?.duration ?? 15;
       timeRemaining = sessionDuration * 60;
 
       isLoading = false;
-      connectionStatus = "Ready to join as User";
+      connectionStatus = "Ready to join as Expert";
       notifyListeners();
     } catch (e) {
       error = e.toString();
@@ -271,13 +356,14 @@ class UserSessionProvider with ChangeNotifier {
 
   Future<void> startLocalVideo() async {
     try {
-      connectionStatus = "Starting session as User...";
+      connectionStatus = "Starting session as Expert...";
       notifyListeners();
 
       await joinZoomSession();
+      await ExpertSessionCall.startSession(sessionId, meetingId, expertToken);
       await setupMedia();
 
-      connectionStatus = "Waiting for expert to start...";
+      connectionStatus = "Waiting for user to join...";
       notifyListeners();
     } catch (e) {
       error = "Failed to start session: $e";
@@ -286,129 +372,116 @@ class UserSessionProvider with ChangeNotifier {
   }
 
   Future<void> joinZoomSession() async {
-    connectionStatus = "Joining Zoom session as User...";
+    connectionStatus = "Joining Zoom session as Expert...";
     notifyListeners();
 
     await Future.delayed(Duration(seconds: 2));
 
-    // Only add expert when they actually join
-    if (expertJoined) {
-      participants.add(Participant(
-        userId: "expert_123",
-        displayName: "Dr. ${sessionData?.expertFirstName ?? 'Expert'} ${sessionData?.expertLastName ?? ''}",
-        isHost: true,
-        video: true,
-        audio: true,
-      ));
-    }
-
     isInSession = true;
-    connectionStatus = "Connected to Zoom (User)";
+    connectionStatus = "Connected to Zoom (Expert)";
     notifyListeners();
 
-    await notifyUserJoined();
+    await notifyExpertJoined();
   }
 
-  Future<void> notifyUserJoined() async {
+  Future<void> notifyExpertJoined() async {
     try {
-      await UserSessionCall.notifyUserJoined(sessionId, userToken);
+      await ExpertSessionCall.notifyExpertJoined(sessionId, expertToken);
     } catch (e) {
-      print('Failed to notify user joined: $e');
+      print('Failed to notify expert joined: $e');
     }
   }
 
   // Updated setupMedia method
-Future<void> setupMedia() async {
-  try {
-    // Request camera and microphone permissions together
-    final statuses = await [
-      Permission.camera,
-      Permission.microphone,
-    ].request();
+  Future<void> setupMedia() async {
+    try {
+      // Request camera and microphone permissions together
+      final statuses =
+          await [Permission.camera, Permission.microphone].request();
 
-    final cameraGranted = statuses[Permission.camera]?.isGranted ?? false;
-    final micGranted = statuses[Permission.microphone]?.isGranted ?? false;
+      final cameraGranted = statuses[Permission.camera]?.isGranted ?? false;
+      final micGranted = statuses[Permission.microphone]?.isGranted ?? false;
 
-    if (!cameraGranted || !micGranted) {
-      mediaError = "Permissions denied for ${!cameraGranted ? 'camera' : ''}${!cameraGranted && !micGranted ? ' and ' : ''}${!micGranted ? 'microphone' : ''}";
+      if (!cameraGranted || !micGranted) {
+        mediaError =
+            "Permissions denied for ${!cameraGranted ? 'camera' : ''}${!cameraGranted && !micGranted ? ' and ' : ''}${!micGranted ? 'microphone' : ''}";
+        notifyListeners();
+        return;
+      }
+
+      // Initialize media devices
+      isAudioOn = true;
+      audioJoined = true;
+      isVideoOn = true;
+      mediaError = null;
       notifyListeners();
-      return;
+    } catch (e) {
+      mediaError = "Failed to initialize media: $e";
+      notifyListeners();
     }
-
-    // Initialize media devices
-    isAudioOn = true;
-    audioJoined = true;
-    isVideoOn = true;
-    mediaError = null;
-    notifyListeners();
-  } catch (e) {
-    mediaError = "Failed to initialize media: $e";
-    notifyListeners();
   }
-}
 
-// Updated toggleVideo method
-void toggleVideo() async {
-  try {
-    if (!isVideoOn) {
-      final status = await Permission.camera.request();
-      if (status != PermissionStatus.granted) {
-        mediaError = "Camera permission denied";
-        notifyListeners();
-        return;
+  // Updated toggleVideo method
+  void toggleVideo() async {
+    try {
+      if (!isVideoOn) {
+        final status = await Permission.camera.request();
+        if (status != PermissionStatus.granted) {
+          mediaError = "Camera permission denied";
+          notifyListeners();
+          return;
+        }
       }
-    }
-    
-    isVideoOn = !isVideoOn;
-    notifyListeners();
-  } catch (e) {
-    mediaError = "Failed to toggle video: $e";
-    notifyListeners();
-  }
-}
 
-// Updated toggleAudio method
-void toggleAudio() async {
-  try {
-    if (!isAudioOn || !audioJoined) {
-      final status = await Permission.microphone.request();
-      if (status != PermissionStatus.granted) {
-        mediaError = "Microphone permission denied";
-        notifyListeners();
-        return;
-      }
+      isVideoOn = !isVideoOn;
+      notifyListeners();
+    } catch (e) {
+      mediaError = "Failed to toggle video: $e";
+      notifyListeners();
     }
-    
-    isAudioOn = !isAudioOn;
-    audioJoined = true;
-    mediaError = null;
-    notifyListeners();
-  } catch (e) {
-    mediaError = "Failed to toggle audio: $e";
-    notifyListeners();
   }
-}
+
+  // Updated toggleAudio method
+  void toggleAudio() async {
+    try {
+      if (!isAudioOn || !audioJoined) {
+        final status = await Permission.microphone.request();
+        if (status != PermissionStatus.granted) {
+          mediaError = "Microphone permission denied";
+          notifyListeners();
+          return;
+        }
+      }
+
+      isAudioOn = !isAudioOn;
+      audioJoined = true;
+      mediaError = null;
+      notifyListeners();
+    } catch (e) {
+      mediaError = "Failed to toggle audio: $e";
+      notifyListeners();
+    }
+  }
 
   void startTimer() {
     if (timerStarted) return;
-    
+
     timerStarted = true;
     isSessionActive = true;
     sessionStartTime = DateTime.now();
-    
+
     timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (timeRemaining <= 0) {
         endSessionAutomatically();
         return;
       }
-      
+
       setTimeRemaining(timeRemaining - 1);
-      
+
       if (timeRemaining == 120 && !warningShown) {
         warningShown = true;
       } else if (timeRemaining == 60) {
-      } else if (timeRemaining == 30) {
-      }
+      } else if (timeRemaining == 30) {}
     });
   }
 
@@ -417,27 +490,29 @@ void toggleAudio() async {
     notifyListeners();
   }
 
-  Future<void> endSessionAutomatically([String reason = "Session completed"]) async {
+  Future<void> endSessionAutomatically([
+    String reason = "Session completed",
+  ]) async {
     if (sessionEnded) return;
-    
+
     timer?.cancel();
     timer = null;
-    
+
     isSessionActive = false;
     sessionEnded = true;
     connectionStatus = "Consultation completed";
     notifyListeners();
-    
+
     try {
-      await UserSessionCall.completeUserSession(
+      await ExpertSessionCall.completeExpertSession(
         sessionId,
         sessionDuration,
-        userToken,
+        expertToken,
       );
     } catch (e) {
       print("Failed to update session status: $e");
     }
-    
+
     await Future.delayed(Duration(seconds: 2));
   }
 
@@ -453,6 +528,23 @@ void toggleAudio() async {
         : 'Expert';
   }
 
+  String getUserDisplayName() {
+    if (sessionData != null &&
+        (sessionData!.userFirstName != null ||
+            sessionData!.userLastName != null)) {
+      return '${sessionData!.userFirstName ?? ''} ${sessionData!.userLastName ?? ''}'
+          .trim();
+    }
+    return "User";
+  }
+
+  String getTimeColor() {
+    if (timeRemaining <= 30) return "text-red-500";
+    if (timeRemaining <= 60) return "text-amber-500";
+    if (timeRemaining <= 120) return "text-yellow-500";
+    return "text-emerald-500";
+  }
+
   @override
   void dispose() {
     timer?.cancel();
@@ -461,11 +553,11 @@ void toggleAudio() async {
 }
 
 // Main page widget
-class UserSessionCallPage extends StatelessWidget {
+class ExpertSessionCallPage extends StatelessWidget {
   final String meetingId;
   final String sessionId;
 
-  const UserSessionCallPage({
+  const ExpertSessionCallPage({
     super.key,
     required this.meetingId,
     required this.sessionId,
@@ -476,13 +568,14 @@ class UserSessionCallPage extends StatelessWidget {
     final token = ModalRoute.of(context)!.settings.arguments as String? ?? '';
     final brightness = MediaQuery.of(context).platformBrightness;
     final isDarkMode = brightness == Brightness.dark;
-    
+
     return ChangeNotifierProvider(
-      create: (context) => UserSessionProvider(
-        meetingId: meetingId,
-        sessionId: sessionId,
-        userToken: token,
-      ),
+      create:
+          (context) => ExpertSessionProvider(
+            meetingId: meetingId,
+            sessionId: sessionId,
+            expertToken: token,
+          ),
       child: Builder(
         builder: (context) {
           return Scaffold(
@@ -491,9 +584,10 @@ class UserSessionCallPage extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: isDarkMode
-                      ? [Color(0xFF1E293B), Color(0xFF0F172A)]
-                      : [Color(0xFFF8FAFC), Color(0xFFF1F5F9)],
+                  colors:
+                      isDarkMode
+                          ? [Color(0xFF1E293B), Color(0xFF0F172A)]
+                          : [Color(0xFFF8FAFC), Color(0xFFF1F5F9)],
                 ),
               ),
               child: Theme(
@@ -507,42 +601,43 @@ class UserSessionCallPage extends StatelessWidget {
                     onSecondary: Colors.white,
                     error: Colors.red,
                     onError: Colors.white,
-                    background: isDarkMode ? Color(0xFF1E293B) : Color(0xFFF8FAFC),
+                    background:
+                        isDarkMode ? Color(0xFF1E293B) : Color(0xFFF8FAFC),
                     onBackground: isDarkMode ? Colors.white : Color(0xFF334155),
                     surface: isDarkMode ? Color(0xFF1E293B) : Colors.white,
                     onSurface: isDarkMode ? Colors.white : Color(0xFF334155),
                   ),
                 ),
-                child: _UserSessionBody(),
+                child: _ExpertSessionBody(),
               ),
             ),
           );
-        }
+        },
       ),
     );
   }
 }
 
-class _UserSessionBody extends StatelessWidget {
+class _ExpertSessionBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    
-    return Consumer<UserSessionProvider>(
+
+    return Consumer<ExpertSessionProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading) {
           return _buildLoadingScreen(theme, isDarkMode);
         }
-        
+
         if (provider.error != null) {
           return _buildErrorScreen(context, provider.error!, theme, isDarkMode);
         }
-        
+
         if (provider.sessionEnded) {
           return _buildSessionEndedScreen(context, theme, isDarkMode);
         }
-        
+
         return _buildMainContent(context, theme, isDarkMode);
       },
     );
@@ -556,11 +651,13 @@ class _UserSessionBody extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                theme.colorScheme.primary,
+              ),
             ),
             SizedBox(height: 24),
             Text(
-              'Loading session...',
+              'Setting Up Expert Portal',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
@@ -573,7 +670,12 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorScreen(BuildContext context, String error, ThemeData theme, bool isDarkMode) {
+  Widget _buildErrorScreen(
+    BuildContext context,
+    String error,
+    ThemeData theme,
+    bool isDarkMode,
+  ) {
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -611,7 +713,7 @@ class _UserSessionBody extends StatelessWidget {
                 ),
                 SizedBox(height: 24),
                 Text(
-                  'Session Error',
+                  'Expert Portal Error',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w600,
@@ -633,7 +735,7 @@ class _UserSessionBody extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          // Retry logic
+                          Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: theme.colorScheme.primary,
@@ -642,10 +744,7 @@ class _UserSessionBody extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: Text(
-                          'Retry',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                        child: Text('Retry', style: TextStyle(fontSize: 16)),
                       ),
                     ),
                     SizedBox(width: 16),
@@ -660,19 +759,13 @@ class _UserSessionBody extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: Text(
-                          'Go Back',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                        child: Text('Go Back', style: TextStyle(fontSize: 16)),
                       ),
                     ),
                   ],
                 ),
                 SizedBox(height: 24),
-                Image.asset(
-                  'assets/images/Shourk_logo.png',
-                  width: 120,
-                ),
+                Image.asset('assets/images/Shourk_logo.png', width: 120),
               ],
             ),
           ),
@@ -681,7 +774,11 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildSessionEndedScreen(BuildContext context, ThemeData theme, bool isDarkMode) {
+  Widget _buildSessionEndedScreen(
+    BuildContext context,
+    ThemeData theme,
+    bool isDarkMode,
+  ) {
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -719,7 +816,7 @@ class _UserSessionBody extends StatelessWidget {
                 ),
                 SizedBox(height: 24),
                 Text(
-                  'Session Completed',
+                  'Consultation Completed',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w600,
@@ -728,7 +825,7 @@ class _UserSessionBody extends StatelessWidget {
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'Your consultation has ended. Thank you for using our service.',
+                  'Your expert consultation has ended successfully. Session summary and recording will be available in your expert dashboard',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -753,15 +850,12 @@ class _UserSessionBody extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    'Return to Dashboard',
+                    'Return to Expert Dashboard',
                     style: TextStyle(fontSize: 16),
                   ),
                 ),
                 SizedBox(height: 24),
-                Image.asset(
-                  'assets/images/Shourk_logo.png',
-                  width: 120,
-                ),
+                Image.asset('assets/images/Shourk_logo.png', width: 120),
               ],
             ),
           ),
@@ -770,37 +864,51 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildMainContent(BuildContext context, ThemeData theme, bool isDarkMode) {
-    final provider = Provider.of<UserSessionProvider>(context);
+  Widget _buildMainContent(
+    BuildContext context,
+    ThemeData theme,
+    bool isDarkMode,
+  ) {
+    final provider = Provider.of<ExpertSessionProvider>(context);
     final screenSize = MediaQuery.of(context).size;
     final isPortrait = screenSize.height > screenSize.width;
-    
+
     return Column(
       children: [
         // Header
         _buildHeader(provider, theme, isDarkMode, screenSize),
-        
+
         // Warning banners
-        if (provider.mediaError != null) 
+        if (provider.mediaError != null)
           _buildMediaWarningBanner(provider.mediaError!, theme, isDarkMode),
-        
+
         if (provider.timeRemaining <= 120 && provider.timeRemaining > 0)
           _buildTimeWarningBanner(provider.timeRemaining, theme, isDarkMode),
-        
+
         // Main content
         Expanded(
           child: SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: screenSize.height - 200,
-              ),
-              child: provider.isInSession
-                  ? _buildVideoGrid(provider, theme, isDarkMode, screenSize, isPortrait)
-                  : _buildPreJoinScreen(provider, theme, isDarkMode, screenSize),
+              constraints: BoxConstraints(minHeight: screenSize.height - 200),
+              child:
+                  provider.isInSession
+                      ? _buildVideoGrid(
+                        provider,
+                        theme,
+                        isDarkMode,
+                        screenSize,
+                        isPortrait,
+                      )
+                      : _buildPreJoinScreen(
+                        provider,
+                        theme,
+                        isDarkMode,
+                        screenSize,
+                      ),
             ),
           ),
         ),
-        
+
         // Footer controls
         if (provider.isInSession && !provider.sessionEnded)
           _buildFooterControls(provider, theme, isDarkMode),
@@ -808,55 +916,54 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize) {
+  Widget _buildHeader(
+    ExpertSessionProvider provider,
+    ThemeData theme,
+    bool isDarkMode,
+    Size screenSize,
+  ) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
         ],
-        border: Border(
-          bottom: BorderSide(color: theme.dividerColor),
-        ),
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
-      child: screenSize.width > 600
-          ? Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildHeaderLeftSection(provider, theme),
-                _buildHeaderRightSection(provider, theme),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildHeaderLeftSection(provider, theme),
-                    _buildHeaderRightSection(provider, theme),
-                  ],
-                ),
-                SizedBox(height: 8),
-                _buildMeetingInfo(provider, theme),
-              ],
-            ),
+      child:
+          screenSize.width > 600
+              ? Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildHeaderLeftSection(provider, theme),
+                  _buildHeaderRightSection(provider, theme),
+                ],
+              )
+              : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildHeaderLeftSection(provider, theme),
+                      _buildHeaderRightSection(provider, theme),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  _buildMeetingInfo(provider, theme),
+                ],
+              ),
     );
   }
 
-  Widget _buildHeaderLeftSection(UserSessionProvider provider, ThemeData theme) {
+  Widget _buildHeaderLeftSection(
+    ExpertSessionProvider provider,
+    ThemeData theme,
+  ) {
     return Row(
       children: [
-        Image.asset(
-          'assets/images/Shourk_logo.png',
-          width: 100,
-          height: 40,
-        ),
+        Image.asset('assets/images/Shourk_logo.png', width: 100, height: 40),
         SizedBox(width: 12),
         Container(
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -891,7 +998,10 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildHeaderRightSection(UserSessionProvider provider, ThemeData theme) {
+  Widget _buildHeaderRightSection(
+    ExpertSessionProvider provider,
+    ThemeData theme,
+  ) {
     return Row(
       children: [
         if (provider.timerStarted)
@@ -929,7 +1039,7 @@ class _UserSessionBody extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
-            'User',
+            'Expert ${provider.isHostExpert ? "(Host)" : ""}',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -941,7 +1051,7 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildMeetingInfo(UserSessionProvider provider, ThemeData theme) {
+  Widget _buildMeetingInfo(ExpertSessionProvider provider, ThemeData theme) {
     return Row(
       children: [
         Text(
@@ -964,7 +1074,11 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildMediaWarningBanner(String error, ThemeData theme, bool isDarkMode) {
+  Widget _buildMediaWarningBanner(
+    String error,
+    ThemeData theme,
+    bool isDarkMode,
+  ) {
     return Container(
       color: isDarkMode ? Color(0xFF422006) : Color(0xFFFFFBEB),
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -1003,21 +1117,23 @@ class _UserSessionBody extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            icon: Icon(Icons.close, size: 16),
-            onPressed: () {},
-          ),
+          IconButton(icon: Icon(Icons.close, size: 16), onPressed: () {}),
         ],
       ),
     );
   }
 
-  Widget _buildTimeWarningBanner(int timeRemaining, ThemeData theme, bool isDarkMode) {
+  Widget _buildTimeWarningBanner(
+    int timeRemaining,
+    ThemeData theme,
+    bool isDarkMode,
+  ) {
     final isCritical = timeRemaining <= 60;
     return Container(
-      color: isCritical 
-          ? (isDarkMode ? Color(0xFF2B1112) : Color(0xFFFEF2F2))
-          : (isDarkMode ? Color(0xFF422006) : Color(0xFFFFFBEB)),
+      color:
+          isCritical
+              ? (isDarkMode ? Color(0xFF2B1112) : Color(0xFFFEF2F2))
+              : (isDarkMode ? Color(0xFF422006) : Color(0xFFFFFBEB)),
       padding: EdgeInsets.symmetric(vertical: 10),
       child: Center(
         child: Row(
@@ -1027,26 +1143,26 @@ class _UserSessionBody extends StatelessWidget {
               width: 20,
               height: 20,
               decoration: BoxDecoration(
-                color: isCritical 
-                    ? (isDarkMode ? Color(0xFFFCA5A5) : Color(0xFFEF4444))
-                    : (isDarkMode ? Color(0xFFFCD34D) : Color(0xFFF59E0B)),
+                color:
+                    isCritical
+                        ? (isDarkMode ? Color(0xFFFCA5A5) : Color(0xFFEF4444))
+                        : (isDarkMode ? Color(0xFFFCD34D) : Color(0xFFF59E0B)),
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: Icon(
-                  Icons.timer,
-                  size: 12,
-                  color: Colors.white,
-                ),
+                child: Icon(Icons.timer, size: 12, color: Colors.white),
               ),
             ),
             SizedBox(width: 8),
             Text(
-              isCritical ? 'Final Minute! - Session ending soon' : '2 Minutes Remaining - Session ending soon',
+              isCritical
+                  ? 'Final Minute! - Session ending soon'
+                  : '2 Minutes Remaining - Session ending soon',
               style: TextStyle(
-                color: isCritical 
-                    ? (isDarkMode ? Color(0xFFFCA5A5) : Color(0xFFB91C1C))
-                    : (isDarkMode ? Color(0xFFFCD34D) : Color(0xFF92400E)),
+                color:
+                    isCritical
+                        ? (isDarkMode ? Color(0xFFFCA5A5) : Color(0xFFB91C1C))
+                        : (isDarkMode ? Color(0xFFFCD34D) : Color(0xFF92400E)),
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
               ),
@@ -1057,7 +1173,12 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildPreJoinScreen(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize) {
+  Widget _buildPreJoinScreen(
+    ExpertSessionProvider provider,
+    ThemeData theme,
+    bool isDarkMode,
+    Size screenSize,
+  ) {
     return Center(
       child: SingleChildScrollView(
         child: Container(
@@ -1094,7 +1215,9 @@ class _UserSessionBody extends StatelessWidget {
               ),
               SizedBox(height: 24),
               Text(
-                'Ready to Connect',
+                provider.isHostExpert
+                    ? 'Ready to Start Expert Session'
+                    : 'Ready to Join Expert Session',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
@@ -1103,7 +1226,9 @@ class _UserSessionBody extends StatelessWidget {
               ),
               SizedBox(height: 12),
               Text(
-                'Join your ${provider.sessionDuration}-minute consultation with the expert',
+                provider.isHostExpert
+                    ? 'Begin your ${provider.sessionDuration}-minute consultation session'
+                    : 'Join the ${provider.sessionDuration}-minute expert consultation',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -1126,17 +1251,16 @@ class _UserSessionBody extends StatelessWidget {
                     Icon(Icons.videocam, size: 20),
                     SizedBox(width: 10),
                     Text(
-                      'Join Consultation',
-                      style: TextStyle(fontSize: 16),
+                      provider.isHostExpert
+                          ? 'Start Expert Session'
+                          : 'Join the Session',
+                      style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ],
                 ),
               ),
               SizedBox(height: 24),
-              Image.asset(
-                'assets/images/Shourk_logo.png',
-                width: 100,
-              ),
+              Image.asset('assets/images/Shourk_logo.png', width: 100),
             ],
           ),
         ),
@@ -1144,41 +1268,75 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildVideoGrid(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize, bool isPortrait) {
+  Widget _buildVideoGrid(
+    ExpertSessionProvider provider,
+    ThemeData theme,
+    bool isDarkMode,
+    Size screenSize,
+    bool isPortrait,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(12.0),
-      child: isPortrait
-          ? Column(
-              children: [
-                _buildLocalVideo(provider, theme, isDarkMode, screenSize),
-                SizedBox(height: 16),
-                ...provider.participants.map((p) => 
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: _buildParticipantVideo(p, theme, isDarkMode, screenSize),
+      child:
+          isPortrait
+              ? Column(
+                children: [
+                  _buildLocalVideo(provider, theme, isDarkMode, screenSize),
+                  SizedBox(height: 16),
+                  ...provider.participants.map(
+                    (p) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _buildParticipantVideo(
+                        p,
+                        theme,
+                        isDarkMode,
+                        screenSize,
+                      ),
+                    ),
                   ),
-                ),
-                if (provider.participants.isEmpty)
-                  _buildWaitingForExpert(theme, isDarkMode, screenSize),
-              ],
-            )
-          : GridView.count(
-              shrinkWrap: true,
-              crossAxisCount: 2,
-              childAspectRatio: 4/3,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              children: [
-                _buildLocalVideo(provider, theme, isDarkMode, screenSize),
-                ...provider.participants.map((p) => _buildParticipantVideo(p, theme, isDarkMode, screenSize)),
-                if (provider.participants.isEmpty)
-                  _buildWaitingForExpert(theme, isDarkMode, screenSize),
-              ],
-            ),
+                  if (provider.participants.isEmpty)
+                    _buildWaitingForUser(
+                      theme,
+                      isDarkMode,
+                      screenSize,
+                      provider,
+                    ),
+                ],
+              )
+              : GridView.count(
+                shrinkWrap: true,
+                crossAxisCount: 2,
+                childAspectRatio: 4 / 3,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                children: [
+                  _buildLocalVideo(provider, theme, isDarkMode, screenSize),
+                  ...provider.participants.map(
+                    (p) => _buildParticipantVideo(
+                      p,
+                      theme,
+                      isDarkMode,
+                      screenSize,
+                    ),
+                  ),
+                  if (provider.participants.isEmpty)
+                    _buildWaitingForUser(
+                      theme,
+                      isDarkMode,
+                      screenSize,
+                      provider,
+                    ),
+                ],
+              ),
     );
   }
 
-  Widget _buildLocalVideo(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize) {
+  Widget _buildLocalVideo(
+    ExpertSessionProvider provider,
+    ThemeData theme,
+    bool isDarkMode,
+    Size screenSize,
+  ) {
     return Container(
       height: screenSize.height * 0.3,
       decoration: BoxDecoration(
@@ -1194,7 +1352,7 @@ class _UserSessionBody extends StatelessWidget {
               ),
               child: Placeholder(),
             ),
-          
+
           if (!provider.isVideoOn)
             Center(
               child: Column(
@@ -1207,15 +1365,11 @@ class _UserSessionBody extends StatelessWidget {
                       color: isDarkMode ? Color(0xFF1E293B) : Color(0xFF334155),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      Icons.person,
-                      size: 30,
-                      color: Colors.white70,
-                    ),
+                    child: Icon(Icons.person, size: 30, color: Colors.white70),
                   ),
                   SizedBox(height: 12),
                   Text(
-                    'You',
+                    'You (Expert)',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -1225,15 +1379,12 @@ class _UserSessionBody extends StatelessWidget {
                   SizedBox(height: 6),
                   Text(
                     'Camera is off',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ],
               ),
             ),
-          
+
           Positioned(
             bottom: 12,
             left: 12,
@@ -1246,7 +1397,7 @@ class _UserSessionBody extends StatelessWidget {
               child: Row(
                 children: [
                   Text(
-                    'You - User',
+                    'You - Expert',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w500,
@@ -1259,7 +1410,7 @@ class _UserSessionBody extends StatelessWidget {
               ),
             ),
           ),
-          
+
           Positioned(
             top: 12,
             left: 12,
@@ -1270,7 +1421,7 @@ class _UserSessionBody extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                'You',
+                'Expert ${provider.isHostExpert ? "(Host)" : ""}',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -1284,7 +1435,12 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildParticipantVideo(Participant participant, ThemeData theme, bool isDarkMode, Size screenSize) {
+  Widget _buildParticipantVideo(
+    Participant participant,
+    ThemeData theme,
+    bool isDarkMode,
+    Size screenSize,
+  ) {
     return Container(
       height: screenSize.height * 0.3,
       decoration: BoxDecoration(
@@ -1300,7 +1456,7 @@ class _UserSessionBody extends StatelessWidget {
               ),
               child: Placeholder(),
             ),
-          
+
           if (!participant.video)
             Center(
               child: Column(
@@ -1313,11 +1469,7 @@ class _UserSessionBody extends StatelessWidget {
                       color: isDarkMode ? Color(0xFF1E293B) : Color(0xFF334155),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      Icons.person,
-                      size: 30,
-                      color: Colors.white70,
-                    ),
+                    child: Icon(Icons.person, size: 30, color: Colors.white70),
                   ),
                   SizedBox(height: 12),
                   Text(
@@ -1331,15 +1483,12 @@ class _UserSessionBody extends StatelessWidget {
                   SizedBox(height: 6),
                   Text(
                     'Camera is off',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ],
               ),
             ),
-          
+
           Positioned(
             bottom: 12,
             left: 12,
@@ -1365,16 +1514,17 @@ class _UserSessionBody extends StatelessWidget {
               ),
             ),
           ),
-          
+
           Positioned(
             top: 12,
             left: 12,
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: participant.isHost 
-                    ? theme.colorScheme.secondary 
-                    : theme.colorScheme.primary,
+                color:
+                    participant.isHost
+                        ? theme.colorScheme.secondary
+                        : theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -1401,11 +1551,7 @@ class _UserSessionBody extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            isOn ? Icons.mic : Icons.mic_off,
-            size: 12,
-            color: Colors.white,
-          ),
+          Icon(isOn ? Icons.mic : Icons.mic_off, size: 12, color: Colors.white),
           SizedBox(width: 4),
           Text(
             isOn ? 'Live' : 'Muted',
@@ -1420,7 +1566,12 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildWaitingForExpert(ThemeData theme, bool isDarkMode, Size screenSize) {
+  Widget _buildWaitingForUser(
+    ThemeData theme,
+    bool isDarkMode,
+    Size screenSize,
+    ExpertSessionProvider provider,
+  ) {
     return Container(
       height: screenSize.height * 0.3,
       decoration: BoxDecoration(
@@ -1451,7 +1602,7 @@ class _UserSessionBody extends StatelessWidget {
             ),
             SizedBox(height: 16),
             Text(
-              'Waiting for Expert',
+              'Waiting for User',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -1460,7 +1611,7 @@ class _UserSessionBody extends StatelessWidget {
             ),
             SizedBox(height: 8),
             Text(
-              'The consultation will begin once the expert connects to the session',
+              'The consultation will begin once the user connects to the session',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -1496,16 +1647,18 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildFooterControls(UserSessionProvider provider, ThemeData theme, bool isDarkMode) {
+  Widget _buildFooterControls(
+    ExpertSessionProvider provider,
+    ThemeData theme,
+    bool isDarkMode,
+  ) {
     return SafeArea(
       top: false,
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          border: Border(
-            top: BorderSide(color: theme.dividerColor),
-          ),
+          border: Border(top: BorderSide(color: theme.dividerColor)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1543,26 +1696,22 @@ class _UserSessionBody extends StatelessWidget {
       children: [
         Container(
           decoration: BoxDecoration(
-            color: isActive 
-                ? theme.colorScheme.surface.withOpacity(0.3) 
-                : Colors.red,
+            color:
+                isActive
+                    ? theme.colorScheme.surface.withOpacity(0.3)
+                    : Colors.red,
             shape: BoxShape.circle,
           ),
           child: IconButton(
             icon: Icon(icon, size: 20),
-            color: isActive 
-                ? theme.colorScheme.onSurface 
-                : Colors.white,
+            color: isActive ? theme.colorScheme.onSurface : Colors.white,
             onPressed: onPressed,
           ),
         ),
         SizedBox(height: 6),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            color: theme.colorScheme.onSurface,
-          ),
+          style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface),
         ),
       ],
     );

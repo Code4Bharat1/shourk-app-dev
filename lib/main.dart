@@ -41,6 +41,8 @@ import 'package:shourk_application/user/navbar/user_session_call.dart';
 
 import 'user/navbar/user_bottom_navbar.dart';
 
+import 'expert/navbar/expert_session_call.dart';
+
 import 'start_page.dart';
 
 void main() {
@@ -107,6 +109,9 @@ class MyApp extends StatelessWidget {
           '/payment-history': (context) => const PaymentHistoryPage(),
           '/deactivate-account': (context) => const DeactivateAccountScreen(),
           
+          
+
+
           //Expert Upper navbar search screen 
           '/search-experts': (context) => const ExpertSearchScreen(),
 

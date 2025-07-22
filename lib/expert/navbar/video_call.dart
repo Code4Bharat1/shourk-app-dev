@@ -1,1733 +1,1220 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'expert_session_call.dart';
 
 class VideoCallPage extends StatefulWidget {
-  final String? sessionId;
-
-  const VideoCallPage({super.key, this.sessionId});
+  const VideoCallPage({Key? key}) : super(key: key);
 
   @override
   _VideoCallPageState createState() => _VideoCallPageState();
 }
 
 class _VideoCallPageState extends State<VideoCallPage> {
-  int _selectedMainTab = 0;
-  int _selectedSubTab = 0;
-  List<Booking> _bookings = [];
-  List<Session> _sessions = [];
+  final String apiUrl = "https://api.shourk.com";
+  
+  String? _userToken;
+  String? _userId;
+  String _activeTab = "bookings";
+  List<dynamic> _mySessions = [];
+  List<dynamic> _myBookings = [];
   bool _loadingBookings = true;
   bool _loadingSessions = true;
-  String? _bookingsError;
-  String? _sessionsError;
-  String? _authToken;
-  final ScrollController _scrollController = ScrollController();
-  String? _highlightedSessionId;
-  Map<String, SessionState> _sessionStates = {};
-  bool _showRateModal = false;
-  Booking? _selectedBooking;
-  double _rating = 0;
+  String? _errorBookings;
+  String? _errorSessions;
+  Map<String, dynamic> _sessionState = {};
   bool _showCancelModal = false;
-  bool _showTermsModal = false;
   dynamic _sessionToCancel;
-  Map<int, bool> _cancellationReasons = {
-    1: false,
-    2: false,
-    3: false,
-    4: false,
-    5: false,
-    6: false,
-  };
-  String _otherReason = '';
-  bool _termsAccepted = false;
   bool _loadingCancel = false;
-  late TextEditingController _otherReasonController;
+  String _sessionFilter = "all";
+  String _firstName = "";
+  String _lastName = "";
+  String? _profileImageUrl;
+  String _userInitials = "E";
 
-  // API endpoints
-  static const String BASE_URL = 'https://amd-api.code4bharat.com';
-  static const String MY_BOOKINGS_URL = '$BASE_URL/api/session/mybookings';
-  static const String EXPERT_SESSIONS_URL = '$BASE_URL/api/session/getexpertsession';
-  static const String REFRESH_TOKEN_URL = '$BASE_URL/api/expertauth/refresh-token';
-  static const String ACCEPT_EXPERT_SESSION_URL = '$BASE_URL/api/expertsession/accept';
-  static const String UPDATE_USER_SESSION_URL = '$BASE_URL/api/usersession';
-  static const String DECLINE_SESSION_URL = '$BASE_URL/api/session/decline';
-  static const String CANCEL_SESSION_URL = '$BASE_URL/api/cancelsession/cancelexpert';
+  // Cancellation reasons
+  List<Map<String, dynamic>> _cancellationReasons = [
+    {"id": 1, "reason": "Schedule conflict", "checked": false},
+    {"id": 2, "reason": "Found alternative solution", "checked": false},
+    {"id": 3, "reason": "Expert not suitable for my needs", "checked": false},
+    {"id": 4, "reason": "Technical issues", "checked": false},
+    {"id": 5, "reason": "Cost concerns", "checked": false},
+    {"id": 6, "reason": "Other", "checked": false},
+  ];
+  String _otherReason = "";
+  bool _termsAccepted = false;
+
+  // Enhanced recursive conversion with type safety
+  dynamic _recursiveConvert(dynamic item) {
+    if (item == null) return null;
+    
+    if (item is Map) {
+      final Map<String, dynamic> result = {};
+      item.forEach((key, value) {
+        final String stringKey = key.toString();
+        result[stringKey] = _recursiveConvert(value);
+      });
+      return result;
+    } 
+    
+    if (item is List) {
+      return item.map(_recursiveConvert).toList();
+    }
+    
+    return item;
+  }
 
   @override
   void initState() {
     super.initState();
-    _otherReasonController = TextEditingController();
-    _highlightedSessionId = widget.sessionId;
-    _initializeApp();
+    _initializeData();
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    _otherReasonController.dispose();
-    super.dispose();
+  Future<void> _initializeData() async {
+    try {
+      await _getValidToken();
+      if (_userToken != null && _userId != null) {
+        await _fetchUserProfile();
+        await _fetchBookings();
+        await _fetchSessions();
+      } else {
+        _handleTokenError("Failed to get valid token");
+      }
+    } catch (e) {
+      _handleTokenError("Initialization failed: ${e.toString()}");
+    }
   }
 
-  Future<void> _initializeApp() async {
-    await _loadAuthToken();
-    _loadData();
-  }
+  Future<void> _getValidToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _userToken = prefs.getString('expertToken');
+      
+      if (_userToken == null) {
+        _handleTokenError("No token found in storage");
+        return;
+      }
 
-  Future<void> _loadAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _authToken = prefs.getString('expertToken');
-    });
+      // Decode token to get userId
+      Map<String, dynamic> decodedToken = JwtDecoder.decode(_userToken!);
+      _userId = decodedToken['_id'];
+      
+      // Check if token is expired
+      if (JwtDecoder.isExpired(_userToken!)) {
+        await _refreshToken();
+      }
+    } catch (e) {
+      _handleTokenError("Token parsing failed: ${e.toString()}");
+    }
   }
 
   Future<void> _refreshToken() async {
-    if (_authToken == null) return;
-    
     try {
       final response = await http.post(
-        Uri.parse(REFRESH_TOKEN_URL),
-        headers: {
-          'Authorization': 'Bearer $_authToken',
-          'Content-Type': 'application/json',
-        },
+        Uri.parse('$apiUrl/api/expertauth/refresh-token'),
+        headers: {'Authorization': 'Bearer $_userToken'},
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final newToken = data['newToken'];
-        if (newToken != null) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('expertToken', newToken);
-          setState(() {
-            _authToken = newToken;
-          });
-        }
+        _userToken = data['newToken'];
+        
+        // Save the new token
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('expertToken', _userToken!);
+      } else if (response.statusCode == 402) {
+        _handlePaymentError();
+      } else {
+        _handleTokenError(
+            "Token refresh failed with status: ${response.statusCode}\nBody: ${response.body}");
       }
     } catch (e) {
-      print('Token refresh failed: $e');
+      _handleTokenError("Token refresh error: ${e.toString()}");
     }
   }
 
-  Future<http.Response> _authenticatedRequest(Future<http.Response> Function() request) async {
-    if (_authToken == null) {
-      await _loadAuthToken();
-    }
-    
-    http.Response response = await request();
-    
-    if (response.statusCode == 401) {
-      await _refreshToken();
-      response = await request();
-    }
-    
-    return response;
+  void _handleTokenError(String message) {
+    print("🔑 Token Error: $message");
+    setState(() {
+      _errorBookings = "Authentication error. Please log in again.";
+      _errorSessions = "Authentication error. Please log in again.";
+      _loadingBookings = false;
+      _loadingSessions = false;
+    });
   }
 
-  Future<void> _loadData() async {
-    if (_authToken == null) {
-      setState(() {
-        _loadingBookings = false;
-        _loadingSessions = false;
-        _bookingsError = 'Authentication token not found';
-        _sessionsError = 'Authentication token not found';
-      });
-      return;
-    }
-    
-    await Future.wait([
-      _fetchBookings(),
-      _fetchSessions(),
-    ]);
-
-    if (_highlightedSessionId != null) {
-      _scrollToHighlightedSession();
-    }
+  void _handlePaymentError() {
+    print("💳 Payment Required (402) Error");
+    setState(() {
+      _errorBookings = "Payment required. Please check your subscription.";
+      _errorSessions = "Payment required. Please check your subscription.";
+      _loadingBookings = false;
+      _loadingSessions = false;
+    });
   }
 
-  void _scrollToHighlightedSession() {
-    final index = _sessions.indexWhere((s) => s.id == _highlightedSessionId);
-    if (index != -1) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollController.animateTo(
-          index * 200.0,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-      });
+  Future<void> _fetchUserProfile() async {
+    try {
+      final response = await _authenticatedGet('/api/expertauth/$_userId');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data is Map && data['success'] == true) {
+          final userData = data['data'] as Map<String, dynamic>?;
+          setState(() {
+            _firstName = userData?['firstName']?.toString() ?? '';
+            _lastName = userData?['lastName']?.toString() ?? '';
+            _profileImageUrl = userData?['photoFile']?.toString();
+            _userInitials = _getUserInitials(_firstName, _lastName);
+          });
+        } else {
+          print("❌ Invalid profile response structure: $data");
+        }
+      } else if (response.statusCode == 402) {
+        _handlePaymentError();
+      } else {
+        print("⚠️ Profile fetch failed: ${response.statusCode}\n${response.body}");
+      }
+    } catch (e) {
+      print("🚨 Profile fetch error: ${e.toString()}");
     }
   }
 
   Future<void> _fetchBookings() async {
-    setState(() {
-      _loadingBookings = true;
-      _bookingsError = null;
-    });
-
+    setState(() => _loadingBookings = true);
+    
     try {
-      final response = await _authenticatedRequest(() async {
-        return await http.get(
-          Uri.parse(MY_BOOKINGS_URL),
-          headers: {
-            'Authorization': 'Bearer $_authToken',
-            'Content-Type': 'application/json',
-          },
-        );
-      });
-
+      final response = await _authenticatedGet('/api/session/mybookings');
+      
       if (response.statusCode == 200) {
-        final List<dynamic> rawData = json.decode(response.body);
-        final List<Booking> parsedBookings = [];
+        final data = json.decode(response.body);
+        final convertedData = _recursiveConvert(data);
         
-        for (var item in rawData) {
-          try {
-            parsedBookings.add(Booking.fromJson(item));
-          } catch (e) {
-            print('Error parsing booking: $e');
+        // Validate and handle different response structures
+        if (convertedData is List) {
+          setState(() => _myBookings = convertedData);
+        } 
+        else if (convertedData is Map && convertedData.containsKey('data')) {
+          final bookingsData = convertedData['data'];
+          if (bookingsData is List) {
+            setState(() => _myBookings = bookingsData);
+          } else {
+            throw Exception("Bookings data is not a list");
           }
         }
-        
-        setState(() {
-          _bookings = parsedBookings;
-          _loadingBookings = false;
-        });
+        else {
+          throw Exception("Unexpected bookings response structure");
+        }
+      } else if (response.statusCode == 402) {
+        _handlePaymentError();
       } else {
-        setState(() {
-          _loadingBookings = false;
-          _bookingsError = 'Failed to load bookings (Status: ${response.statusCode})';
-        });
+        setState(() => _errorBookings = "Failed to load bookings: ${response.statusCode}\n${response.body}");
       }
     } catch (e) {
-      setState(() {
-        _loadingBookings = false;
-        _bookingsError = 'Network error: ${e.toString()}';
-      });
+      setState(() => _errorBookings = "Bookings error: ${e.toString()}");
+      print("🚨 Bookings fetch error: ${e.toString()}");
+    } finally {
+      setState(() => _loadingBookings = false);
     }
   }
 
   Future<void> _fetchSessions() async {
-    setState(() {
-      _loadingSessions = true;
-      _sessionsError = null;
-    });
+    setState(() => _loadingSessions = true);
 
     try {
-      final response = await _authenticatedRequest(() async {
+      final response = await _authenticatedGet('/api/session/getexpertsession');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final convertedData = _recursiveConvert(data);
+        print("🔍 Raw sessions response: $convertedData");
+
+        // Validate response structure
+        if (convertedData is! Map) {
+          throw Exception("Sessions response is not a map");
+        }
+
+        // Extract sessions with type safety
+        final expertSessions = _extractSessions(convertedData, 'expertSessions');
+        final userSessions = _extractSessions(convertedData, 'userSessions');
+
+        final combined = [
+          ...expertSessions.map((s) => {...s, 'type': 'Expert'}),
+          ...userSessions.map((s) => {...s, 'type': 'User'}),
+        ];
+
+        setState(() => _mySessions = combined);
+      } else if (response.statusCode == 402) {
+        _handlePaymentError();
+      } else {
+        setState(() => _errorSessions = "Failed to load sessions: ${response.statusCode}\n${response.body}");
+      }
+    } catch (e) {
+      setState(() => _errorSessions = "Sessions error: ${e.toString()}");
+      print("🚨 Sessions fetch error: ${e.toString()}");
+    } finally {
+      setState(() => _loadingSessions = false);
+    }
+  }
+
+  List<Map<String, dynamic>> _extractSessions(Map<String, dynamic> data, String key) {
+    try {
+      final sessions = data[key];
+      if (sessions is List) {
+        return sessions.whereType<Map<String, dynamic>>().toList();
+      }
+      return [];
+    } catch (e) {
+      print("⚠️ Error extracting $key sessions: ${e.toString()}");
+      return [];
+    }
+  }
+
+  Future<http.Response> _authenticatedGet(String path) async {
+    await _getValidToken();
+    final url = Uri.parse('$apiUrl$path');
+    
+    if (_userToken == null) {
+      return http.Response('No token available', 401);
+    }
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $_userToken'},
+      );
+
+      if (response.statusCode == 402) {
+        return response;
+      }
+
+      if (response.statusCode == 401) {
+        await _refreshToken();
         return await http.get(
-          Uri.parse(EXPERT_SESSIONS_URL),
-          headers: {
-            'Authorization': 'Bearer $_authToken',
-            'Content-Type': 'application/json',
-          },
+          url,
+          headers: {'Authorization': 'Bearer $_userToken'},
         );
-      });
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> rawData = json.decode(response.body);
-        final List<Session> sessions = [];
-        
-        // Parse expert sessions
-        if (rawData.containsKey('expertSessions')) {
-          for (var item in rawData['expertSessions']) {
-            try {
-              sessions.add(Session.fromExpertJson(item));
-              _sessionStates[item['_id']] = SessionState();
-            } catch (e) {
-              print('Error parsing expert session: $e');
-            }
-          }
-        }
-        
-        // Parse user sessions
-        if (rawData.containsKey('userSessions')) {
-          for (var item in rawData['userSessions']) {
-            try {
-              sessions.add(Session.fromUserJson(item));
-              _sessionStates[item['_id']] = SessionState();
-            } catch (e) {
-              print('Error parsing user session: $e');
-            }
-          }
-        }
-        
-        setState(() {
-          _sessions = sessions;
-          _loadingSessions = false;
-        });
-      } else {
-        setState(() {
-          _loadingSessions = false;
-          _sessionsError = 'Failed to load sessions (Status: ${response.statusCode})';
-        });
       }
+
+      return response;
     } catch (e) {
-      setState(() {
-        _loadingSessions = false;
-        _sessionsError = 'Network error: ${e.toString()}';
-      });
+      rethrow;
     }
   }
 
-  Future<void> _acceptSession(Session session) async {
-    if (_authToken == null) return;
-    
-    try {
-      final sessionState = _sessionStates[session.id];
-      if (sessionState == null || 
-          sessionState.selectedDate == null || 
-          sessionState.selectedTime == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select date and time')),
-        );
-        return;
-      }
-      
-      dynamic response;
-      
-      if (session.sessionType == "Expert To Expert") {
-        response = await _authenticatedRequest(() async {
-          return await http.put(
-            Uri.parse(ACCEPT_EXPERT_SESSION_URL),
-            headers: {
-              'Authorization': 'Bearer $_authToken',
-              'Content-Type': 'application/json',
-            },
-            body: json.encode({
-              'id': session.id,
-              'selectedDate': sessionState.selectedDate,
-              'selectedTime': sessionState.selectedTime,
-            }),
-          );
-        });
-      } else {
-        response = await _authenticatedRequest(() async {
-          return await http.patch(
-            Uri.parse('$UPDATE_USER_SESSION_URL/${session.id}/status'),
-            headers: {
-              'Authorization': 'Bearer $_authToken',
-              'Content-Type': 'application/json',
-            },
-            body: json.encode({'status': 'confirmed'}),
-          );
-        });
-      }
-      
-      if (response.statusCode == 200) {
-        setState(() {
-          _sessions = _sessions.map((s) {
-            if (s.id == session.id) {
-              return s.copyWith(
-                status: 'confirmed',
-                sessionDate: sessionState.selectedDate!,
-                sessionTime: sessionState.selectedTime!,
-              );
-            }
-            return s;
-          }).toList();
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session accepted successfully')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to accept session: ${response.body}')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error accepting session: $e')),
-      );
-    }
-  }
-
-  Future<void> _declineSession(Session session) async {
-    if (_authToken == null) return;
-    
-    try {
-      final response = await _authenticatedRequest(() async {
-        return await http.put(
-          Uri.parse(DECLINE_SESSION_URL),
-          headers: {
-            'Authorization': 'Bearer $_authToken',
-            'Content-Type': 'application/json',
-          },
-          body: json.encode({'id': session.id}),
-        );
-      });
-      
-      if (response.statusCode == 200) {
-        setState(() {
-          _sessions = _sessions.map((s) {
-            if (s.id == session.id) {
-              return s.copyWith(status: 'rejected');
-            }
-            return s;
-          }).toList();
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session declined successfully')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to decline session: ${response.body}')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error declining session: $e')),
-      );
-    }
-  }
-
-  Future<void> _cancelSession(dynamic session) async {
-    if (_authToken == null) return;
-    
-    try {
-      final response = await _authenticatedRequest(() async {
-        return await http.post(
-          Uri.parse(CANCEL_SESSION_URL),
-          headers: {
-            'Authorization': 'Bearer $_authToken',
-            'Content-Type': 'application/json',
-          },
-          body: json.encode({
-            'sessionId': session.id,
-            'sessionModel': session is Booking ? 'Booking' : 'Session',
-          }),
-        );
-      });
-      
-      if (response.statusCode == 200) {
-        setState(() {
-          if (session is Booking) {
-            _bookings = _bookings.map((b) {
-              if (b.id == session.id) {
-                return b.copyWith(status: 'cancelled');
-              }
-              return b;
-            }).toList();
-          } else {
-            _sessions = _sessions.map((s) {
-              if (s.id == session.id) {
-                return s.copyWith(status: 'cancelled');
-              }
-              return s;
-            }).toList();
-          }
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session cancelled successfully')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to cancel session: ${response.body}')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error cancelling session: $e')),
-      );
-    }
-  }
-
-  Future<void> _joinMeeting(String? meetingLink) async {
-    if (meetingLink == null || meetingLink.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Meeting link not available')),
-      );
-      return;
-    }
-    
-    if (await canLaunch(meetingLink)) {
-      await launch(meetingLink);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not launch meeting')),
-      );
-    }
-  }
-
-  String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('MMM dd, yyyy').format(date);
-    } catch (e) {
-      return dateString;
-    }
-  }
-
-  String _formatShortDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('E, MMM dd').format(date);
-    } catch (e) {
-      return dateString;
-    }
+  String _getUserInitials(String firstName, String lastName) {
+    String initials = "";
+    if (firstName.isNotEmpty) initials += firstName[0];
+    if (lastName.isNotEmpty) initials += lastName[0];
+    return initials.isNotEmpty ? initials.toUpperCase() : "E";
   }
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case "confirmed":
-        return Color(0xFF4CAF50);
-      case "completed":
-        return Color(0xFF2196F3);
-      case "unconfirmed":
-        return Color(0xFFFF9800);
-      case "rejected":
-      case "cancelled":
-        return Color(0xFFF44336);
-      default:
-        return Colors.grey;
+      case 'confirmed': return Colors.green;
+      case 'pending': return Colors.orange;
+      case 'rejected': return Colors.red;
+      case 'completed': return Colors.blue;
+      case 'cancelled': return Colors.red[400]!;
+      default: return Colors.grey;
     }
   }
 
-  Widget _buildErrorWidget(String error) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      margin: EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.error_outline, color: Colors.red, size: 48),
-          SizedBox(height: 8),
-          Text(
-            'Error',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.red.shade700,
-              fontSize: 16,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            error,
-            style: TextStyle(color: Colors.red.shade600),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: _loadData,
-            child: Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMainTabs() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => setState(() => _selectedMainTab = 0),
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: _selectedMainTab == 0 ? Color(0xFF121212) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    "My Bookings",
-                    style: TextStyle(
-                      color: _selectedMainTab == 0 ? Colors.white : Color(0xFF666666),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: InkWell(
-              onTap: () => setState(() => _selectedMainTab = 1),
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: _selectedMainTab == 1 ? Color(0xFF121212) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    "My Sessions",
-                    style: TextStyle(
-                      color: _selectedMainTab == 1 ? Colors.white : Color(0xFF666666),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSubTabs() {
-    if (_selectedMainTab != 1) return SizedBox.shrink();
-    
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: ["All", "User Sessions", "Expert Sessions"]
-            .asMap()
-            .entries
-            .map((e) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                  child: ChoiceChip(
-                    label: Text(e.value, style: TextStyle(fontSize: 12)),
-                    selected: _selectedSubTab == e.key,
-                    selectedColor: Color(0xFF121212),
-                    labelStyle: TextStyle(
-                      color: _selectedSubTab == e.key ? Colors.white : Colors.black,
-                    ),
-                    onSelected: (selected) {
-                      setState(() => _selectedSubTab = e.key);
-                    },
-                  ),
-                ))
-            .toList(),
-      ),
-    );
-  }
-
-  Widget _buildBookingCard(Booking booking) {
-    return Card(
-      margin: EdgeInsets.only(bottom: 16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Color(0xFFEEEEEE)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Consultation",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Color(0xFF121212),
-                    ),
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(booking.status).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      booking.status.toUpperCase(),
-                      style: TextStyle(
-                        color: _getStatusColor(booking.status),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-              
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "Session Type: ",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF666666),
-                      ),
-                    ),
-                    TextSpan(
-                      text: booking.sessionType,
-                      style: TextStyle(color: Color(0xFF666666)),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 8),
-              
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "Duration: ",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF666666),
-                      ),
-                    ),
-                    TextSpan(
-                      text: booking.duration,
-                      style: TextStyle(color: Color(0xFF666666)),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 16),
-              
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "Client: ",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF121212),
-                      ),
-                    ),
-                    TextSpan(
-                      text: booking.clientName,
-                      style: TextStyle(color: Color(0xFF121212)),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 4),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "Expert: ",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF666666),
-                      ),
-                    ),
-                    TextSpan(
-                      text: booking.expertName,
-                      style: TextStyle(color: Color(0xFF666666)),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 16),
-              
-              Text(
-                "Scheduled Time:",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF121212),
-                ),
-              ),
-              SizedBox(height: 8),
-              if (booking.sessionDate.isNotEmpty) ...[
-                Text(
-                  _formatShortDate(booking.sessionDate),
-                  style: TextStyle(
-                    color: Color(0xFF121212),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  booking.sessionTime,
-                  style: TextStyle(color: Color(0xFF666666)),
-                ),
-              ] else ...[
-                Text(
-                  "Not scheduled",
-                  style: TextStyle(color: Color(0xFF666666)),
-                ),
-              ],
-              SizedBox(height: 16),
-              
-              if (booking.status == "confirmed")
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Ready to join",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF121212),
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => _joinMeeting(booking.meetingLink),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF4CAF50),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
-                      child: Text("Join Meeting"),
-                    ),
-                  ],
-                ),
-              
-              if (booking.status == "completed")
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _showRateModal = true;
-                      _selectedBooking = booking;
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text("Rate This Session"),
-                ),
-              
-              if (booking.status == "confirmed" || booking.status == "unconfirmed")
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _sessionToCancel = booking;
-                      _showCancelModal = true;
-                    });
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.red,
-                  ),
-                  child: Text("Cancel Booking"),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSessionCard(Session session) {
-    final isUnconfirmed = session.status == "unconfirmed";
-    final isHighlighted = session.id == _highlightedSessionId;
-    final sessionState = _sessionStates[session.id] ?? SessionState();
-    final availableSlots = _groupSlotsByDate(session.slots);
-
-    return Card(
-      margin: EdgeInsets.only(bottom: 16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isHighlighted ? Colors.blue : Color(0xFFEEEEEE), width: isHighlighted ? 2 : 1),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Session",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Color(0xFF121212),
-                    ),
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(session.status).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      session.status.toUpperCase(),
-                      style: TextStyle(
-                        color: _getStatusColor(session.status),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-              
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "Session Type: ",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF666666),
-                      ),
-                    ),
-                    TextSpan(
-                      text: session.sessionType,
-                      style: TextStyle(color: Color(0xFF666666)),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 8),
-              
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "Duration: ",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF666666),
-                      ),
-                    ),
-                    TextSpan(
-                      text: session.duration,
-                      style: TextStyle(color: Color(0xFF666666)),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 16),
-              
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "Client: ",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF121212),
-                      ),
-                    ),
-                    TextSpan(
-                      text: session.clientName,
-                      style: TextStyle(color: Color(0xFF121212)),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 4),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "Expert: ",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF666666),
-                      ),
-                    ),
-                    TextSpan(
-                      text: session.expertName,
-                      style: TextStyle(color: Color(0xFF666666)),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 16),
-              
-              Text(
-                "Scheduled Time:",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF121212),
-                ),
-              ),
-              SizedBox(height: 8),
-              if (session.sessionDate.isNotEmpty) ...[
-                Text(
-                  _formatShortDate(session.sessionDate),
-                  style: TextStyle(
-                    color: Color(0xFF121212),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  session.sessionTime,
-                  style: TextStyle(color: Color(0xFF666666)),
-                ),
-              ] else if (isUnconfirmed) ...[
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    DropdownButtonFormField<String>(
-                      value: sessionState.selectedDate,
-                      decoration: InputDecoration(
-                        labelText: 'Select Date',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: availableSlots.keys.map((date) {
-                        return DropdownMenuItem(
-                          value: date,
-                          child: Text(_formatShortDate(date)),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          sessionState.selectedDate = value;
-                          sessionState.selectedTime = null;
-                        });
-                      },
-                    ),
-                    SizedBox(height: 10),
-                    if (sessionState.selectedDate != null)
-                      DropdownButtonFormField<String>(
-                        value: sessionState.selectedTime,
-                        decoration: InputDecoration(
-                          labelText: 'Select Time',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: availableSlots[sessionState.selectedDate]?.map((time) {
-                          return DropdownMenuItem(
-                            value: time,
-                            child: Text(time),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            sessionState.selectedTime = value;
-                          });
-                        },
-                      ),
-                  ],
-                ),
-              ] else ...[
-                Text(
-                  "Not scheduled",
-                  style: TextStyle(color: Color(0xFF666666)),
-                ),
-              ],
-              SizedBox(height: 16),
-              
-              if (session.notes.isNotEmpty) ...[
-                Text(
-                  "Notes:",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF121212),
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  session.notes,
-                  style: TextStyle(color: Color(0xFF666666)),
-                ),
-                SizedBox(height: 16),
-              ],
-              
-              if (isUnconfirmed)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Action Required",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF121212),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        ElevatedButton(
-                          onPressed: () => _declineSession(session),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFFF44336),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          child: Text("Decline"),
-                        ),
-                        SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () => _acceptSession(session),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF4CAF50),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          child: Text("Accept"),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              
-              if (session.status == "confirmed")
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Ready to join",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF121212),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            // TODO: Implement chat functionality
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                          ),
-                          child: Text("Chat"),
-                        ),
-                        SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () => _joinMeeting(session.meetingLink),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF4CAF50),
-                            foregroundColor: Colors.white,
-                          ),
-                          child: Text("Join Meeting"),
-                        ),
-                        SizedBox(width: 8),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _sessionToCancel = session;
-                              _showCancelModal = true;
-                            });
-                          },
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.red,
-                          ),
-                          child: Text("Cancel"),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Map<String, List<String>> _groupSlotsByDate(List<Slot> slots) {
-    final Map<String, List<String>> grouped = {};
-    for (var slot in slots) {
-      if (slot.selectedDate.isNotEmpty) {
-        grouped.putIfAbsent(slot.selectedDate, () => []);
-        grouped[slot.selectedDate]!.add(slot.selectedTime);
-      }
-    }
-    return grouped;
-  }
-
-  Widget _buildCancellationModal() {
-    return AlertDialog(
-      title: Text('Cancel Session'),
-      content: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Please select your reason(s) for cancellation:'),
-            SizedBox(height: 16),
-            ..._cancellationReasons.entries.map((entry) {
-              return CheckboxListTile(
-                title: Text(_getReasonText(entry.key)),
-                value: entry.value,
-                onChanged: (value) {
-                  setState(() {
-                    _cancellationReasons[entry.key] = value!;
-                  });
-                },
-              );
-            }).toList(),
-            if (_cancellationReasons[6] == true) ...[
-              SizedBox(height: 16),
-              TextField(
-                controller: _otherReasonController,
-                decoration: InputDecoration(
-                  labelText: 'Please specify your reason',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) => _otherReason = value,
-              ),
-            ],
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => setState(() => _showCancelModal = false),
-          child: Text('Back'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            if (_cancellationReasons.values.any((value) => value)) {
-              if (_cancellationReasons[6] == true && _otherReason.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Please specify your reason')),
-                );
-                return;
-              }
-              setState(() {
-                _showCancelModal = false;
-                _showTermsModal = true;
-              });
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Please select at least one reason')),
-              );
-            }
-          },
-          child: Text('Next'),
-        ),
-      ],
-    );
-  }
-
-  String _getReasonText(int reasonId) {
-    switch (reasonId) {
-      case 1: return "Schedule conflict";
-      case 2: return "Found alternative solution";
-      case 3: return "Expert not suitable for my needs";
-      case 4: return "Technical issues";
-      case 5: return "Cost concerns";
-      case 6: return "Other";
-      default: return "";
+  String _formatDate(String? dateString) {
+    if (dateString == null) return "N/A";
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('EEE, MMM d').format(date);
+    } catch (e) {
+      return "Invalid date";
     }
   }
 
-  Widget _buildTermsModal() {
-    return AlertDialog(
-      title: Text('Cancellation Terms'),
-      content: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Please read the following terms carefully:'),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('1. Cancellations made within 24 hours of the scheduled session may be subject to a cancellation fee.'),
-                  SizedBox(height: 8),
-                  Text('2. If you cancel more than 24 hours before your scheduled session, you will receive a full refund.'),
-                  SizedBox(height: 8),
-                  Text('3. Expert\'s availability for rescheduling is not guaranteed after cancellation.'),
-                  SizedBox(height: 8),
-                  Text('4. Multiple cancellations may affect your ability to book future sessions.'),
-                  SizedBox(height: 8),
-                  Text('5. For emergency cancellations, please contact customer support directly.'),
-                  SizedBox(height: 8),
-                  Text('6. Refunds will be processed within 5-7 business days to the original payment method.'),
-                  SizedBox(height: 8),
-                  Text('7. We reserve the right to review each cancellation on a case-by-case basis.'),
-                ],
-              ),
-            ),
-            SizedBox(height: 16),
-            CheckboxListTile(
-              title: Text('I have read and agree to the cancellation terms and conditions'),
-              value: _termsAccepted,
-              onChanged: (value) {
-                setState(() {
-                  _termsAccepted = value!;
-                });
-              },
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => setState(() => _showTermsModal = false),
-          child: Text('Back'),
-        ),
-        ElevatedButton(
-          onPressed: _termsAccepted ? () async {
-            setState(() => _loadingCancel = true);
-            await _cancelSession(_sessionToCancel);
-            setState(() {
-              _showTermsModal = false;
-              _loadingCancel = false;
-            });
-          } : null,
-          child: _loadingCancel 
-              ? CircularProgressIndicator(color: Colors.white)
-              : Text('Confirm Cancellation'),
-        ),
-      ],
-    );
+  void _handleDateChange(String sessionId, String date) {
+    setState(() {
+      _sessionState[sessionId] = {
+        ..._sessionState[sessionId] ?? {},
+        "selectedDate": date,
+        "selectedTime": "",
+      };
+    });
   }
 
-  Widget _buildRatingModal() {
-    return AlertDialog(
-      title: Text('Rate This Session'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          RatingBar.builder(
-            initialRating: _rating,
-            minRating: 1,
-            direction: Axis.horizontal,
-            allowHalfRating: true,
-            itemCount: 5,
-            itemPadding: EdgeInsets.symmetric(horizontal: 4.0),
-            itemBuilder: (context, _) => Icon(
-              Icons.star,
-              color: Colors.amber,
-            ),
-            onRatingUpdate: (rating) {
-              setState(() {
-                _rating = rating;
-              });
-            },
-          ),
-          SizedBox(height: 20),
-          TextField(
-            decoration: InputDecoration(
-              labelText: 'Comments (optional)',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            setState(() {
-              _showRateModal = false;
-              _rating = 0;
-            });
-          },
-          child: Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            // TODO: Implement rating submission
-            setState(() {
-              _showRateModal = false;
-              _rating = 0;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Rating submitted successfully')),
-            );
-          },
-          child: Text('Submit'),
-        ),
-      ],
-    );
+  void _handleTimeChange(String sessionId, String time) {
+    setState(() {
+      _sessionState[sessionId] = {
+        ..._sessionState[sessionId] ?? {},
+        "selectedTime": time,
+      };
+    });
+  }
+
+  void _handleCancelClick(dynamic session) {
+    setState(() {
+      _sessionToCancel = session;
+      _showCancelModal = true;
+      _cancellationReasons = _cancellationReasons.map((r) => {...r, "checked": false}).toList();
+      _otherReason = "";
+      _termsAccepted = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: ExpertUpperNavbar(),
-      body: Stack(
+      body: Column(
         children: [
-          SingleChildScrollView(
-            controller: _scrollController,
-            padding: EdgeInsets.all(16),
-            child: Column(
+          // Header with user info
+          _buildUserHeader(),
+          
+          // Tab selection
+          _buildTabBar(),
+          
+          // Main content
+          Expanded(
+            child: _activeTab == "bookings" 
+              ? _buildBookingsTab()
+              : _buildSessionsTab()
+          ),
+        ],
+      ),
+      bottomNavigationBar: ExpertBottomNavbar(currentIndex: 1,),
+    );
+  }
+
+  Widget _buildUserHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: Colors.grey[50],
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.blue[100],
+            backgroundImage: _profileImageUrl != null 
+              ? NetworkImage(_profileImageUrl!) 
+              : null,
+            child: _profileImageUrl == null
+              ? Text(
+                  _userInitials,
+                  style: const TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                )
+              : null,
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Hi, $_firstName $_lastName",
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              const Text(
+                "Video Consultations",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          _buildTabButton("bookings", "My Bookings"),
+          _buildTabButton("sessions", "My Sessions"),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabButton(String tab, String label) {
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _activeTab = tab),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: _activeTab == tab ? Colors.blue : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: _activeTab == tab ? Colors.white : Colors.grey[700],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookingsTab() {
+    if (_loadingBookings) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorBookings != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                _errorBookings!,
+                style: const TextStyle(fontSize: 16, color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+              if (_errorBookings!.contains("Payment required"))
+                ElevatedButton(
+                  onPressed: () {
+                    // Add payment navigation here
+                  },
+                  child: const Text('Resolve Payment'),
+                )
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_myBookings.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.calendar_today, size: 48, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No Bookings Yet',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Your upcoming bookings will appear here',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _myBookings.length,
+      itemBuilder: (context, index) => _buildBookingCard(_myBookings[index]),
+    );
+  }
+
+  Widget _buildBookingCard(Map<String, dynamic> booking) {
+    // Safely extract values with null checks
+    final slots = (booking['slots'] as List?)?[0] ?? [];
+    final status = booking['status']?.toString() ?? 'pending';
+    final expert = booking['consultingExpertID'] as Map<String, dynamic>? ?? {};
+    final expertName = '${expert['firstName'] ?? ''} ${expert['lastName'] ?? ''}';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SizedBox(height: 16),
-                Center(
+                Flexible(
                   child: Text(
-                    'My Video Consultations',
-                    style: TextStyle(
-                      color: Color(0xFF121212),
-                      fontSize: 20,
+                    "Booking with $expertName",
+                    style: const TextStyle(
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                SizedBox(height: 8),
-                Center(
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   child: Text(
-                    'Manage your upcoming and past consultation sessions',
+                    status.toUpperCase(),
                     style: TextStyle(
-                      color: Color(0xFF666666),
-                      fontSize: 14,
+                      color: _getStatusColor(status),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
                     ),
                   ),
                 ),
-                SizedBox(height: 24),
-                _buildMainTabs(),
-                SizedBox(height: 16),
-                _buildSubTabs(),
-                SizedBox(height: 24),
-                
-                if (_authToken == null)
-                  Container(
-                    padding: EdgeInsets.all(16),
-                    margin: EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.shade200),
+              ],
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Details
+            Row(
+              children: [
+                const Icon(Icons.access_time, size: 18, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  '${slots.isNotEmpty ? slots[0]['selectedTime'] : 'TBD'} • ${booking['duration'] ?? ''}',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    booking['sessionType']?.toString() ?? 'Type',
+                    style: TextStyle(
+                      color: Colors.blue[700],
+                      fontSize: 12,
                     ),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // People section
+            const Text(
+              'Participants',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _buildParticipantRow(
+                    icon: Icons.person,
+                    label: 'Client',
+                    name: '${booking['firstName']} ${booking['lastName']}'
+                  ),
+                  const SizedBox(height: 10),
+                  _buildParticipantRow(
+                    icon: Icons.work,
+                    label: 'Expert',
+                    name: expertName
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Slots section
+            const Text(
+              'Booked Slots',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _buildSlotChips(slots),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Actions
+            if (status == 'confirmed') _buildBookingActions(booking),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildParticipantRow({required IconData icon, required String label, required String name}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: Colors.blue),
+        const SizedBox(width: 10),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildSlotChips(List<dynamic> slots) {
+    if (slots.isEmpty) {
+      return [const Chip(label: Text('No slots available'))];
+    }
+    
+    return slots.map((slot) {
+      final date = slot['selectedDate']?.toString();
+      final time = slot['selectedTime']?.toString();
+      
+      return Chip(
+        backgroundColor: Colors.blue[50],
+        label: Text(
+          '${_formatDate(date)} • ${time ?? "N/A"}',
+          style: TextStyle(color: Colors.blue[700]),
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildBookingActions(Map<String, dynamic> booking) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Divider(),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.chat, size: 18),
+                label: const Text('Chat'),
+                onPressed: () => _navigateToChat(),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: BorderSide(color: Colors.blue.shade300),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.videocam, size: 18),
+                label: const Text('Join Meeting'),
+                onPressed: () => _joinMeeting(booking),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () => _handleCancelClick(booking),
+          child: const Text(
+            'Cancel Session',
+            style: TextStyle(color: Colors.red),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSessionsTab() {
+    return Column(
+      children: [
+        // Filter buttons
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildFilterButton("all", "All"),
+              const SizedBox(width: 8),
+              _buildFilterButton("User", "User Sessions"),
+              const SizedBox(width: 8),
+              _buildFilterButton("Expert", "Expert Sessions"),
+            ],
+          ),
+        ),
+        
+        // Content
+        Expanded(
+          child: _loadingSessions 
+            ? const Center(child: CircularProgressIndicator())
+            : _errorSessions != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.warning, color: Colors.orange),
-                        SizedBox(height: 8),
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
                         Text(
-                          'Authentication Required',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange.shade700,
-                          ),
+                          _errorSessions!,
+                          style: const TextStyle(fontSize: 16, color: Colors.red),
+                          textAlign: TextAlign.center,
                         ),
-                        Text(
-                          'Please log in to view your consultations',
-                          style: TextStyle(color: Colors.orange.shade600),
-                        ),
+                        if (_errorSessions!.contains("Payment required"))
+                          ElevatedButton(
+                            onPressed: () {
+                              // Add payment navigation here
+                            },
+                            child: const Text('Resolve Payment'),
+                          )
                       ],
                     ),
                   ),
-                
-                if (_selectedMainTab == 0) ...[
-                  if (_loadingBookings)
-                    Center(
-                      child: Column(
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text(
-                            'Loading bookings...',
-                            style: TextStyle(color: Color(0xFF666666)),
-                          ),
-                        ],
-                      ),
-                    )
-                  else if (_bookingsError != null)
-                    _buildErrorWidget(_bookingsError!)
-                  else if (_bookings.isEmpty)
-                    Center(
-                      child: Column(
-                        children: [
-                          Icon(Icons.calendar_today, size: 64, color: Color(0xFF666666)),
-                          SizedBox(height: 16),
-                          Text(
-                            "No bookings found",
-                            style: TextStyle(
-                              color: Color(0xFF666666),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            "Your upcoming bookings will appear here",
-                            style: TextStyle(color: Color(0xFF666666)),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    ..._bookings.map((b) => _buildBookingCard(b)).toList(),
-                ],
-                
-                if (_selectedMainTab == 1) ...[
-                  if (_loadingSessions)
-                    Center(
-                      child: Column(
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text(
-                            'Loading sessions...',
-                            style: TextStyle(color: Color(0xFF666666)),
-                          ),
-                        ],
-                      ),
-                    )
-                  else if (_sessionsError != null)
-                    _buildErrorWidget(_sessionsError!)
-                  else if (_sessions.isEmpty)
-                    Center(
-                      child: Column(
-                        children: [
-                          Icon(Icons.video_call, size: 64, color: Color(0xFF666666)),
-                          SizedBox(height: 16),
-                          Text(
-                            "No sessions found",
-                            style: TextStyle(
-                              color: Color(0xFF666666),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            "Your sessions will appear here",
-                            style: TextStyle(color: Color(0xFF666666)),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    ..._sessions
-                        .where((s) => _selectedSubTab == 0 ||
-                            (_selectedSubTab == 1 && s.sessionType == "User To Expert") ||
-                            (_selectedSubTab == 2 && s.sessionType == "Expert To Expert"))
-                        .map((s) => _buildSessionCard(s))
-                        .toList(),
-                ],
+                )
+              : _mySessions.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.videocam_off, size: 48, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text(
+                          'No Sessions Scheduled',
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Your upcoming sessions will appear here',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _mySessions.length,
+                    itemBuilder: (context, index) => 
+                      _buildSessionCard(_mySessions[index]),
+                  ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterButton(String filter, String label) {
+    return Flexible(
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _sessionFilter == filter 
+            ? Colors.blue 
+            : Colors.grey[300],
+          foregroundColor: _sessionFilter == filter 
+            ? Colors.white 
+            : Colors.grey[700],
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        onPressed: () => setState(() => _sessionFilter = filter),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSessionCard(Map<String, dynamic> session) {
+    // Safely extract values with type checking
+    final slotsData = session['slots'];
+    final List<Map<String, dynamic>> slots = [];
+    
+    if (slotsData is List && slotsData.isNotEmpty) {
+      for (var slot in slotsData) {
+        if (slot is Map) {
+          slots.add(_recursiveConvert(slot));
+        }
+      }
+    }
+    
+    final status = session['status']?.toString() ?? 'pending';
+    
+    // Safely handle client data
+    String clientName = "Unknown";
+    if (session['type'] == 'User') {
+      final client = session['userId'];
+      if (client is Map) {
+        clientName = '${client['firstName'] ?? ''} ${client['lastName'] ?? ''}';
+      } else if (client is String) {
+        clientName = client;
+      }
+    } else {
+      final expert = session['consultingExpertID'];
+      if (expert is Map) {
+        clientName = '${expert['firstName'] ?? ''} ${expert['lastName'] ?? ''}';
+      } else if (expert is String) {
+        clientName = expert;
+      }
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    "Session with $clientName",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    status.toUpperCase(),
+                    style: TextStyle(
+                      color: _getStatusColor(status),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-          
-          // Modal barrier
-          if (_showCancelModal || _showTermsModal || _showRateModal)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black54,
+            
+            const SizedBox(height: 12),
+            
+            // Type and duration
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: session['type'] == 'User' 
+                      ? Colors.green[50] 
+                      : Colors.purple[50],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    session['type'] == 'User' 
+                      ? 'User Session' 
+                      : 'Expert Session',
+                    style: TextStyle(
+                      color: session['type'] == 'User' 
+                        ? Colors.green[700] 
+                        : Colors.purple[700],
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Icon(Icons.access_time, size: 18, color: Colors.blue),
+                const SizedBox(width: 4),
+                Text(
+                  '${slots.isNotEmpty ? slots[0]['selectedTime'] : 'TBD'} • ${session['duration'] ?? ''}',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Client info
+            const Text(
+              'Client Information',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _buildParticipantRow(
+                    icon: Icons.person,
+                    label: 'Name',
+                    name: clientName
+                  ),
+                  const SizedBox(height: 10),
+                  _buildParticipantRow(
+                    icon: Icons.phone,
+                    label: 'Contact',
+                    name: session['phone']?.toString() ?? session['mobile']?.toString() ?? 'N/A'
+                  ),
+                ],
               ),
             ),
-          
-          // Cancellation modal
-          if (_showCancelModal)
-            Center(
-              child: _buildCancellationModal(),
-            ),
-          
-          // Terms modal
-          if (_showTermsModal)
-            Center(
-              child: _buildTermsModal(),
-            ),
-          
-          // Rating modal
-          if (_showRateModal)
-            Center(
-              child: _buildRatingModal(),
-            ),
-        ],
+            
+            const SizedBox(height: 16),
+            
+            // Session notes
+            if (session['note'] != null && session['note'].toString().isNotEmpty) ...[
+              const Text(
+                'Session Notes',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  session['note'].toString(),
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            
+            // Slot selection/display
+            if (status == 'pending') _buildSlotSelection(session, slots),
+            
+            // Actions
+            _buildSessionActions(session, status),
+          ],
+        ),
       ),
-      bottomNavigationBar: ExpertBottomNavbar(currentIndex: 1),
     );
   }
-}
 
-class SessionState {
-  String? selectedDate;
-  String? selectedTime;
-}
-
-class Booking {
-  final String id;
-  final String clientName;
-  final String expertName;
-  String status;
-  final String sessionType;
-  final String sessionDate;
-  final String sessionTime;
-  final String duration;
-  final String meetingLink;
-  final List<Slot> slots;
-
-  Booking({
-    required this.id,
-    required this.clientName,
-    required this.expertName,
-    required this.status,
-    required this.sessionType,
-    required this.sessionDate,
-    required this.sessionTime,
-    required this.duration,
-    required this.meetingLink,
-    required this.slots,
-  });
-
-  factory Booking.fromJson(Map<String, dynamic> json) {
-    final slots = (json['slots'] as List? ?? [])
-        .map((slot) => Slot.fromJson(slot))
-        .toList();
-        
-    final firstSlot = slots.isNotEmpty ? slots.first : Slot.empty();
+  Widget _buildSlotSelection(Map<String, dynamic> session, List<Map<String, dynamic>> slots) {
+    final sessionId = session['_id']?.toString() ?? '';
+    final groupedSlots = _groupSlotsByDate(slots);
+    final selectedDate = _sessionState[sessionId]?['selectedDate']?.toString();
+    final selectedTime = _sessionState[sessionId]?['selectedTime']?.toString();
     
-    return Booking(
-      id: json['_id']?.toString() ?? '',
-      clientName: '${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'.trim(),
-      expertName: json['consultingExpertID'] != null
-          ? '${json['consultingExpertID']['firstName'] ?? ''} ${json['consultingExpertID']['lastName'] ?? ''}'.trim()
-          : 'Unknown Expert',
-      status: json['status']?.toString()?.toLowerCase() ?? 'unconfirmed',
-      sessionType: json['sessionType']?.toString() ?? 'User To Expert',
-      sessionDate: firstSlot.selectedDate,
-      sessionTime: firstSlot.selectedTime,
-      duration: json['duration']?.toString() ?? '30 mins',
-      meetingLink: json['zoomMeetingLink']?.toString() ?? '',
-      slots: slots,
-    );
-  }
-
-  Booking copyWith({
-    String? status,
-    String? sessionDate,
-    String? sessionTime,
-  }) {
-    return Booking(
-      id: id,
-      clientName: clientName,
-      expertName: expertName,
-      status: status ?? this.status,
-      sessionType: sessionType,
-      sessionDate: sessionDate ?? this.sessionDate,
-      sessionTime: sessionTime ?? this.sessionTime,
-      duration: duration,
-      meetingLink: meetingLink,
-      slots: slots,
-    );
-  }
-}
-
-class Session {
-  final String id;
-  final String clientName;
-  final String expertName;
-  String status;
-  final String sessionType;
-  final String duration;
-  final List<Slot> slots;
-  final String notes;
-  String meetingLink;
-  final String sessionDate;
-  final String sessionTime;
-
-  Session({
-    required this.id,
-    required this.clientName,
-    required this.expertName,
-    required this.status,
-    required this.sessionType,
-    required this.duration,
-    required this.slots,
-    required this.notes,
-    required this.sessionDate,
-    required this.sessionTime,
-    this.meetingLink = "",
-  });
-
-  factory Session.fromExpertJson(Map<String, dynamic> json) {
-    final slots = (json['slots'] as List? ?? [])
-        .map((slot) => Slot.fromJson(slot))
-        .toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Select Time Slot',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: groupedSlots.entries.map((entry) {
+            return InputChip(
+              label: Text(_formatDate(entry.key)),
+              selected: selectedDate == entry.key,
+              onSelected: (selected) {
+                if (selected) _handleDateChange(sessionId, entry.key);
+              },
+            );
+          }).toList(),
+        ),
         
-    final firstSlot = slots.isNotEmpty ? slots.first : Slot.empty();
+        if (selectedDate != null) ...[
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: (groupedSlots[selectedDate] ?? []).map((time) {
+              return InputChip(
+                label: Text(time),
+                selected: selectedTime == time,
+                onSelected: (selected) {
+                  if (selected) _handleTimeChange(sessionId, time);
+                },
+              );
+            }).toList(),
+          ),
+        ],
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Map<String, List<String>> _groupSlotsByDate(List<Map<String, dynamic>> slots) {
+    final Map<String, List<String>> result = {};
     
-    return Session(
-      id: json['_id']?.toString() ?? '',
-      clientName: json['consultingExpertID'] != null
-          ? '${json['consultingExpertID']['firstName'] ?? ''} ${json['consultingExpertID']['lastName'] ?? ''}'.trim()
-          : 'Unknown Expert',
-      expertName: "Me",
-      status: json['status']?.toString()?.toLowerCase() ?? 'unconfirmed',
-      sessionType: "Expert To Expert",
-      duration: json['duration']?.toString() ?? '30 mins',
-      slots: slots,
-      notes: json['sessionNotes']?.toString() ?? '',
-      sessionDate: firstSlot.selectedDate,
-      sessionTime: firstSlot.selectedTime,
-      meetingLink: json['zoomMeetingLink']?.toString() ?? '',
-    );
-  }
-
-  factory Session.fromUserJson(Map<String, dynamic> json) {
-    final slots = (json['slots'] as List? ?? [])
-        .map((slot) => Slot.fromJson(slot))
-        .toList();
-        
-    final firstSlot = slots.isNotEmpty ? slots.first : Slot.empty();
+    for (final slot in slots) {
+      final date = slot['selectedDate']?.toString() ?? 'unknown';
+      final time = slot['selectedTime']?.toString() ?? '';
+      
+      result.putIfAbsent(date, () => []);
+      
+      if (time.isNotEmpty) {
+        result[date]!.add(time);
+      }
+    }
     
-    return Session(
-      id: json['_id']?.toString() ?? '',
-      clientName: '${json['userId']?['firstName'] ?? ''} ${json['userId']?['lastName'] ?? ''}'.trim(),
-      expertName: "Me",
-      status: json['status']?.toString()?.toLowerCase() ?? 'unconfirmed',
-      sessionType: "User To Expert",
-      duration: json['duration']?.toString() ?? '30 mins',
-      slots: slots,
-      notes: json['sessionNotes']?.toString() ?? '',
-      sessionDate: firstSlot.selectedDate,
-      sessionTime: firstSlot.selectedTime,
-      meetingLink: json['zoomMeetingLink']?.toString() ?? '',
-    );
+    return result;
   }
 
-  Session copyWith({
-    String? status,
-    String? sessionDate,
-    String? sessionTime,
-  }) {
-    return Session(
-      id: id,
-      clientName: clientName,
-      expertName: expertName,
-      status: status ?? this.status,
-      sessionType: sessionType,
-      duration: duration,
-      slots: slots,
-      notes: notes,
-      sessionDate: sessionDate ?? this.sessionDate,
-      sessionTime: sessionTime ?? this.sessionTime,
-      meetingLink: meetingLink,
-    );
+  Widget _buildSessionActions(Map<String, dynamic> session, String status) {
+    final sessionId = session['_id']?.toString() ?? '';
+    final selectedDate = _sessionState[sessionId]?['selectedDate']?.toString();
+    final selectedTime = _sessionState[sessionId]?['selectedTime']?.toString();
+
+    if (status == 'pending') {
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => _handleDecline(sessionId),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                side: const BorderSide(color: Colors.red),
+              ),
+              child: const Text(
+                'Decline',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: selectedDate != null && selectedTime != null
+                ? () => _handleAccept(sessionId)
+                : null,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundColor: Colors.blue,
+              ),
+              child: const Text('Accept'),
+            ),
+          ),
+        ],
+      );
+    } else if (status == 'confirmed') {
+      return Column(
+        children: [
+          const Divider(),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.chat, size: 18),
+                  label: const Text('Chat'),
+                  onPressed: () => _navigateToChat(),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: Colors.blue.shade300),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.videocam, size: 18),
+                  label: const Text('Join Meeting'),
+                  onPressed: () => _joinMeeting(session),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: Colors.blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+    
+    return const SizedBox.shrink();
   }
-}
 
-class Slot {
-  final String selectedDate;
-  final String selectedTime;
-
-  Slot({
-    required this.selectedDate,
-    required this.selectedTime,
-  });
-
-  factory Slot.fromJson(Map<String, dynamic> json) {
-    return Slot(
-      selectedDate: json['selectedDate']?.toString() ?? '',
-      selectedTime: json['selectedTime']?.toString() ?? '',
-    );
+  Future<void> _handleDecline(String sessionId) async {
+    // Implement decline logic
   }
 
-  factory Slot.empty() {
-    return Slot(
-      selectedDate: '',
-      selectedTime: '',
+  Future<void> _handleAccept(String sessionId) async {
+    // Implement accept logic
+  }
+
+  void _navigateToChat() {
+    // Implement chat navigation
+  }
+
+  void _joinMeeting(dynamic session) {
+    final meetingId = session['zoomMeetingId']?.toString() ?? '';
+    final sessionId = session['_id']?.toString() ?? '';
+
+    if (meetingId.isEmpty || sessionId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid session details'))
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ExpertSessionCallPage(
+          meetingId: meetingId,
+          sessionId: sessionId,
+        ),
+        settings: RouteSettings(
+          arguments: _userToken, // Pass token via settings
+        ),
+      ),
     );
   }
 }

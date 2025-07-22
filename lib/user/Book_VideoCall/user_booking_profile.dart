@@ -1048,21 +1048,21 @@ Widget _buildBookingForm() {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => VideoCallPage(
-                      sessionId: sessionId,
-                      key: UniqueKey(),
-                    ),
-                  ),
-                );
-              },
-              child: const Text('Go to Video Calls'),
-            ),
+            // TextButton(
+            //   onPressed: () {
+            //     Navigator.of(context).pop();
+            //     Navigator.pushReplacement(
+            //       context,
+            //       MaterialPageRoute(
+            //         builder: (context) => VideoCallPage(
+            //           sessionId: sessionId,
+            //           key: UniqueKey(),
+            //         ),
+            //       ),
+            //     );
+            //   },
+            //   child: const Text('Go to Video Calls'),
+            // ),
           ],
         );
       },

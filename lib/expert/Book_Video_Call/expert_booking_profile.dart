@@ -1121,21 +1121,21 @@ print("Final bookingData: ${jsonEncode(bookingData)}");
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => VideoCallPage(
-                      sessionId: sessionId,
-                      key: UniqueKey(), // Ensures full rebuild and reload
-                    ),
-                  ),
-                );
-              },
-              child: const Text('Go to Video Calls'),
-            ),
+            // TextButton(
+            //   onPressed: () {
+            //     Navigator.of(context).pop(); // Close dialog
+            //     Navigator.pushReplacement(
+            //       context,
+            //       MaterialPageRoute(
+            //         builder: (context) => VideoCallPage(
+            //           sessionId: sessionId,
+            //           key: UniqueKey(), // Ensures full rebuild and reload
+            //         ),
+            //       ),
+            //     );
+            //   },
+            //   child: const Text('Go to Video Calls'),
+            // ),
           ],
         );
       },
