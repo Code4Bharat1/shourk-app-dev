@@ -10,13 +10,11 @@ import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
 import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
 import 'package:shourk_application/user/home/user_expert_detailscreen.dart';
 
-
 import 'package:shourk_application/user/user_expert_category/user_wellness_expert.dart';
 import 'package:shourk_application/user/user_expert_category/user_career_expert.dart';
 import 'package:shourk_application/user/user_expert_category/user_home_expert.dart';
 import 'package:shourk_application/user/user_expert_category/user_top_expert.dart';
 import '../home/user_expert_detailscreen.dart';
-
 
 class UserFashionBeautyExpertsScreen extends StatefulWidget {
   const UserFashionBeautyExpertsScreen({super.key});
@@ -214,21 +212,32 @@ class _UserFashionBeautyExpertsScreenState extends State<UserFashionBeautyExpert
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final filteredExperts = getFilteredExperts();
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: UserUpperNavbar(),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header + Filter Button
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          // Header + Filter Button with responsive padding
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: screenWidth * 0.04, // 4% of screen width
+              vertical: 12,
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     "Find The Right Expert In Seconds!",
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: screenWidth < 350 ? 13 : 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -250,12 +259,12 @@ class _UserFashionBeautyExpertsScreenState extends State<UserFashionBeautyExpert
             ),
           ),
 
-          // Category Navigation
+          // Category Navigation with responsive sizing
           SizedBox(
             height: 70,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.only(left: 16),
+              padding: EdgeInsets.only(left: screenWidth * 0.04),
               itemCount: categories.length,
               itemBuilder: (context, index) {
                 final cat = categories[index];
@@ -274,7 +283,7 @@ class _UserFashionBeautyExpertsScreenState extends State<UserFashionBeautyExpert
                   },
                   child: Container(
                     margin: const EdgeInsets.only(right: 12),
-                    width: 90,
+                    width: screenWidth < 350 ? 80 : 90,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
@@ -290,13 +299,19 @@ class _UserFashionBeautyExpertsScreenState extends State<UserFashionBeautyExpert
                       ),
                     ),
                     child: Center(
-                      child: Text(
-                        cat['label'],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Text(
+                          cat['label'],
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: screenWidth < 350 ? 10 : 12,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
@@ -307,22 +322,36 @@ class _UserFashionBeautyExpertsScreenState extends State<UserFashionBeautyExpert
 
           const SizedBox(height: 20),
 
-          // Page Title and Subtitle
-          const Center(
+          // Page Title and Subtitle with responsive text
+          Center(
             child: Column(
               children: [
-                Text("Fashion & Beauty Experts",
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                SizedBox(height: 6),
-                Text("Get styling tips, beauty help, grooming & more",
-                    style: TextStyle(fontSize: 13, color: Colors.black54)),
+                Text(
+                  "Fashion & Beauty Experts",
+                  style: TextStyle(
+                    fontSize: screenWidth < 350 ? 18 : 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+                  child: Text(
+                    "Get styling tips, beauty help, grooming & more",
+                    style: TextStyle(
+                      fontSize: screenWidth < 350 ? 11 : 13,
+                      color: Colors.black54,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ],
             ),
           ),
 
           const SizedBox(height: 20),
 
-          // Main Content Area
+          // Main Content Area with responsive grid
           Expanded(
             child: isLoading
                 ? _buildLoadingWidget()
@@ -337,27 +366,44 @@ class _UserFashionBeautyExpertsScreenState extends State<UserFashionBeautyExpert
                           )
                         : RefreshIndicator(
                             onRefresh: fetchFashionBeautyExperts,
-                            child: GridView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.75,
-                              ),
-                              itemCount: getFilteredExperts().length,
-                              itemBuilder: (context, index) {
-                                final filteredExperts = getFilteredExperts();
-                                return ModernExpertCard(
-                                  expert: filteredExperts[index],
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => UserExpertDetailscreen(
-                                          expertId: filteredExperts[index].id,
-                                        ),
-                                      ),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                // Calculate cross axis count based on screen width
+                                int crossAxisCount = 2;
+                                if (constraints.maxWidth > 600) {
+                                  crossAxisCount = 3;
+                                } else if (constraints.maxWidth < 350) {
+                                  crossAxisCount = 1;
+                                }
+                                
+                                // Calculate aspect ratio based on screen size
+                                double aspectRatio = constraints.maxWidth < 350 ? 1.2 : 0.75;
+                                
+                                return GridView.builder(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: screenWidth * 0.04,
+                                  ),
+                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: crossAxisCount,
+                                    crossAxisSpacing: screenWidth * 0.03,
+                                    mainAxisSpacing: 16,
+                                    childAspectRatio: aspectRatio,
+                                  ),
+                                  itemCount: filteredExperts.length,
+                                  itemBuilder: (context, index) {
+                                    return ModernExpertCard(
+                                      expert: filteredExperts[index],
+                                      screenWidth: screenWidth,
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => UserExpertDetailscreen(
+                                              expertId: filteredExperts[index].id,
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     );
                                   },
                                 );
@@ -374,22 +420,22 @@ class _UserFashionBeautyExpertsScreenState extends State<UserFashionBeautyExpert
 
 class ModernExpertCard extends StatelessWidget {
   final shared.ExpertModel expert;
+  final double screenWidth;
   final VoidCallback onTap;
 
   const ModernExpertCard({
     super.key, 
     required this.expert,
+    required this.screenWidth,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap, // Use the provided onTap callback
+      onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 200,
-        height: 300,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
@@ -401,18 +447,18 @@ class ModernExpertCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Stack(
-          children: [
-            // Expert Image Section
-            Container(
-              height: 300,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.grey[200],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            children: [
+              // Expert Image Section
+              Container(
+                width: double.infinity,
+                height: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.grey[200],
+                ),
                 child: expert.imageUrl.isNotEmpty
                     ? Image.network(
                         expert.imageUrl,
@@ -425,161 +471,178 @@ class ModernExpertCard extends StatelessWidget {
                       )
                     : _buildPlaceholderImage(),
               ),
-            ),
 
-            // Gradient overlay for text readability
-            Container(
-              height: 300,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.01),
-                    Colors.black.withOpacity(0.3),
-                    Colors.black.withOpacity(0.6),
-                    Colors.black.withOpacity(0.8),
-                  ],
-                  stops: const [0.0, 0.4, 0.5, 0.7, 0.85, 1.0],
+              // Gradient overlay for text readability
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.01),
+                      Colors.black.withOpacity(0.3),
+                      Colors.black.withOpacity(0.6),
+                      Colors.black.withOpacity(0.8),
+                    ],
+                    stops: const [0.0, 0.4, 0.5, 0.7, 0.85, 1.0],
+                  ),
                 ),
               ),
-            ),
 
-            // Content overlay
-            Positioned(
-              left: 12,
-              right: 12,
-              top: 8,
-              bottom: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top badges
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Free Session Badge
-                      if (expert.freeSessionEnabled)
+              // Content overlay with responsive sizing
+              Positioned(
+                left: screenWidth * 0.02,
+                right: screenWidth * 0.02,
+                top: 8,
+                bottom: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top badges
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Free Session Badge
+                        if (expert.freeSessionEnabled)
+                          Flexible(
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenWidth * 0.015,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green[600],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'First Session Free',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: screenWidth < 350 ? 8 : 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+
+                        // Spacer
+                        if (expert.freeSessionEnabled) const SizedBox(width: 4),
+
+                        // Price Badge
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: screenWidth * 0.015,
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.green[600],
+                            color: Colors.black.withOpacity(0.8),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Text(
-                            'First Session Free',
+                          child: Text(
+                            'SAR ${expert.price.toInt()}',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
+                              fontSize: screenWidth < 350 ? 9 : 11,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
+                      ],
+                    ),
 
-                      // Price Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'SAR ${expert.price.toInt()}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                    const Spacer(),
+
+                    // Name and Verified Badge
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            expert.name,
+                            style: TextStyle(
+                              fontSize: screenWidth < 350 ? 14 : 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-
-                  const Spacer(),
-
-                  // Name and Verified Badge
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          expert.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        Icon(
+                          Icons.verified,
+                          size: screenWidth < 350 ? 14 : 16,
+                          color: Colors.orange[600],
                         ),
-                      ),
-                      Icon(Icons.verified, size: 16, color: Colors.orange[600]),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Expert experience with semi-transparent background
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    margin: const EdgeInsets.only(bottom: 35),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(8),
+                      ],
                     ),
-                    child: Text(
-                      (expert.experience != null && expert.experience!.isNotEmpty)
-                          ? expert.experience!
-                          : "My name is ${expert.name.split(' ')[0]}, and I'm passionate about fashion and beauty.",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white,
-                        height: 1.3,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
-            // Rating badge
-            Positioned(
-              bottom: 12,
-              right: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.star, size: 14, color: Colors.orange),
-                    const SizedBox(width: 4),
-                    Text(
-                      expert.rating.toStringAsFixed(1),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                    SizedBox(height: screenWidth < 350 ? 6 : 8),
+
+                    // Expert experience with semi-transparent background
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(screenWidth * 0.02),
+                      margin: EdgeInsets.only(bottom: screenWidth < 350 ? 25 : 35),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        (expert.experience != null && expert.experience!.isNotEmpty)
+                            ? expert.experience!
+                            : "My name is ${expert.name.split(' ')[0]}, and I'm passionate about fashion and beauty.",
+                        style: TextStyle(
+                          fontSize: screenWidth < 350 ? 10 : 12,
+                          color: Colors.white,
+                          height: 1.3,
+                        ),
+                        maxLines: screenWidth < 350 ? 1 : 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+
+              // Rating badge
+              Positioned(
+                bottom: 12,
+                right: screenWidth * 0.02,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: screenWidth * 0.015,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.star,
+                        size: screenWidth < 350 ? 12 : 14,
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        expert.rating.toStringAsFixed(1),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: screenWidth < 350 ? 10 : 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -590,7 +653,11 @@ class ModernExpertCard extends StatelessWidget {
       width: double.infinity,
       height: double.infinity,
       color: Colors.grey[300],
-      child: Icon(Icons.person, size: 50, color: Colors.grey[600]),
+      child: Icon(
+        Icons.person,
+        size: screenWidth < 350 ? 40 : 50,
+        color: Colors.grey[600],
+      ),
     );
   }
 }

@@ -2,15 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shourk_application/shared/models/expert_model.dart'as shared;
-// import 'package:shourk_application/shared/models/expert_model.dart';
-// import 'package:shourk_application/features/expert_profile/expert_detail_screen.dart';
 
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
 import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
 import 'package:shourk_application/user/home/user_expert_detailscreen.dart';
 
-
-// import 'package:shourk_application/user/user_expert_category/user_wellness_expert.dart';
 import 'package:shourk_application/user/user_expert_category/user_career_expert.dart';
 import 'package:shourk_application/user/user_expert_category/user_fashion_expert.dart';
 import 'package:shourk_application/user/user_expert_category/user_home_expert.dart';
@@ -70,7 +66,6 @@ class _UserWellnessExpertsScreenState extends State<UserWellnessExpertsScreen> {
         errorMessage = '';
       });
 
-      // Corrected endpoint to match React implementation
       final response = await http.get(
         Uri.parse('https://amd-api.code4bharat.com/api/expertauth/area/Wellness'),
         headers: {'Content-Type': 'application/json'},
@@ -80,10 +75,9 @@ class _UserWellnessExpertsScreenState extends State<UserWellnessExpertsScreen> {
         final data = json.decode(response.body);
         final List<dynamic> expertsData = data['data'] ?? [];
         
-        // Filter only approved experts (no category filter needed)
         final List<shared.ExpertModel> wellnessExperts = expertsData
             .where((expert) => expert['status'] == 'Approved')
-            .map<shared.ExpertModel>((json) => shared.ExpertModel.fromJson(json)) // Fixed: Use fromJson
+            .map<shared.ExpertModel>((json) => shared.ExpertModel.fromJson(json))
             .toList();
 
         setState(() {
@@ -122,7 +116,6 @@ class _UserWellnessExpertsScreenState extends State<UserWellnessExpertsScreen> {
             (b.reviews?.length ?? 0).compareTo(a.reviews?.length ?? 0));
         break;
       default:
-        // Keep recommended order (default API order)
         break;
     }
 
@@ -183,35 +176,42 @@ class _UserWellnessExpertsScreenState extends State<UserWellnessExpertsScreen> {
 
   Widget _buildErrorWidget() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.error_outline,
-            color: Colors.red,
-            size: 64,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            errorMessage,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 16,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
               color: Colors.red,
+              size: 64,
             ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: fetchWellnessExperts,
-            child: const Text('Retry'),
-          ),
-        ],
+            const SizedBox(height: 16),
+            Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.red,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: fetchWellnessExperts,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = screenWidth > 600 ? 3 : 2;
+    final categoryWidth = screenWidth * 0.22;
+    
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: UserUpperNavbar(),
@@ -226,7 +226,10 @@ class _UserWellnessExpertsScreenState extends State<UserWellnessExpertsScreen> {
                 Expanded(
                   child: Text(
                     "Find The Right Expert In Seconds!",
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: screenWidth > 400 ? 15 : 13, 
+                      fontWeight: FontWeight.bold
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -272,7 +275,7 @@ class _UserWellnessExpertsScreenState extends State<UserWellnessExpertsScreen> {
                   },
                   child: Container(
                     margin: const EdgeInsets.only(right: 12),
-                    width: 90,
+                    width: categoryWidth.clamp(80, 100),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
@@ -288,13 +291,19 @@ class _UserWellnessExpertsScreenState extends State<UserWellnessExpertsScreen> {
                       ),
                     ),
                     child: Center(
-                      child: Text(
-                        cat['label'],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Text(
+                          cat['label'],
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: screenWidth > 400 ? 12 : 10,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
@@ -306,15 +315,30 @@ class _UserWellnessExpertsScreenState extends State<UserWellnessExpertsScreen> {
           const SizedBox(height: 20),
 
           // Page Title and Subtitle
-          const Center(
-            child: Column(
-              children: [
-                Text("Wellness Experts",
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                SizedBox(height: 6),
-                Text("Physical & emotional wellness starts here",
-                    style: TextStyle(fontSize: 13, color: Colors.black54)),
-              ],
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  Text(
+                    "Wellness Experts",
+                    style: TextStyle(
+                      fontSize: screenWidth > 400 ? 22 : 18, 
+                      fontWeight: FontWeight.bold
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "Physical & emotional wellness starts here",
+                    style: TextStyle(
+                      fontSize: screenWidth > 400 ? 13 : 11, 
+                      color: Colors.black54
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -328,17 +352,21 @@ class _UserWellnessExpertsScreenState extends State<UserWellnessExpertsScreen> {
                     ? _buildErrorWidget()
                     : experts.isEmpty
                         ? const Center(
-                            child: Text(
-                              'No wellness experts found',
-                              style: TextStyle(fontSize: 16),
+                            child: Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Text(
+                                'No wellness experts found',
+                                style: TextStyle(fontSize: 16),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
                           )
                         : RefreshIndicator(
                             onRefresh: fetchWellnessExperts,
                             child: GridView.builder(
                               padding: const EdgeInsets.symmetric(horizontal: 16),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
                                 crossAxisSpacing: 12,
                                 mainAxisSpacing: 16,
                                 childAspectRatio: 0.75,
@@ -365,9 +393,11 @@ class ModernExpertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+    
     return InkWell(
       onTap: () {
-        // Navigate to expert details screen
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -377,8 +407,6 @@ class ModernExpertCard extends StatelessWidget {
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 200,
-        height: 300,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
@@ -394,8 +422,8 @@ class ModernExpertCard extends StatelessWidget {
           children: [
             // Expert Image Section
             Container(
-              height: 300,
               width: double.infinity,
+              height: double.infinity,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 color: Colors.grey[200],
@@ -418,7 +446,8 @@ class ModernExpertCard extends StatelessWidget {
 
             // Gradient overlay for text readability
             Container(
-              height: 300,
+              width: double.infinity,
+              height: double.infinity,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 gradient: LinearGradient(
@@ -439,10 +468,10 @@ class ModernExpertCard extends StatelessWidget {
 
             // Content overlay
             Positioned(
-              left: 12,
-              right: 12,
-              top: 8,
-              bottom: 12,
+              left: isSmallScreen ? 8 : 12,
+              right: isSmallScreen ? 8 : 12,
+              top: isSmallScreen ? 6 : 8,
+              bottom: isSmallScreen ? 8 : 12,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -452,30 +481,35 @@ class ModernExpertCard extends StatelessWidget {
                     children: [
                       // Free Session Badge
                       if (expert.freeSessionEnabled)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green[600],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'First Session Free',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isSmallScreen ? 6 : 8,
+                              vertical: isSmallScreen ? 3 : 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green[600],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'First Session Free',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: isSmallScreen ? 8 : 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
 
+                      const SizedBox(width: 4),
+
                       // Price Badge
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isSmallScreen ? 6 : 8,
+                          vertical: isSmallScreen ? 3 : 4,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.8),
@@ -483,9 +517,9 @@ class ModernExpertCard extends StatelessWidget {
                         ),
                         child: Text(
                           'SAR ${expert.price.toInt()}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 11,
+                            fontSize: isSmallScreen ? 9 : 11,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -501,8 +535,8 @@ class ModernExpertCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           expert.name,
-                          style: const TextStyle(
-                            fontSize: 16,
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 14 : 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -510,7 +544,11 @@ class ModernExpertCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Icon(Icons.verified, size: 16, color: Colors.orange[600]),
+                      Icon(
+                        Icons.verified, 
+                        size: isSmallScreen ? 14 : 16, 
+                        color: Colors.orange[600]
+                      ),
                     ],
                   ),
 
@@ -518,8 +556,8 @@ class ModernExpertCard extends StatelessWidget {
 
                   // Expert experience with semi-transparent background
                   Container(
-                    padding: const EdgeInsets.all(8),
-                    margin: const EdgeInsets.only(bottom: 35),
+                    padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
+                    margin: EdgeInsets.only(bottom: isSmallScreen ? 25 : 35),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.4),
                       borderRadius: BorderRadius.circular(8),
@@ -528,8 +566,8 @@ class ModernExpertCard extends StatelessWidget {
                       (expert.experience != null && expert.experience!.isNotEmpty)
                           ? expert.experience!
                           : "My name is ${expert.name.split(' ')[0]}, and I'm passionate about wellness and health.",
-                      style: const TextStyle(
-                        fontSize: 12,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 10 : 12,
                         color: Colors.white,
                         height: 1.3,
                       ),
@@ -543,10 +581,13 @@ class ModernExpertCard extends StatelessWidget {
 
             // Rating badge
             Positioned(
-              bottom: 12,
-              right: 12,
+              bottom: isSmallScreen ? 8 : 12,
+              right: isSmallScreen ? 8 : 12,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 6 : 8, 
+                  vertical: isSmallScreen ? 3 : 4
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.8),
                   borderRadius: BorderRadius.circular(20),
@@ -554,13 +595,17 @@ class ModernExpertCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.star, size: 14, color: Colors.orange),
+                    Icon(
+                      Icons.star, 
+                      size: isSmallScreen ? 12 : 14, 
+                      color: Colors.orange
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       expert.rating.toStringAsFixed(1),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: isSmallScreen ? 10 : 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),

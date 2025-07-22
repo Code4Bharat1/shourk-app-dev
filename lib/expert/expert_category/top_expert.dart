@@ -213,15 +213,17 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header + Filter Button
+          // Header + Filter Button - Made responsive
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                Expanded(
+                Flexible(
                   child: Text(
                     "Find The Right Expert In Seconds!",
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -330,18 +332,34 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
                           )
                         : RefreshIndicator(
                             onRefresh: fetchExperts,
-                            child: GridView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.75,
-                              ),
-                              itemCount: getFilteredExperts().length,
-                              itemBuilder: (context, index) {
-                                final filteredExperts = getFilteredExperts();
-                                return ModernExpertCard(expert: filteredExperts[index]);
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                // Make grid responsive based on screen width
+                                int crossAxisCount = 2;
+                                double childAspectRatio = 0.75;
+                                
+                                if (constraints.maxWidth > 600) {
+                                  crossAxisCount = 3;
+                                  childAspectRatio = 0.8;
+                                } else if (constraints.maxWidth > 900) {
+                                  crossAxisCount = 4;
+                                  childAspectRatio = 0.85;
+                                }
+
+                                return GridView.builder(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: crossAxisCount,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 16,
+                                    childAspectRatio: childAspectRatio,
+                                  ),
+                                  itemCount: getFilteredExperts().length,
+                                  itemBuilder: (context, index) {
+                                    final filteredExperts = getFilteredExperts();
+                                    return ModernExpertCard(expert: filteredExperts[index]);
+                                  },
+                                );
                               },
                             ),
                           ),
@@ -349,8 +367,7 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
         ],
       ),
       bottomNavigationBar: ExpertBottomNavbar(currentIndex: 0),
-      );
-    
+    );
   }
 }
 
@@ -443,56 +460,63 @@ class ModernExpertCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top badges
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Free Session Badge
-                      if (expert.freeSessionEnabled)
+                  // Top badges - Made responsive
+                  Flexible(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Free Session Badge
+                        if (expert.freeSessionEnabled)
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green[600],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'First Session Free',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+
+                        const SizedBox(width: 4),
+
+                        // Price Badge
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.green[600],
+                            color: Colors.black.withOpacity(0.8),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Text(
-                            'First Session Free',
-                            style: TextStyle(
+                          child: Text(
+                            'SAR ${expert.price.toInt()}',
+                            style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
+                              fontSize: 11,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-
-                      // Price Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'SAR ${expert.price.toInt()}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
 
                   const Spacer(),
 
-                  // Name and Verified Badge
+                  // Name and Verified Badge - Made responsive
                   Row(
                     children: [
                       Expanded(
@@ -513,7 +537,7 @@ class ModernExpertCard extends StatelessWidget {
 
                   const SizedBox(height: 8),
 
-                  // Expert experience with semi-transparent background
+                  // Expert experience with semi-transparent background - Made responsive
                   Container(
                     padding: const EdgeInsets.all(8),
                     margin: const EdgeInsets.only(bottom: 35),
