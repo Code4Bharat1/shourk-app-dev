@@ -1280,6 +1280,9 @@ class Booking {
   factory Booking.fromJson(Map<String, dynamic> json) {
     try {
       // Parse session time and date
+      print('Available JSON fields: ${json.keys.toList()}');
+      print('Expert data: ${json['expertId']}');
+      
       String sessionTime = 'TBD';
       DateTime? sessionDate;
 
