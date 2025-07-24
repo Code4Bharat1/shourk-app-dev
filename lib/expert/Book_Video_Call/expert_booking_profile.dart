@@ -11,15 +11,13 @@ import 'package:shourk_application/shared/models/expert_model.dart';
 class ExpertBookingScreen extends StatefulWidget {
   final String expertId;
   final String selectedSessionType;
-  final String selectedDate;
-  final String selectedTime;
+  final List<String> selectedSlots; // Changed to list of slots
 
   const ExpertBookingScreen({
     super.key,
     required this.expertId,
     required this.selectedSessionType,
-    required this.selectedDate,
-    required this.selectedTime,
+    required this.selectedSlots, // Now accepts multiple slots
   });
 
   @override
@@ -30,16 +28,12 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
   ExpertModel? expert;
   bool isLoading = true;
   String error = '';
-  double discountAmount = 0.0; // For promo code discounts
+  double discountAmount = 0.0;
   double walletBalance = 0.0;
   bool isWalletLoading = true;
   bool isBookingInProgress = false;
   String? authToken;
   String? currentUserId;
-
-  late String sessionType;
-  late String sessionDate;
-  late String sessionTime;
 
   // Add missing form key and controllers
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -53,16 +47,11 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
   @override
   void initState() {
     super.initState();
-    sessionType = widget.selectedSessionType;
-    sessionDate = widget.selectedDate;
-    sessionTime = widget.selectedTime;
     _initializeData();
   }
 
   Future<void> _initializeData() async {
-    // Get auth token from SharedPreferences (same pattern as ProfileSettingsScreen)
     await _getAuthToken();
-    
     await Future.wait([
       fetchExpert(),
       fetchWalletBalance(),
@@ -81,7 +70,6 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
           currentUserId = decodedToken['_id'];
         });
       } else {
-        // Handle case where user is not authenticated
         setState(() {
           authToken = null;
           currentUserId = null;
@@ -99,7 +87,6 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
   Future<void> fetchWalletBalance() async {
     try {
       if (authToken == null) {
-        // Handle case where user is not authenticated
         setState(() {
           isWalletLoading = false;
           walletBalance = 0.0;
@@ -108,7 +95,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
       }
 
       final response = await http.get(
-        Uri.parse('https://amd-api.code4bharat.com/api/expertwallet/balances'),
+        Uri.parse('http://localhost:5070/api/expertwallet/balances'),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
@@ -118,8 +105,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-         walletBalance = (data['data']['spending'] ?? 0.0).toDouble(); // ✅ correct key
-
+         walletBalance = (data['data']['spending'] ?? 0.0).toDouble();
           isWalletLoading = false;
         });
       } else {
@@ -139,7 +125,6 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
 
   @override
   void dispose() {
-    // Dispose controllers to prevent memory leaks
     _firstNameController.dispose();
     _lastNameController.dispose();
     _phoneController.dispose();
@@ -152,7 +137,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
   Future<void> fetchExpert() async {
     try {
       final res = await http.get(
-        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}'),
+        Uri.parse('http://localhost:5070/api/expertauth/${widget.expertId}'),
         headers: {'Content-Type': 'application/json'},
       );
       if (res.statusCode == 200) {
@@ -175,54 +160,46 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
     }
   }
 
-  // Helper method to get session fee
+  // Helper methods
   double get sessionFee => expert?.price ?? 0.0;
-
-  // Helper method to get total amount after discount
-  double get totalAmount => sessionFee - discountAmount;
-
-  // Helper method to check if this is a free session
+  double get totalAmount => sessionFee * widget.selectedSlots.length - discountAmount;
   bool get isFirstSession => expert?.freeSessionEnabled ?? false;
-
-  // Helper method to get final price after considering free session
   double get finalPriceAfterGiftCard => isFirstSession ? 0.0 : totalAmount;
 
-  // Map session type to user-friendly label
   String _mapSessionDurationLabel(String type) {
     switch (type) {
-      case 'quick':
-        return 'Quick - 15min';
-      case 'regular':
-        return 'Regular - 30min';
-      case 'extra':
-        return 'Extra - 45min';
-      case 'all_access':
-        return 'All Access - 60min';
-      default:
-        return 'Regular - 30min';
+      case 'quick': return 'Quick - 15min';
+      case 'regular': return 'Regular - 30min';
+      case 'extra': return 'Extra - 45min';
+      case 'all_access': return 'All Access - 60min';
+      default: return 'Regular - 30min';
     }
   }
 
-  // Helper method to apply promo code
   void _applyPromoCode() {
     final promoCode = _promoController.text.trim();
     if (promoCode.isNotEmpty) {
-      // Add your promo code logic here
-      // For example, a simple discount logic:
       setState(() {
         if (promoCode.toUpperCase() == 'SAVE10') {
-          discountAmount = sessionFee * 0.1; // 10% discount
+          discountAmount = sessionFee * widget.selectedSlots.length * 0.1;
         } else if (promoCode.toUpperCase() == 'SAVE20') {
-          discountAmount = sessionFee * 0.2; // 20% discount
+          discountAmount = sessionFee * widget.selectedSlots.length * 0.2;
         } else {
           discountAmount = 0.0;
-          // Show error message for invalid promo code
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Invalid promo code')),
           );
         }
       });
     }
+  }
+
+  // Parse slot string into date and time
+  Map<String, String> _parseSlot(String slot) {
+    final parts = slot.split('-');
+    final time = parts.last;
+    final date = parts.sublist(0, parts.length - 1).join('-');
+    return {'date': date, 'time': time};
   }
 
   @override
@@ -249,65 +226,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
           children: [
             _buildExpertCard(),
             const SizedBox(height: 20),
-
-            // Dynamic session info
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today, size: 20, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Date: ',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      Text(sessionDate, style: TextStyle(fontSize: 16)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time, size: 20, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Time: ',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      Text(sessionTime, style: TextStyle(fontSize: 16)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.timer, size: 20, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Duration: ',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      Text(_mapSessionDurationLabel(sessionType), style: TextStyle(fontSize: 16)),
-
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
+            _buildSessionInfoCard(),
             const SizedBox(height: 20),
             _buildBookingForm(),
             const SizedBox(height: 20),
@@ -433,34 +352,31 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  sessionDate,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 8),
-                    Text(
-                      sessionTime,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                      ),
+                // Display all selected slots
+                for (var slot in widget.selectedSlots)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${_parseSlot(slot)['date']} at ${_parseSlot(slot)['time']}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
                     Icon(Icons.timer, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 8),
                     Text(
-                      _mapSessionDurationLabel(sessionType),
+                      _mapSessionDurationLabel(widget.selectedSessionType),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[700],
@@ -485,7 +401,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'You can add up to 5 sessions at different time slots. Any 1 time slot might get selected based on availability.',
+                    'You have selected ${widget.selectedSlots.length} sessions. Payment will be processed for all sessions.',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.orange[700],
@@ -494,6 +410,52 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSessionInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 20, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(
+                'Sessions: ',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              Text('${widget.selectedSlots.length} slots', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.timer, size: 20, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(
+                'Duration: ',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              Text(_mapSessionDurationLabel(widget.selectedSessionType), style: TextStyle(fontSize: 16)),
+            ],
           ),
         ],
       ),
@@ -644,7 +606,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
                       ),
                     ),
                   ),
-                ),
+                ),    
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: _applyPromoCode,
@@ -802,7 +764,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
                 ),
               ),
               Text(
-                'SAR ${sessionFee.toStringAsFixed(2)}',
+                'SAR ${(sessionFee * widget.selectedSlots.length).toStringAsFixed(2)}',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[600],
@@ -825,7 +787,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
                   ),
                 ),
                 Text(
-                  '-SAR ${sessionFee.toStringAsFixed(2)}',
+                  '-SAR ${(sessionFee * widget.selectedSlots.length).toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.green[600],
@@ -952,90 +914,55 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
   }
 
   Future<void> _handleBooking() async {
-   if (authToken == null || currentUserId == null) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Login required or user ID missing. Please re-login.')),
-  );
-  return;
-}
-
+    if (authToken == null || currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login required or user ID missing. Please re-login.')),
+      );
+      return;
+    }
 
     setState(() {
       isBookingInProgress = true;
     });
 
-String _mapSessionDurationLabel(String durationCode) {
-  switch (durationCode) {
-    case '15':
-      return 'Quick - 15min';
-    case '30':
-      return 'Regular - 30min';
-    case '45':
-      return 'Extra - 45min';
-    case '60':
-      return 'All Access - 60min';
-    default:
-      return 'Regular - 30min'; // fallback
-  }
-}
-
-
-int _mapDurationToBackend(String durationStr) {
-  // Convert string to int and validate it
-  final validDurations = [15, 30, 45, 60];
-  final parsed = int.tryParse(durationStr) ?? 30;
-  return validDurations.contains(parsed) ? parsed : 30;
-}
-
-String _validateAreaOfExpertise(String? input) {
-  const allowed = [
-    'Home',
-    'Digital Marketing',
-    'Technology',
-    'Style and Beauty',
-    'HEalth and Wellness',
-    'Career and Business'
-  ];
-  return allowed.contains(input) ? input! : 'Home';
-}
-
-
+        String _validateAreaOfExpertise(String? input) {
+      const allowed = [
+        'Home',
+        'Digital Marketing',
+        'Technology',
+        'Style and Beauty',
+        'Health and Wellness',
+        'Career and Business'
+      ];
+      return allowed.contains(input) ? input! : 'Home';
+    }
 
     try {
       // Prepare booking data
-final bookingData = {
-  'consultingExpertID': widget.expertId, // ✅ Expert being booked
-  'expertId': currentUserId,             // ✅ Logged-in expert
-  'areaOfExpertise': _validateAreaOfExpertise(expert?.areaOfExpertise),
-  'duration': _mapSessionDurationLabel(expert?.sessionDuration ?? '30'),
-  'firstName': _firstNameController.text.trim(),
-  'lastName': _lastNameController.text.trim(),
-  'mobile': _phoneController.text.trim(),
-  'email': _emailController.text.trim(),
-  'note': _noteController.text.trim(),
-  'price': sessionFee.toString(),
-  'redemptionCode': _promoController.text.trim(), // map to gift card
-  'slots': [
-    {
-      'selectedDate': sessionDate,
-      'selectedTime': sessionTime,
-    }
-  ],
-};
-
-
-
-
-
-print("📦 Booking Payload: consultingExpertID=${widget.expertId}, expertId=${currentUserId}");
-
-print("Final bookingData: ${jsonEncode(bookingData)}");
-
-
+      final bookingData = {
+        'consultingExpertID': widget.expertId,
+        'expertId': currentUserId,
+        'areaOfExpertise': _validateAreaOfExpertise(expert?.areaOfExpertise),
+        'duration': _mapSessionDurationLabel(widget.selectedSessionType),
+        'firstName': _firstNameController.text.trim(),
+        'lastName': _lastNameController.text.trim(),
+        'mobile': _phoneController.text.trim(),
+        'email': _emailController.text.trim(),
+        'note': _noteController.text.trim(),
+        'price': sessionFee.toString(),
+        'redemptionCode': _promoController.text.trim(),
+        'slots': widget.selectedSlots.map((slot) {
+          final parsed = _parseSlot(slot);
+          return {
+            'selectedDate': parsed['date'],
+            'selectedTime': parsed['time'],
+          };
+        }).toList(),
+      };
 
       // First create the session
       final sessionResponse = await http.post(
-        Uri.parse('https://amd-api.code4bharat.com/api/session/experttoexpertsession'),
+        Uri.parse('http://localhost:5070/api/session/experttoexpertsession'),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
@@ -1053,7 +980,7 @@ print("Final bookingData: ${jsonEncode(bookingData)}");
       // If not a free session and there's a cost, make the payment
       if (!isFirstSession && finalPriceAfterGiftCard > 0) {
         final paymentResponse = await http.post(
-          Uri.parse('https://amd-api.code4bharat.com/api/expertwallet/spending/pay'),
+          Uri.parse('http://localhost:5070/api/expertwallet/spending/pay'),
           headers: {
             'Authorization': 'Bearer $authToken',
             'Content-Type': 'application/json',
@@ -1106,7 +1033,7 @@ print("Final bookingData: ${jsonEncode(bookingData)}");
               ),
               const SizedBox(height: 16),
               Text(
-                'Your session with ${expert?.name} has been booked successfully.',
+                '${widget.selectedSlots.length} sessions with ${expert?.name} have been booked successfully.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -1121,21 +1048,13 @@ print("Final bookingData: ${jsonEncode(bookingData)}");
             ],
           ),
           actions: [
-            // TextButton(
-            //   onPressed: () {
-            //     Navigator.of(context).pop(); // Close dialog
-            //     Navigator.pushReplacement(
-            //       context,
-            //       MaterialPageRoute(
-            //         builder: (context) => VideoCallPage(
-            //           sessionId: sessionId,
-            //           key: UniqueKey(), // Ensures full rebuild and reload
-            //         ),
-            //       ),
-            //     );
-            //   },
-            //   child: const Text('Go to Video Calls'),
-            // ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Back to Home'),
+            ),
           ],
         );
       },
