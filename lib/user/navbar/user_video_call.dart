@@ -54,7 +54,6 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
     _initializeData();
   }
 
-  // Add this constant at the top of your class
 static const String webBaseUrl = "https://shourk.com"; // Replace with your actual web domain
 
 Future<void> _launchMeeting(String meetingLink) async {
@@ -1286,6 +1285,15 @@ class Booking {
   factory Booking.fromJson(Map<String, dynamic> json) {
     try {
       // Parse session time and date
+      print('Available JSON fields: ${json.keys.toList()}');
+      print('Expert data: ${json['expertId']}');
+
+      print('=== BOOKING JSON DEBUG ===');
+      print('Full JSON: ${json.toString()}');
+      print('expertId type: ${json['expertId'].runtimeType}');
+      print('expertId value: ${json['expertId']}');
+      print('========================');
+      
       String sessionTime = 'TBD';
       DateTime? sessionDate;
 
@@ -1307,16 +1315,28 @@ class Booking {
       }
 
       // Parse expert name
-      String expertName = 'Expert';
-      if (json['expertId'] is Map) {
-        final expert = json['expertId'];
-        expertName =
-            '${expert['firstName'] ?? ''} ${expert['lastName'] ?? ''}'.trim();
-      }
+String expertName = 'Expert';
+if (json['expertId'] is Map) {
+  final expert = json['expertId'];
+  expertName =
+      '${expert['firstName'] ?? ''} ${expert['lastName'] ?? ''}'.trim();
+  if (expertName.isEmpty) {
+    expertName = 'Expert';
+  }
+}
 
       // Parse client name
-      String clientFirstName = json['firstName']?.toString() ?? '';
-      String clientLastName = json['lastName']?.toString() ?? '';
+      String clientFirstName = '';
+String clientLastName = '';
+
+if (json['userId'] is Map) {
+  final user = json['userId'];
+  clientFirstName = user['firstName']?.toString() ?? '';
+  clientLastName = user['lastName']?.toString() ?? '';
+} else {
+  clientFirstName = json['firstName']?.toString() ?? '';
+  clientLastName = json['lastName']?.toString() ?? '';
+}
 
       return Booking(
         id: json['_id']?.toString() ?? '',

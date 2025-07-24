@@ -7,11 +7,17 @@ import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
 import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
 
-import '../../expert/expert_category/career_expert.dart';
-import '../../expert/expert_category/top_expert.dart';
-import '../../expert/expert_category/wellness_expert.dart';
-import '../../expert/expert_category/fashion_expert.dart';
+// import '../../expert/expert_category/career_expert.dart';
+// import '../../expert/expert_category/top_expert.dart';
+// import '../../expert/expert_category/wellness_expert.dart';
+// import '../../expert/expert_category/fashion_expert.dart';
 import '../home/user_expert_detailscreen.dart'; // Correct import
+
+import 'package:shourk_application/user/user_expert_category/user_wellness_expert.dart';
+import 'package:shourk_application/user/user_expert_category/user_career_expert.dart';
+import 'package:shourk_application/user/user_expert_category/user_fashion_expert.dart';
+import 'package:shourk_application/user/user_expert_category/user_home_expert.dart';
+import 'package:shourk_application/user/user_expert_category/user_top_expert.dart';
 
 // Moved CategoryChip to top level
 class CategoryChip extends StatelessWidget {
@@ -541,22 +547,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
     switch (categoryName.toLowerCase()) {
       case 'top experts':
-        screen = const TopExpertsScreen();
+        screen = const UserTopExpertsScreen();
         break;
       case 'wellness':
-        screen = const WellnessExpertsScreen();
+        screen = const UserWellnessExpertsScreen();
         break;
       case 'home':
-        screen = const HomeExpertsScreen();
+        screen = const UserHomeExpertsScreen();
         break;
       case 'fashion & beauty':
-        screen = const FashionBeautyExpertsScreen();
+        screen = const UserFashionBeautyExpertsScreen();
         break;
       case 'career and business':
-        screen = const CareerExpertsScreen();
+        screen = const UserCareerExpertsScreen();
         break;
       default:
-        screen = const TopExpertsScreen(); // fallback
+        screen = const UserTopExpertsScreen(); // fallback
     }
 
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));

@@ -69,7 +69,8 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
   Future<void> _getAuthToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('expertToken');
+      final token = prefs.getString('userToken');
+      // final token = prefs.getString('expertToken');
       
       if (token != null) {
         final decodedToken = JwtDecoder.decode(token);
@@ -965,7 +966,8 @@ Widget _buildBookingForm() {
       print("📦 Booking Payload: consultingExpertID=${widget.expertId}, expertId=$currentUserId");
 
       final sessionResponse = await http.post(
-        Uri.parse('https://amd-api.code4bharat.com/api/session/experttoexpertsession'),
+        Uri.parse('https://amd-api.code4bharat.com/api/session/usertoexpertsession'),
+        // Uri.parse('https://amd-api.code4bharat.com/api/session/Userbookings'),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',

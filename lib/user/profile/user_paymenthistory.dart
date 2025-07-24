@@ -411,123 +411,128 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: UserUpperNavbar(),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: ProfileHeader(
-                  displayName: _displayName,
-                  title: _headerTitle,
-                  profileImageUrl: _profileImageUrl,
-                  onProfileTap: () => Navigator.pushNamed(context, '/user-profile'),
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.settings, size: 18),
-                      const SizedBox(width: 6),
-                      const Text("Settings", style: TextStyle(fontSize: 16)),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.menu),
-                        onPressed: _openSettingsMenu,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              const Divider(thickness: 1),
-              
-              Expanded(
-                child: isLoading
-                    ? _buildLoadingState()
-                    : errorMessage != null
-                        ? _buildErrorState()
-                        : transactions.isEmpty
-                            ? _buildEmptyState()
-                            : _buildTransactionsList(),
-              ),
-              
-              if (!isLoading && transactions.isNotEmpty && errorMessage == null)
-                _buildTotalSection(),
-            ],
-          ),
-          
-          if (isMobileNavOpen)
-            GestureDetector(
-              onTap: _closeMobileNav,
-              child: Container(
-                color: Colors.black54,
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height,
-              ),
-            ),
-          
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            right: isMobileNavOpen ? 0 : -MediaQuery.of(context).size.width * 0.7,
-            top: 0,
-            bottom: 0,
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.7,
-              color: Colors.white,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
               child: Column(
                 children: [
-                  AppBar(
-                    backgroundColor: Colors.white,
-                    elevation: 0,
-                    automaticallyImplyLeading: false,
-                    title: const Text("Settings"),
-                    actions: [
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: _closeMobileNav,
-                      )
-                    ],
-                  ),
-                  Expanded(
-                    child: ListView(
-                      children: [
-                        _buildDrawerOption("Profile", Icons.person, () {
-                          _navigateToPage("Profile");
-                        }),
-                        _buildDrawerOption("Payment Methods", Icons.payment, () {
-                          _navigateToPage("Payment Methods");
-                        }),
-                        _buildDrawerOption("Gift Card", Icons.card_giftcard, () {
-                          _navigateToPage("Gift Card");
-                        }),
-                        _buildDrawerOption("Contact Us", Icons.chat, () {
-                          _navigateToPage("Contact Us");
-                        }),
-                        _buildDrawerOption("Payment History", Icons.history, () {
-                          _navigateToPage("Payment History");
-                        }),
-                        _buildDrawerOption("Sign Out", Icons.delete, () {
-                          _navigateToPage("Sign Out");
-                        }),
-                      ],
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    child: ProfileHeader(
+                      displayName: _displayName,
+                      title: _headerTitle,
+                      profileImageUrl: _profileImageUrl,
+                      onProfileTap: () => Navigator.pushNamed(context, '/user-profile'),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.settings, size: 18),
+                          const SizedBox(width: 6),
+                          const Text("Settings", style: TextStyle(fontSize: 16)),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.menu),
+                            onPressed: _openSettingsMenu,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  const Divider(thickness: 1),
+                  
+                  isLoading
+                      ? _buildLoadingState()
+                      : errorMessage != null
+                          ? _buildErrorState()
+                          : transactions.isEmpty
+                              ? _buildEmptyState()
+                              : _buildTransactionsList(),
+                  
+                  if (!isLoading && transactions.isNotEmpty && errorMessage == null)
+                    _buildTotalSection(),
+                  
+                  // Add extra space at bottom to prevent overflow
+                  const SizedBox(height: 80),
                 ],
               ),
             ),
-          ),
-        ],
+            
+            if (isMobileNavOpen)
+              GestureDetector(
+                onTap: _closeMobileNav,
+                child: Container(
+                  color: Colors.black54,
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height,
+                ),
+              ),
+            
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 300),
+              right: isMobileNavOpen ? 0 : -MediaQuery.of(context).size.width * 0.7,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.7,
+                color: Colors.white,
+                child: Column(
+                  children: [
+                    AppBar(
+                      backgroundColor: Colors.white,
+                      elevation: 0,
+                      automaticallyImplyLeading: false,
+                      title: const Text("Settings"),
+                      actions: [
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: _closeMobileNav,
+                        )
+                      ],
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          _buildDrawerOption("Profile", Icons.person, () {
+                            _navigateToPage("Profile");
+                          }),
+                          _buildDrawerOption("Payment Methods", Icons.payment, () {
+                            _navigateToPage("Payment Methods");
+                          }),
+                          _buildDrawerOption("Gift Card", Icons.card_giftcard, () {
+                            _navigateToPage("Gift Card");
+                          }),
+                          _buildDrawerOption("Contact Us", Icons.chat, () {
+                            _navigateToPage("Contact Us");
+                          }),
+                          _buildDrawerOption("Payment History", Icons.history, () {
+                            _navigateToPage("Payment History");
+                          }),
+                          _buildDrawerOption("Sign Out", Icons.delete, () {
+                            _navigateToPage("Sign Out");
+                          }),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: UserBottomNavbar(currentIndex: 2),
     );
@@ -603,32 +608,35 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.attach_money,
-            size: 64,
-            color: Colors.grey[300],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No transactions found',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.attach_money,
+              size: 64,
+              color: Colors.grey[300],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Your payment history will appear here',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
+            const SizedBox(height: 16),
+            Text(
+              'No transactions found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[600],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'Your payment history will appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -643,6 +651,8 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
         await _fetchPaymentHistory();
       },
       child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: true,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: transactions.length,
         itemBuilder: (context, index) {
@@ -656,6 +666,7 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
     final dateFormat = DateFormat('MMM d, yyyy');
     final timeFormat = DateFormat('hh:mm a');
     final isCompleted = _isStatusCompleted(transaction.status);
+    final isSmallScreen = MediaQuery.of(context).size.width < 600;
     
     return Card(
       elevation: 0,
@@ -666,84 +677,120 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: isCompleted ? Colors.blue[50] : Colors.orange[50],
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.videocam,
-                color: isCompleted ? Colors.blue : Colors.orange,
-                size: 24,
-              ),
-            ),
-            
-            const SizedBox(width: 16),
-            
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: isSmallScreen 
+          ? _buildMobileTransactionCard(transaction, isCompleted, dateFormat, timeFormat)
+          : _buildDesktopTransactionCard(transaction, isCompleted, dateFormat, timeFormat),
+      ),
+    );
+  }
+
+  Widget _buildDesktopTransactionCard(
+    Transaction transaction, 
+    bool isCompleted, 
+    DateFormat dateFormat, 
+    DateFormat timeFormat
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: isCompleted ? Colors.blue[50] : Colors.orange[50],
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.videocam,
+            color: isCompleted ? Colors.blue : Colors.orange,
+            size: 24,
+          ),
+        ),
+        
+        const SizedBox(width: 16),
+        
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        transaction.shortId,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '•',
-                        style: TextStyle(color: Colors.grey[400]),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '\$${transaction.amount.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 4),
-                  
                   Text(
-                    'Video consultation',
+                    transaction.shortId,
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '•',
+                    style: TextStyle(color: Colors.grey[400]),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '\$${transaction.amount.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
+              
+              const SizedBox(height: 4),
+              
+              Text(
+                'Video consultation',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  dateFormat.format(transaction.date),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  timeFormat.format(transaction.date),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
             
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            const SizedBox(height: 8),
+            
+            Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      dateFormat.format(transaction.date),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    Icon(
+                      Icons.credit_card,
+                      size: 16,
+                      color: Colors.blue,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
                     Text(
-                      timeFormat.format(transaction.date),
+                      transaction.paymentMethod,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -751,65 +798,172 @@ class _UserPaymentHistoryPageState extends State<UserPaymentHistoryPage> {
                     ),
                   ],
                 ),
-                
-                const SizedBox(height: 8),
-                
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.credit_card,
-                          size: 16,
-                          color: Colors.blue,
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(transaction.status),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _getStatusIcon(transaction.status),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _getStatusTextColor(transaction.status),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          transaction.paymentMethod,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        transaction.status,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: _getStatusTextColor(transaction.status),
                         ),
-                      ],
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(transaction.status),
-                        borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _getStatusIcon(transaction.status),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _getStatusTextColor(transaction.status),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            transaction.status,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: _getStatusTextColor(transaction.status),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
           ],
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget _buildMobileTransactionCard(
+    Transaction transaction, 
+    bool isCompleted, 
+    DateFormat dateFormat, 
+    DateFormat timeFormat
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isCompleted ? Colors.blue[50] : Colors.orange[50],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.videocam,
+                color: isCompleted ? Colors.blue : Colors.orange,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Video consultation',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '\$${transaction.amount.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: _getStatusColor(transaction.status),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _getStatusIcon(transaction.status),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _getStatusTextColor(transaction.status),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    transaction.status,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: _getStatusTextColor(transaction.status),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.credit_card,
+                  size: 16,
+                  color: Colors.blue,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  transaction.paymentMethod,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Text(
+                  dateFormat.format(transaction.date),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  timeFormat.format(transaction.date),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "ID: ${transaction.shortId}",
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[500],
+            fontFamily: 'monospace',
+          ),
+        ),
+      ],
     );
   }
 

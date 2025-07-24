@@ -67,10 +67,7 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
         return [
           Text(
             durationTitle,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           _buildExpectationItem("Ask Three Or More Questions"),
@@ -85,10 +82,7 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
         return [
           Text(
             durationTitle,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           _buildExpectationItem("All Quick session benefits"),
@@ -101,10 +95,7 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
         return [
           Text(
             durationTitle,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           _buildExpectationItem("All Regular session benefits"),
@@ -117,10 +108,7 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
         return [
           Text(
             durationTitle,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           _buildExpectationItem("All Extra session benefits"),
@@ -133,10 +121,7 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
         return [
           Text(
             durationTitle,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           _buildExpectationItem("Select a duration to see expectations"),
@@ -160,7 +145,9 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
   Future<void> _fetchExpertData() async {
     try {
       final response = await http.get(
-        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}'),
+        Uri.parse(
+          'https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}',
+        ),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -230,22 +217,24 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
                       minHeight: 150,
                       maxHeight: 250,
                     ),
-                    child: expert.imageUrl.isNotEmpty
-                        ? Image.network(
-                            expert.imageUrl,
-                            fit: BoxFit.contain,
-                            width: double.infinity,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(
+                    child:
+                        expert.imageUrl.isNotEmpty
+                            ? Image.network(
+                              expert.imageUrl,
+                              fit: BoxFit.contain,
+                              width: double.infinity,
+                              errorBuilder:
+                                  (context, error, stackTrace) => Container(
+                                    height: 200,
+                                    alignment: Alignment.center,
+                                    child: const Icon(Icons.person, size: 100),
+                                  ),
+                            )
+                            : Container(
                               height: 200,
                               alignment: Alignment.center,
                               child: const Icon(Icons.person, size: 100),
                             ),
-                          )
-                        : Container(
-                            height: 200,
-                            alignment: Alignment.center,
-                            child: const Icon(Icons.person, size: 100)),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -281,14 +270,15 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
-                  children: expert.strengths
-                      .map(
-                        (s) => Chip(
-                          label: Text(s),
-                          backgroundColor: Colors.grey[300],
-                        ),
-                      )
-                      .toList(),
+                  children:
+                      expert.strengths
+                          .map(
+                            (s) => Chip(
+                              label: Text(s),
+                              backgroundColor: Colors.grey[300],
+                            ),
+                          )
+                          .toList(),
                 ),
               ],
             ),
@@ -308,7 +298,10 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black,
                       borderRadius: BorderRadius.circular(8),
@@ -334,10 +327,7 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
                   const SizedBox(height: 4),
                   const Text(
                     "Get dedicated one-on-one expert guidance",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.black54),
                   ),
                   const SizedBox(height: 12),
                   const Text(
@@ -353,25 +343,30 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.card_giftcard, color: Colors.blue),
+                        icon: const Icon(
+                          Icons.card_giftcard,
+                          color: Colors.blue,
+                        ),
                         onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => const UserGiftCardSelectPage()),
+                              builder:
+                                  (context) => const UserGiftCardSelectPage(),
+                            ),
                           );
                         },
                       ),
-                      SizedBox(
-                        width: 300,
+                      Flexible(
                         child: ElevatedButton(
                           onPressed: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => UserScheduleVideocall(
-                                  expertId: expert.id,
-                                ),
+                                builder:
+                                    (context) => UserScheduleVideocall(
+                                      expertId: expert.id,
+                                    ),
                               ),
                             );
                           },
@@ -382,6 +377,7 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 15),
+                            minimumSize: const Size(100, 50), // Reduced width
                           ),
                           child: const Text("See Time"),
                         ),
@@ -407,7 +403,10 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black,
                       borderRadius: BorderRadius.circular(8),
@@ -433,33 +432,35 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
                   const SizedBox(height: 4),
                   const Text(
                     "Gift a session or membership to friends, family, or coworkers",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.black54),
                   ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.card_giftcard, color: Colors.blue),
+                        icon: const Icon(
+                          Icons.card_giftcard,
+                          color: Colors.blue,
+                        ),
                         onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => const UserGiftCardSelectPage()),
+                              builder:
+                                  (context) => const UserGiftCardSelectPage(),
+                            ),
                           );
                         },
                       ),
-                      SizedBox(
-                        width: 300,
+                      Flexible(
                         child: ElevatedButton(
                           onPressed: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const UserGiftCardSelectPage(),
+                                builder:
+                                    (context) => const UserGiftCardSelectPage(),
                               ),
                             );
                           },
@@ -471,6 +472,7 @@ class _UserExpertDetailscreenState extends State<UserExpertDetailscreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 15),
+                            minimumSize: const Size(150, 50),
                           ),
                           child: const Text("Select"),
                         ),
@@ -636,13 +638,15 @@ class ExpertModel {
       charityCause: json['charityCause'] ?? 'Charity',
       sessionCount: json['sessionCount'] ?? 0,
       strengths: List<String>.from(json['strengths'] ?? []),
-      reviews: (json['reviews'] as List<dynamic>?)
+      reviews:
+          (json['reviews'] as List<dynamic>?)
               ?.map((review) => Review.fromJson(review))
               .toList() ??
           [],
-      whatToExpect: (json['whatToExpect'] as Map<String, dynamic>?)?.map(
-            (key, value) => MapEntry(
-                key, List<String>.from(value as List<dynamic>? ?? [])),
+      whatToExpect:
+          (json['whatToExpect'] as Map<String, dynamic>?)?.map(
+            (key, value) =>
+                MapEntry(key, List<String>.from(value as List<dynamic>? ?? [])),
           ) ??
           {},
     );

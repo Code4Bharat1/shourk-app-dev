@@ -155,6 +155,7 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
                       child: Row(
                         children: [
                           Expanded(
+                            flex: 3,
                             child: Text(
                               "Find The Right Expert In Seconds!",
                               style: const TextStyle(
@@ -165,21 +166,24 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: _openFilterDialog,
-                            icon: const Icon(Icons.filter_alt_outlined, size: 18),
-                            label: const Text("Filter"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              textStyle: const TextStyle(fontSize: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                          Flexible(
+                            flex: 1,
+                            child: ElevatedButton.icon(
+                              onPressed: _openFilterDialog,
+                              icon: const Icon(Icons.filter_alt_outlined, size: 18),
+                              label: const Text("Filter"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                textStyle: const TextStyle(fontSize: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
                             ),
-                          ))
+                          ),
                         ],
-                      
                       ),
                     ),
                     SizedBox(
@@ -251,23 +255,46 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
                     ),
                     const SizedBox(height: 20),
                     Expanded(
-                      child: GridView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 0.75,
-                        ),
-                        itemCount: filteredExperts.length,
-                        itemBuilder: (context, index) {
-                          return ModernExpertCard(expert: filteredExperts[index]);
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Calculate responsive grid parameters
+                          double screenWidth = constraints.maxWidth;
+                          int crossAxisCount;
+                          double childAspectRatio;
+                          
+                          if (screenWidth < 600) {
+                            // Small screens (phones)
+                            crossAxisCount = 2;
+                            childAspectRatio = 0.75;
+                          } else if (screenWidth < 900) {
+                            // Medium screens (tablets portrait)
+                            crossAxisCount = 3;
+                            childAspectRatio = 0.8;
+                          } else {
+                            // Large screens (tablets landscape, desktop)
+                            crossAxisCount = 4;
+                            childAspectRatio = 0.85;
+                          }
+                          
+                          return GridView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: childAspectRatio,
+                            ),
+                            itemCount: filteredExperts.length,
+                            itemBuilder: (context, index) {
+                              return ModernExpertCard(expert: filteredExperts[index]);
+                            },
+                          );
                         },
                       ),
                     ),
                   ],
                 ),
-                bottomNavigationBar: ExpertBottomNavbar(currentIndex: 0),
+      bottomNavigationBar: ExpertBottomNavbar(currentIndex: 0),
     );
   }
 }
@@ -279,212 +306,224 @@ class ModernExpertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        // Navigate to expert details screen
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ExpertDetailScreen(expertId: expert.id)
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 200,
-        height: 300,
-        decoration: BoxDecoration(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return InkWell(
+          onTap: () {
+            // Navigate to expert details screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ExpertDetailScreen(expertId: expert.id)
+              ),
+            );
+          },
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Expert Image Section
-            Container(
-              height: 300,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.grey[200],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: expert.imageUrl.isNotEmpty
-                    ? Image.network(
-                        expert.imageUrl,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _buildPlaceholderImage();
-                        },
-                      )
-                    : _buildPlaceholderImage(),
-              ),
-            ),
-
-            // Gradient overlay for text readability
-            Container(
-              height: 300,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.01),
-                    Colors.black.withOpacity(0.3),
-                    Colors.black.withOpacity(0.6),
-                    Colors.black.withOpacity(0.8),
-                  ],
-                  stops: const [0.0, 0.4, 0.5, 0.7, 0.85, 1.0],
+          child: Container(
+            width: constraints.maxWidth,
+            height: constraints.maxHeight,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
-              ),
+              ],
             ),
+            child: Stack(
+              children: [
+                // Expert Image Section
+                Container(
+                  height: double.infinity,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.grey[200],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: expert.imageUrl.isNotEmpty
+                        ? Image.network(
+                            expert.imageUrl,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return _buildPlaceholderImage();
+                            },
+                          )
+                        : _buildPlaceholderImage(),
+                  ),
+                ),
 
-            // Content overlay
-            Positioned(
-              left: 12,
-              right: 12,
-              top: 8,
-              bottom: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top badges
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Gradient overlay for text readability
+                Container(
+                  height: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.01),
+                        Colors.black.withOpacity(0.3),
+                        Colors.black.withOpacity(0.6),
+                        Colors.black.withOpacity(0.8),
+                      ],
+                      stops: const [0.0, 0.4, 0.5, 0.7, 0.85, 1.0],
+                    ),
+                  ),
+                ),
+
+                // Content overlay
+                Positioned(
+                  left: 8,
+                  right: 8,
+                  top: 8,
+                  bottom: 8,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Free Session Badge
-                      if (expert.freeSessionEnabled)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green[600],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'First Session Free',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                      // Top badges
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Free Session Badge
+                          if (expert.freeSessionEnabled)
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.green[600],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  'First Session Free',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+
+                          const SizedBox(width: 4),
+                          
+                          // Price Badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'SAR ${expert.price.toInt()}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
+                      ),
 
-                      // Price Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                      const Spacer(),
+
+                      // Name and Verified Badge
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              expert.name,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Icon(Icons.verified, size: 14, color: Colors.orange[600]),
+                        ],
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // Expert experience with semi-transparent background
+                      Expanded(
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(6),
+                          margin: const EdgeInsets.only(bottom: 30),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            (expert.experience != null && expert.experience!.isNotEmpty)
+                                ? expert.experience!
+                                : "My name is ${expert.name.split(' ').firstOrNull ?? 'Unknown'}, and I'm passionate about home improvement and design.",
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white,
+                              height: 1.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'SAR ${expert.price.toInt()}',
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Rating badge
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star, size: 12, color: Colors.orange),
+                        const SizedBox(width: 3),
+                        Text(
+                          expert.rating.toStringAsFixed(1),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-
-                  const Spacer(),
-
-                  // Name and Verified Badge
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          expert.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Icon(Icons.verified, size: 16, color: Colors.orange[600]),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Expert experience with semi-transparent background
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    margin: const EdgeInsets.only(bottom: 35), // Fixed margin
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      (expert.experience != null && expert.experience!.isNotEmpty)
-                          ? expert.experience!
-                          : "My name is ${expert.name.split(' ').firstOrNull ?? 'Unknown'}, and I'm passionate about home improvement and design.",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white,
-                        height: 1.3,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            // Rating badge
-            Positioned(
-              bottom: 12,
-              right: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.star, size: 14, color: Colors.orange),
-                    const SizedBox(width: 4),
-                    Text(
-                      expert.rating.toStringAsFixed(1),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
