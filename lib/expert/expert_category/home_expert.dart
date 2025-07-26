@@ -25,11 +25,31 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
   String errorMessage = '';
 
   final List<Map<String, dynamic>> categories = [
-    {'label': 'Top Experts', 'image': 'assets/images/img2.jpg', 'route': const TopExpertsScreen()},
-    {'label': 'Home', 'image': 'assets/images/home.jpg', 'route': const HomeExpertsScreen()},
-    {'label': 'Career and Business', 'image': 'assets/images/career.jpg', 'route': const CareerExpertsScreen()},
-    {'label': 'Fashion & Beauty', 'image': 'assets/images/fashion.jpg', 'route': const FashionBeautyExpertsScreen()},
-    {'label': 'Wellness', 'image': 'assets/images/wellness.jpg', 'route': const WellnessExpertsScreen()},
+    {
+      'label': 'Top Experts',
+      'image': 'assets/images/img2.jpg',
+      'route': const TopExpertsScreen(),
+    },
+    {
+      'label': 'Home',
+      'image': 'assets/images/home.jpg',
+      'route': const HomeExpertsScreen(),
+    },
+    {
+      'label': 'Career and Business',
+      'image': 'assets/images/career.jpg',
+      'route': const CareerExpertsScreen(),
+    },
+    {
+      'label': 'Fashion & Beauty',
+      'image': 'assets/images/fashion.jpg',
+      'route': const FashionBeautyExpertsScreen(),
+    },
+    {
+      'label': 'Wellness',
+      'image': 'assets/images/wellness.jpg',
+      'route': const WellnessExpertsScreen(),
+    },
   ];
 
   @override
@@ -53,10 +73,11 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
         final data = json.decode(response.body);
         final List fetchedExperts = data['data'];
 
-        final approvedExperts = fetchedExperts
-            .where((expert) => expert['status'] == 'Approved')
-            .map<ExpertModel>((json) => ExpertModel.fromJson(json))
-            .toList();
+        final approvedExperts =
+            fetchedExperts
+                .where((expert) => expert['status'] == 'Approved')
+                .map<ExpertModel>((json) => ExpertModel.fromJson(json))
+                .toList();
 
         setState(() {
           experts = approvedExperts;
@@ -64,7 +85,8 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
         });
       } else {
         setState(() {
-          errorMessage = 'Failed to fetch experts. Status: ${response.statusCode}';
+          errorMessage =
+              'Failed to fetch experts. Status: ${response.statusCode}';
           isLoading = false;
         });
       }
@@ -90,7 +112,9 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
         filteredExperts.sort((a, b) => b.rating.compareTo(a.rating));
         break;
       case 'Most Reviewed':
-        filteredExperts.sort((a, b) => b.reviews.length.compareTo(a.reviews.length));
+        filteredExperts.sort(
+          (a, b) => b.reviews.length.compareTo(a.reviews.length),
+        );
         break;
     }
 
@@ -100,25 +124,26 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
   void _openFilterDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Filter'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildFilterOption('Recommended'),
-            _buildFilterOption('Price High - Low'),
-            _buildFilterOption('Price Low - High'),
-            _buildFilterOption('Highest Rating'),
-            _buildFilterOption('Most Reviewed'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Filter'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildFilterOption('Recommended'),
+                _buildFilterOption('Price High - Low'),
+                _buildFilterOption('Price Low - High'),
+                _buildFilterOption('Highest Rating'),
+                _buildFilterOption('Most Reviewed'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -143,157 +168,171 @@ class _HomeExpertsScreenState extends State<HomeExpertsScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: ExpertUpperNavbar(),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : errorMessage.isNotEmpty
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : errorMessage.isNotEmpty
               ? Center(child: Text(errorMessage))
               : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              "Find The Right Expert In Seconds!",
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            flex: 1,
-                            child: ElevatedButton.icon(
-                              onPressed: _openFilterDialog,
-                              icon: const Icon(Icons.filter_alt_outlined, size: 18),
-                              label: const Text("Filter"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.black,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                textStyle: const TextStyle(fontSize: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Replace the existing Padding widget with this:
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
                     ),
-                    SizedBox(
-                      height: 70,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.only(left: 16),
-                        itemCount: categories.length,
-                        itemBuilder: (context, index) {
-                          final cat = categories[index];
-                          final isSelected = cat['label'] == 'Home';
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            "Find The Right Expert In Seconds!",
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: _openFilterDialog,
+                          icon: const Icon(Icons.filter_alt_outlined, size: 18),
+                          label: const Text("Filter"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            textStyle: const TextStyle(fontSize: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: 70,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.only(left: 16),
+                      itemCount: categories.length,
+                      itemBuilder: (context, index) {
+                        final cat = categories[index];
+                        final isSelected = cat['label'] == 'Home';
 
-                          return GestureDetector(
-                            onTap: () {
-                              if (!isSelected) {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => cat['route']),
-                                );
-                              }
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 12),
-                              width: 90,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isSelected ? Colors.black : Colors.grey.shade300,
-                                ),
-                                image: DecorationImage(
-                                  image: AssetImage(cat['image']),
-                                  fit: BoxFit.cover,
-                                  colorFilter: const ColorFilter.mode(
-                                    Colors.black38,
-                                    BlendMode.darken,
-                                  ),
-                                ),
+                        return GestureDetector(
+                          onTap: () {
+                            if (!isSelected) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (_) => cat['route']),
+                              );
+                            }
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            width: 90,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color:
+                                    isSelected
+                                        ? Colors.black
+                                        : Colors.grey.shade300,
                               ),
-                              child: Center(
-                                child: Text(
-                                  cat['label'],
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  textAlign: TextAlign.center,
+                              image: DecorationImage(
+                                image: AssetImage(cat['image']),
+                                fit: BoxFit.cover,
+                                colorFilter: const ColorFilter.mode(
+                                  Colors.black38,
+                                  BlendMode.darken,
                                 ),
                               ),
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Center(
-                      child: Column(
-                        children: [
-                          Text(
-                            "Home Experts",
-                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            "Interior, home care and more — get expert help",
-                            style: TextStyle(fontSize: 13, color: Colors.black54),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          // Calculate responsive grid parameters
-                          double screenWidth = constraints.maxWidth;
-                          int crossAxisCount;
-                          double childAspectRatio;
-                          
-                          if (screenWidth < 600) {
-                            // Small screens (phones)
-                            crossAxisCount = 2;
-                            childAspectRatio = 0.75;
-                          } else if (screenWidth < 900) {
-                            // Medium screens (tablets portrait)
-                            crossAxisCount = 3;
-                            childAspectRatio = 0.8;
-                          } else {
-                            // Large screens (tablets landscape, desktop)
-                            crossAxisCount = 4;
-                            childAspectRatio = 0.85;
-                          }
-                          
-                          return GridView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: crossAxisCount,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: childAspectRatio,
+                            child: Center(
+                              child: Text(
+                                cat['label'],
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
-                            itemCount: filteredExperts.length,
-                            itemBuilder: (context, index) {
-                              return ModernExpertCard(expert: filteredExperts[index]);
-                            },
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Center(
+                    child: Column(
+                      children: [
+                        Text(
+                          "Home Experts",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          "Interior, home care and more — get expert help",
+                          style: TextStyle(fontSize: 13, color: Colors.black54),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Calculate responsive grid parameters
+                        double screenWidth = constraints.maxWidth;
+                        int crossAxisCount;
+                        double childAspectRatio;
+
+                        if (screenWidth < 600) {
+                          // Small screens (phones)
+                          crossAxisCount = 2;
+                          childAspectRatio = 0.75;
+                        } else if (screenWidth < 900) {
+                          // Medium screens (tablets portrait)
+                          crossAxisCount = 3;
+                          childAspectRatio = 0.8;
+                        } else {
+                          // Large screens (tablets landscape, desktop)
+                          crossAxisCount = 4;
+                          childAspectRatio = 0.85;
+                        }
+
+                        return GridView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 16,
+                                childAspectRatio: childAspectRatio,
+                              ),
+                          itemCount: filteredExperts.length,
+                          itemBuilder: (context, index) {
+                            return ModernExpertCard(
+                              expert: filteredExperts[index],
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
       bottomNavigationBar: ExpertBottomNavbar(currentIndex: 0),
     );
   }
@@ -314,7 +353,7 @@ class ModernExpertCard extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => ExpertDetailScreen(expertId: expert.id)
+                builder: (_) => ExpertDetailScreen(expertId: expert.id),
               ),
             );
           },
@@ -345,17 +384,18 @@ class ModernExpertCard extends StatelessWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: expert.imageUrl.isNotEmpty
-                        ? Image.network(
-                            expert.imageUrl,
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildPlaceholderImage();
-                            },
-                          )
-                        : _buildPlaceholderImage(),
+                    child:
+                        expert.imageUrl.isNotEmpty
+                            ? Image.network(
+                              expert.imageUrl,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildPlaceholderImage();
+                              },
+                            )
+                            : _buildPlaceholderImage(),
                   ),
                 ),
 
@@ -418,7 +458,7 @@ class ModernExpertCard extends StatelessWidget {
                             ),
 
                           const SizedBox(width: 4),
-                          
+
                           // Price Badge
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -458,7 +498,11 @@ class ModernExpertCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Icon(Icons.verified, size: 14, color: Colors.orange[600]),
+                          Icon(
+                            Icons.verified,
+                            size: 14,
+                            color: Colors.orange[600],
+                          ),
                         ],
                       ),
 
@@ -475,7 +519,8 @@ class ModernExpertCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            (expert.experience != null && expert.experience!.isNotEmpty)
+                            (expert.experience != null &&
+                                    expert.experience!.isNotEmpty)
                                 ? expert.experience!
                                 : "My name is ${expert.name.split(' ').firstOrNull ?? 'Unknown'}, and I'm passionate about home improvement and design.",
                             style: const TextStyle(
@@ -497,7 +542,10 @@ class ModernExpertCard extends StatelessWidget {
                   bottom: 8,
                   right: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(20),

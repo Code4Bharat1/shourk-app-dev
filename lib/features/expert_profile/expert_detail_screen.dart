@@ -357,7 +357,7 @@ Padding(
             },
           ),
             SizedBox(
-              width: 300,
+              width: 200,
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.push(
@@ -442,7 +442,7 @@ Padding(
               size: 30,
             ),
             SizedBox(
-              width: 300,
+              width: 200,
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.push(
