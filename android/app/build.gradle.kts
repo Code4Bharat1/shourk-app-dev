@@ -43,6 +43,10 @@ android {
             jniLibs.srcDirs("libs")
         }
     }
+
+    packagingOptions {
+        pickFirst("lib/*/libc++_shared.so")
+    }
 }
 
 repositories {
