@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="zoomsdkrender" type="id"/>
+    <declare-styleable name="ZoomVideoSDKVideoView">
+        <attr format="boolean" name="render_textureView"/>
+    </declare-styleable>
+</resources>
