@@ -24,7 +24,7 @@ class _VideoSessionPricePageState extends State<VideoSessionPricePage> {
   double _currentPrice = 500.0;
   
   // Environment configuration
-  static const String _baseUrl = 'https://amd-api.code4bharat.com'; // Replace with your actual API URL
+  static const String _baseUrl = 'http://localhost:5070'; // Replace with your actual API URL
   
   @override
   void initState() {

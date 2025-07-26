@@ -27,7 +27,8 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
   String errorMessage = '';
   List<Map<String, dynamic>> availabilitySlots = [];
   bool showLimitMessage = false;
-  bool showDurationWarning = false; // Added to control duration warning display
+  bool showDurationWarning = false;
+  bool showSlotWarning = false;
 
   final List<Map<String, String>> sessionTypes = [
     {'label': 'Quick - 15min', 'value': 'quick'},
@@ -202,28 +203,35 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
             const SizedBox(height: 20),
 
             // Selection counter and limit message
-            if (selectedTimeSlots.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 15),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Show limit message when 5 slots are selected
-                    if (selectedTimeSlots.length == 5)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          'Maximum 5 slots selected. To select more, remove some first.',
-                          style: TextStyle(
-                            color: Colors.red[700],
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 15),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${selectedTimeSlots.length} slot(s) selected',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.black,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  // Show limit message when 5 slots are selected
+                  if (selectedTimeSlots.length == 5)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Maximum 5 slots selected. To select more, remove some first.',
+                        style: TextStyle(
+                          color: Colors.red[700],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
+            ),
 
             // Time Slots Section
             if (isLoading)
@@ -310,27 +318,54 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
             ),
             const SizedBox(height: 30),
 
+            // Slot selection warning
+            if (showSlotWarning)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  "Please select at least one time slot.",
+                  style: TextStyle(
+                    color: Colors.red[700],
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+
             // Request Button
             Container(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
+                  // Validate selections before proceeding
+                  if (selectedSessionType.isEmpty) {
+                    setState(() {
+                      showDurationWarning = true;
+                    });
+                    return;
+                  }
+                  
+                  if (selectedTimeSlots.isEmpty) {
+                    setState(() {
+                      showSlotWarning = true;
+                    });
+                    return;
+                  }
+                  
                   if (_expert != null) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => ExpertBookingScreen(
                           expertId: _expert!.id,
-                          selectedSessionType: selectedSessionType.isNotEmpty ? selectedSessionType : 'regular',
-                          selectedDate: selectedTimeSlots.isNotEmpty ? _findSelectedDateForTime(selectedTimeSlots.first) : '', // TODO: Replace with actual selected date logic
-                          selectedTime: selectedTimeSlots.isNotEmpty ? selectedTimeSlots.first : '', // TODO: Replace with actual selected time logic
+                          selectedSessionType: selectedSessionType,
+                          selectedSlots: selectedTimeSlots,
                         ),
                       ),
                     );
                   }
                 },
-
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
                   shape: RoundedRectangleBorder(
@@ -352,18 +387,6 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
       ),
       bottomNavigationBar: const ExpertBottomNavbar(currentIndex: 1),
     );
-  }
-
-  // Find the date for a selected time slot (expects uniqueKey as 'date-time')
-  String _findSelectedDateForTime(String uniqueKey) {
-    // uniqueKey is in the format 'date-time'
-    final parts = uniqueKey.split('-');
-    if (parts.length < 2) return '';
-    // The first part(s) are the date, the last part is the time
-    // If date itself contains '-', recombine all but last as date
-    final time = parts.last;
-    final date = parts.sublist(0, parts.length - 1).join('-');
-    return date;
   }
 
   Widget _buildSessionButton(String label, String value) {
@@ -488,6 +511,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                     } else {
                       selectedTimeSlots.add(uniqueKey);
                     }
+                    showSlotWarning = false; // Hide warning when slot is selected
                   });
                 },
                 child: Container(

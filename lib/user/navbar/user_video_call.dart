@@ -588,6 +588,12 @@ void _showMeetingLinkDialog(String meetingLink) {
     }
   }
 
+  // Helper to get the correct consultation label for the user panel
+  String getConsultationLabel(Booking booking) {
+    // For user panel, the consultation is always with the expert
+    return 'Consultation with ${booking.expertName.isNotEmpty ? booking.expertName : 'N/A'}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final userName = '$firstName $lastName'.trim();
@@ -766,7 +772,7 @@ void _showMeetingLinkDialog(String meetingLink) {
               children: [
                 Expanded(
                   child: Text(
-                    "Consultation with ${booking.expertName}",
+                    getConsultationLabel(booking),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,

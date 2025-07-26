@@ -37,6 +37,24 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDirs("libs")
+        }
+    }
+}
+
+repositories {
+    flatDir {
+        dirs("libs")
+    }
+}
+
+dependencies {
+    implementation(files("libs/mobilertc.aar"))
+    implementation("androidx.appcompat:appcompat:1.2.0")
+    // Add any other required dependencies for Zoom SDK here
 }
 
 flutter {

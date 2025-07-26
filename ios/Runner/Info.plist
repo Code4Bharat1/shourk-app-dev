@@ -4,9 +4,14 @@
 <dict>
 
 	<key>NSCameraUsageDescription</key>
-	<string>Video consultation requires camera access</string>
+	<string>We need access to your camera for video sessions.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Video consultation requires microphone access</string>
+	<string>We need access to your microphone for audio sessions.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
