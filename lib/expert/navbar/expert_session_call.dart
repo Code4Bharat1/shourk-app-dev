@@ -19,7 +19,7 @@ class ExpertSessionCallPage extends StatefulWidget {
 }
 
 class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
-  static const platform = MethodChannel('com.shourk_application/zoom_sdk');
+  static const platform = MethodChannel('zoom_channel');
 
   bool _loading = true;
   bool _inMeeting = false;
@@ -29,7 +29,8 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   Timer? _timer;
   int _secondsLeft = 0;
   bool _micOn = true;
-  bool _camOn = true;
+  bool _camOn = false;
+  bool _userJoined = false; // Simulate user join for demo
 
   @override
   void initState() {
@@ -149,7 +150,6 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
         timer.cancel();
         setState(() => _inMeeting = false);
         _leaveZoomSessionNative();
-        // Optionally: call backend to mark session complete
       } else {
         setState(() => _secondsLeft--);
       }
@@ -162,51 +162,117 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
     super.dispose();
   }
 
-  Widget _buildSessionDetails(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+  Widget _buildPanel({
+    required String role,
+    required String name,
+    required bool isExpert,
+    required bool cameraOn,
+    required bool micOn,
+    bool waiting = false,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF232B3B) : Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
+      ),
+      width: 420,
+      child: waiting
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.person, size: 64, color: Colors.grey),
+                const SizedBox(height: 24),
+                Text(
+                  'Waiting for user to join...',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'The consultation will begin once the user connects to the session',
+                  style: TextStyle(color: Colors.grey[400]),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                const CircularProgressIndicator(),
+              ],
+            )
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.person, size: 64, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(
+                  name,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  cameraOn ? 'Camera is on' : 'Camera is off',
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(micOn ? Icons.mic : Icons.mic_off, color: micOn ? Colors.green : Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    Text(micOn ? 'Mic on' : 'Mic muted', style: TextStyle(color: micOn ? Colors.green : Colors.red)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isExpert ? Colors.purple[700] : Colors.blue[700],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    role,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSessionIntro() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Container(
         margin: const EdgeInsets.all(24),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: isDark ? Colors.grey[900] : Colors.white,
+          color: isDark ? const Color(0xFF232B3B) : Colors.grey[100],
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 16)],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.person, size: 64),
-            const SizedBox(height: 16),
+            const Icon(Icons.video_call, size: 64, color: Colors.blue),
+            const SizedBox(height: 24),
             Text(
               'Ready to Start Expert Session',
-              style: theme.textTheme.titleLarge,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
-              'Begin your ${_sessionData?['duration'] ?? '15'}-minute consultation session',
-              style: theme.textTheme.bodyLarge,
+              'Begin your \\${_sessionData?['duration'] ?? '15'}-minute consultation session',
+              style: TextStyle(fontSize: 16, color: isDark ? Colors.white70 : Colors.black87),
             ),
             const SizedBox(height: 24),
-            Card(
-              color: isDark ? Colors.grey[800] : Colors.grey[100],
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Text('Duration: ${_sessionData?['duration'] ?? '15 minutes'}'),
-                    Text('Role: Expert (Host)'),
-                    Text('Meeting ID: ${_sessionData?['zoomMeetingId'] ?? ''}'),
-                    Text('Platform: Zoom Video SDK'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: _fetchZoomTokenAndJoin,
-              child: const Text('Start Expert Session'),
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Start Expert Session'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
             ),
           ],
         ),
@@ -214,70 +280,70 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
     );
   }
 
-  Widget _buildMeetingUI(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-      body: Column(
+  Widget _buildSessionUI() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      color: isDark ? const Color(0xFF181F2C) : Colors.grey[200],
+      child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: isDark ? Colors.grey[850] : Colors.grey[200],
+          Expanded(
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Waiting for user to join...',
-                  style: theme.textTheme.bodyLarge,
+                _buildPanel(
+                  role: 'Expert (Host)',
+                  name: 'You (Expert)',
+                  isExpert: true,
+                  cameraOn: _camOn,
+                  micOn: _micOn,
                 ),
-                const Spacer(),
-                Text(
-                  'Meeting ID: ${_sessionData?['zoomMeetingId'] ?? ''}',
-                  style: theme.textTheme.bodySmall,
+                _buildPanel(
+                  role: 'User',
+                  name: _userJoined ? 'User (Client)' : '',
+                  isExpert: false,
+                  cameraOn: false,
+                  micOn: false,
+                  waiting: !_userJoined,
                 ),
               ],
             ),
           ),
-          Expanded(
-            child: Center(
-              // TODO: Integrate your native Zoom Video SDK here using platform channels
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.person, size: 80, color: isDark ? Colors.white : Colors.black),
-                  const SizedBox(height: 8),
-                  Text('You (Expert)', style: theme.textTheme.bodyLarge),
-                  Text(_camOn ? 'Camera is on' : 'Camera is off', style: theme.textTheme.bodySmall),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        icon: Icon(_micOn ? Icons.mic : Icons.mic_off),
-                        color: _micOn ? Colors.green : Colors.red,
-                        onPressed: () => setState(() => _micOn = !_micOn),
-                      ),
-                      IconButton(
-                        icon: Icon(_camOn ? Icons.videocam : Icons.videocam_off),
-                        color: _camOn ? Colors.green : Colors.red,
-                        onPressed: () => setState(() => _camOn = !_camOn),
-                      ),
-                    ],
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+            color: isDark ? const Color(0xFF232B3B) : Colors.grey[100],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(_micOn ? Icons.mic : Icons.mic_off),
+                      color: _micOn ? Colors.green : Colors.red,
+                      onPressed: () => setState(() => _micOn = !_micOn),
+                    ),
+                    IconButton(
+                      icon: Icon(_camOn ? Icons.videocam : Icons.videocam_off),
+                      color: _camOn ? Colors.green : Colors.red,
+                      onPressed: () => setState(() => _camOn = !_camOn),
+                    ),
+                  ],
+                ),
+                Text(
+                  'Time left: ${(_secondsLeft ~/ 60).toString().padLeft(2, '0')}:${(_secondsLeft % 60).toString().padLeft(2, '0')}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _leaveZoomSessionNative,
+                  icon: const Icon(Icons.call_end, color: Colors.white),
+                  label: const Text('End Session'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Time left: ${(_secondsLeft ~/ 60).toString().padLeft(2, '0')}:${(_secondsLeft % 60).toString().padLeft(2, '0')}',
-                    style: theme.textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _leaveZoomSessionNative,
-                    child: const Text('Leave Session'),
-                  ),
-                  const SizedBox(height: 24),
-                  Text('This is a mock UI. Integrate the real Zoom Video SDK here.', style: theme.textTheme.bodySmall),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -304,8 +370,8 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
             : _errorMsg != null
                 ? Center(child: Text(_errorMsg ?? 'Unknown error'))
                 : !_inMeeting
-                    ? _buildSessionDetails(context)
-                    : _buildMeetingUI(context),
+                    ? _buildSessionIntro()
+                    : _buildSessionUI(),
       ),
     );
   }

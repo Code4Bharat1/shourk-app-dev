@@ -8,7 +8,7 @@ import us.zoom.sdk.*
 import android.util.Log
 
 class MainActivity: FlutterActivity() {
-    private val CHANNEL = "com.shourk_application/zoom_sdk"
+    private val CHANNEL = "zoom_channel"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
