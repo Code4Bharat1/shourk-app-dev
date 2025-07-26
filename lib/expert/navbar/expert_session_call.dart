@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ExpertSessionCallPage extends StatefulWidget {
   final String sessionId;
@@ -105,6 +106,23 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
 
   Future<void> _joinZoomSessionNative() async {
     if (_zoomAuthData == null) return;
+    
+    // Web fallback for testing
+    if (kIsWeb) {
+      setState(() {
+        _inMeeting = true;
+        _userJoined = true; // Simulate user joining for web demo
+      });
+      _startTimer();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Web Demo Mode: Zoom SDK integration requires mobile device'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
     try {
       await platform.invokeMethod('joinZoomSession', {
         'token': _zoomAuthData!['token'],
@@ -125,6 +143,15 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   }
 
   Future<void> _leaveZoomSessionNative() async {
+    // Web fallback for testing
+    if (kIsWeb) {
+      setState(() {
+        _inMeeting = false;
+        _userJoined = false;
+      });
+      return;
+    }
+    
     try {
       await platform.invokeMethod('leaveZoomSession');
       setState(() {

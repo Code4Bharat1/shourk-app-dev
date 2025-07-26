@@ -28,6 +28,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Enable native library support
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+        }
     }
 
     buildTypes {
@@ -40,12 +45,17 @@ android {
 
     sourceSets {
         getByName("main") {
-            jniLibs.srcDirs("libs")
+            jniLibs.srcDirs("libs", "src/main/jniLibs")
         }
     }
 
     packagingOptions {
         pickFirst("lib/*/libc++_shared.so")
+        pickFirst("lib/*/libzoom_video_sdk.so")
+        pickFirst("lib/*/libcrypto.so")
+        pickFirst("lib/*/libssl.so")
+        pickFirst("lib/*/libzlib.so")
+        pickFirst("lib/*/libzoom_sdk_render.so")
     }
 }
 
@@ -53,6 +63,8 @@ repositories {
     flatDir {
         dirs("libs")
     }
+    google()
+    mavenCentral()
 }
 
 dependencies {
