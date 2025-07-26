@@ -46,7 +46,8 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
   String otherReason = "";
   bool termsAccepted = false;
 
-  static const String baseUrl = "https://amd-api.code4bharat.com/api";
+  // static const String baseUrl = "https://amd-api.code4bharat.com/api";
+  static const String baseUrl = "https://api.shourk.com/api";
 
   @override
   void initState() {
@@ -1074,7 +1075,7 @@ Widget _buildActionButtons(Booking booking) {
   if (booking.status.toLowerCase() == 'confirmed') {
     buttons.add(
       OutlinedButton.icon(
-        onPressed: () => Navigator.pushNamed(context, '/home'),
+        onPressed: () => Navigator.pushNamed(context, '/'),
         icon: const Icon(Icons.chat, size: 16),
         label: const Text('Chat'),
         style: OutlinedButton.styleFrom(
@@ -1276,92 +1277,112 @@ class Booking {
     );
   }
 
-  factory Booking.fromJson(Map<String, dynamic> json) {
-    try {
-      // Parse session time and date
-      print('Available JSON fields: ${json.keys.toList()}');
-      print('Expert data: ${json['expertId']}');
+factory Booking.fromJson(Map<String, dynamic> json) {
+  try {
+    print('=== BOOKING JSON DEBUG ===');
+    print('Full JSON: ${json.toString()}');
+    print('consultingExpertID: ${json['consultingExpertID']}');
+    print('expertId: ${json['expertId']}');
+    print('expertName: ${json['expertName']}'); // 🔥 ADD THIS DEBUG LINE
+    print('========================');
 
-      print('=== BOOKING JSON DEBUG ===');
-      print('Full JSON: ${json.toString()}');
-      print('expertId type: ${json['expertId'].runtimeType}');
-      print('expertId value: ${json['expertId']}');
-      print('========================');
-      
-      String sessionTime = 'TBD';
-      DateTime? sessionDate;
-
-      // Handle slots data
-      if (json['slots'] != null &&
-          json['slots'] is List &&
-          json['slots'].isNotEmpty) {
-        final outerSlot = json['slots'][0]; // First outer array
-        if (outerSlot is List && outerSlot.isNotEmpty) {
-          final firstSlot = outerSlot[0]; // First inner object
-          if (firstSlot is Map) {
-            sessionTime = firstSlot['selectedTime']?.toString() ?? 'TBD';
-
-            if (firstSlot['selectedDate'] != null) {
-              sessionDate = DateTime.tryParse(firstSlot['selectedDate']);
-            }
+    // Parse session time and date
+    String sessionTime = 'TBD';
+    DateTime? sessionDate;
+    if (json['slots'] != null && json['slots'] is List && json['slots'].isNotEmpty) {
+      final outerSlot = json['slots'][0];
+      if (outerSlot is List && outerSlot.isNotEmpty) {
+        final firstSlot = outerSlot[0];
+        if (firstSlot is Map) {
+          sessionTime = firstSlot['selectedTime']?.toString() ?? 'TBD';
+          if (firstSlot['selectedDate'] != null) {
+            sessionDate = DateTime.tryParse(firstSlot['selectedDate']);
           }
         }
       }
-
-      // Parse expert name
-String expertName = 'Expert';
-if (json['expertId'] is Map) {
-  final expert = json['expertId'];
-  expertName =
-      '${expert['firstName'] ?? ''} ${expert['lastName'] ?? ''}'.trim();
-  if (expertName.isEmpty) {
-    expertName = 'Expert';
-  }
-}
-
-      // Parse client name
-      String clientFirstName = '';
-String clientLastName = '';
-
-if (json['userId'] is Map) {
-  final user = json['userId'];
-  clientFirstName = user['firstName']?.toString() ?? '';
-  clientLastName = user['lastName']?.toString() ?? '';
-} else {
-  clientFirstName = json['firstName']?.toString() ?? '';
-  clientLastName = json['lastName']?.toString() ?? '';
-}
-
-      return Booking(
-        id: json['_id']?.toString() ?? '',
-        status: json['status']?.toString()?.toLowerCase() ?? 'pending',
-        sessionTime: sessionTime,
-        duration: json['duration']?.toString() ?? 'TBD',
-        sessionType: json['sessionType']?.toString() ?? 'user-to-expert',
-        expertName: expertName,
-        clientFirstName: clientFirstName,
-        clientLastName: clientLastName,
-        userMeetingLink:
-            json['userMeetingLink']?.toString() ??
-            json['zoomMeetingLink']?.toString(),
-        sessionDate: sessionDate,
-        hasRating: json['rating'] != null,
-      );
-    } catch (e) {
-      print('Error parsing booking: $e');
-      print('Raw JSON: $json');
-      return Booking(
-        id: 'error',
-        status: 'error',
-        sessionTime: 'TBD',
-        duration: 'TBD',
-        sessionType: 'error',
-        expertName: 'Error',
-        clientFirstName: 'Error',
-        clientLastName: 'Error',
-      );
     }
+
+    // ===== EXPERT NAME PARSING WITH FALLBACK =====
+    String expertName = 'Expert';
+    
+    // 🔥 FIRST: Try the expertName field we're adding
+    if (json['expertName'] != null && json['expertName'].toString().trim().isNotEmpty) {
+      expertName = json['expertName'].toString().trim();
+    }
+    // Try consultingExpertID if it's a Map
+    else if (json['consultingExpertID'] is Map) {
+      final expert = json['consultingExpertID'] as Map<String, dynamic>;
+      String firstName = expert['firstName']?.toString().trim() ?? '';
+      String lastName = expert['lastName']?.toString().trim() ?? '';
+      
+      if (firstName.isNotEmpty || lastName.isNotEmpty) {
+        expertName = '$firstName $lastName'.trim();
+      } else if (expert['name'] != null) {
+        expertName = expert['name'].toString().trim();
+      }
+    }
+    // Try expertId if it's a Map
+    else if (json['expertId'] is Map) {
+      final expert = json['expertId'] as Map<String, dynamic>;
+      String firstName = expert['firstName']?.toString().trim() ?? '';
+      String lastName = expert['lastName']?.toString().trim() ?? '';
+      
+      if (firstName.isNotEmpty || lastName.isNotEmpty) {
+        expertName = '$firstName $lastName'.trim();
+      }
+    }
+    // 🔥 FALLBACK: Create expert name from areaOfExpertise + "Specialist"
+    else if (json['areaOfExpertise'] != null) {
+      String area = json['areaOfExpertise'].toString();
+      if (area != 'Home') {
+        expertName = '$area Specialist';
+      } else {
+        expertName = 'Home & Lifestyle Expert';
+      }
+    }
+
+    // Get client name
+    String clientFirstName = json['firstName']?.toString().trim() ?? 'Client';
+    String clientLastName = json['lastName']?.toString().trim() ?? '';
+
+    if (clientFirstName.isEmpty && clientLastName.isEmpty) {
+      if (json['email'] != null) {
+        clientFirstName = json['email'].toString().split('@').first;
+      } else {
+        clientFirstName = 'Client';
+      }
+    }
+
+    return Booking(
+      id: json['_id']?.toString() ?? '',
+      status: json['status']?.toString()?.toLowerCase() ?? 'pending',
+      sessionTime: sessionTime,
+      duration: json['duration']?.toString() ?? 'TBD',
+      sessionType: json['sessionType']?.toString() ?? 'user-to-expert',
+      expertName: expertName,
+      clientFirstName: clientFirstName,
+      clientLastName: clientLastName,
+      userMeetingLink: json['userMeetingLink']?.toString() ?? 
+                      json['zoomMeetingLink']?.toString(),
+      sessionDate: sessionDate,
+      hasRating: json['rating'] != null,
+    );
+  } catch (e) {
+    print('Error parsing booking: $e');
+    print('Raw JSON: $json');
+    
+    return Booking(
+      id: json['_id']?.toString() ?? 'unknown',
+      status: 'error',
+      sessionTime: 'TBD',
+      duration: 'TBD',
+      sessionType: 'user-to-expert',
+      expertName: 'Error Loading Expert',
+      clientFirstName: 'Client',
+      clientLastName: '',
+    );
   }
+}
 }
 
 class RatingDialog extends StatefulWidget {
@@ -1404,7 +1425,8 @@ class _RatingDialogState extends State<RatingDialog> {
       final token = prefs.getString('userToken');
 
       final response = await http.post(
-        Uri.parse('https://amd-api.code4bharat.com/api/rating/rateSession'),
+        // Uri.parse('https://amd-api.code4bharat.com/api/rating/rateSession'),
+        Uri.parse('https://api.shourk.com/api/rating/rateSession'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

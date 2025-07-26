@@ -60,10 +60,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
 
   Future<void> _initializeData() async {
     await _getAuthToken();
-    await Future.wait([
-      fetchExpert(),
-      fetchWalletBalance(),
-    ]);
+    await Future.wait([fetchExpert(), fetchWalletBalance()]);
   }
 
   Future<void> _getAuthToken() async {
@@ -71,7 +68,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('userToken');
       // final token = prefs.getString('expertToken');
-      
+
       if (token != null) {
         final decodedToken = JwtDecoder.decode(token);
         setState(() {
@@ -146,7 +143,9 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
   Future<void> fetchExpert() async {
     try {
       final res = await http.get(
-        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}'),
+        Uri.parse(
+          'https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}',
+        ),
         headers: {'Content-Type': 'application/json'},
       );
       if (res.statusCode == 200) {
@@ -199,9 +198,9 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
           discountAmount = sessionFee * 0.2;
         } else {
           discountAmount = 0.0;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Invalid promo code')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Invalid promo code')));
         }
       });
     }
@@ -210,15 +209,11 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (error.isNotEmpty) {
-      return Scaffold(
-        body: Center(child: Text(error)),
-      );
+      return Scaffold(body: Center(child: Text(error)));
     }
 
     return Scaffold(
@@ -231,7 +226,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
           children: [
             _buildExpertCard(),
             const SizedBox(height: 20),
-            
+
             // Dynamic session info
             Container(
               padding: const EdgeInsets.all(16),
@@ -252,11 +247,18 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today, size: 20, color: Colors.blue),
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 20,
+                        color: Colors.blue,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Date: ',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                       Text(sessionDate, style: TextStyle(fontSize: 16)),
                     ],
@@ -264,11 +266,18 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.access_time, size: 20, color: Colors.blue),
+                      const Icon(
+                        Icons.access_time,
+                        size: 20,
+                        color: Colors.blue,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Time: ',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                       Text(sessionTime, style: TextStyle(fontSize: 16)),
                     ],
@@ -280,9 +289,15 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                       const SizedBox(width: 8),
                       Text(
                         'Duration: ',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
-                      Text(_mapSessionDurationLabel(sessionType), style: TextStyle(fontSize: 16)),
+                      Text(
+                        _mapSessionDurationLabel(sessionType),
+                        style: TextStyle(fontSize: 16),
+                      ),
                     ],
                   ),
                 ],
@@ -341,10 +356,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                     const SizedBox(height: 4),
                     Text(
                       expert!.title ?? '',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 4),
                     Row(
@@ -353,9 +365,10 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                         (index) => Icon(
                           Icons.star,
                           size: 16,
-                          color: index < expert!.rating.round()
-                              ? Colors.orange
-                              : Colors.grey[400],
+                          color:
+                              index < expert!.rating.round()
+                                  ? Colors.orange
+                                  : Colors.grey[400],
                         ),
                       ),
                     ),
@@ -380,10 +393,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                   const SizedBox(height: 4),
                   Text(
                     'Per Session',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -401,7 +411,11 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                    Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
                     const SizedBox(width: 8),
                     const Text(
                       'Selected Sessions',
@@ -415,10 +429,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                 const SizedBox(height: 8),
                 Text(
                   sessionDate,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[700],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -427,10 +438,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                     const SizedBox(width: 8),
                     Text(
                       sessionTime,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                     ),
                   ],
                 ),
@@ -441,10 +449,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                     const SizedBox(width: 8),
                     Text(
                       _mapSessionDurationLabel(sessionType),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                     ),
                   ],
                 ),
@@ -466,10 +471,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
                 Expanded(
                   child: Text(
                     'You can add up to 5 sessions at different time slots. Any 1 time slot might get selected based on availability.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange[700],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.orange[700]),
                   ),
                 ),
               ],
@@ -480,133 +482,104 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
     );
   }
 
-Widget _buildBookingForm() {
-  return Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.grey.withOpacity(0.1),
-          spreadRadius: 1,
-          blurRadius: 4,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Complete Your Booking',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+  Widget _buildBookingForm() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Complete Your Booking',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTextField(
-                  controller: _firstNameController,
-                  label: 'First Name',
-                  hint: 'Enter your first name',
-                  prefixIcon: Icons.person_outline,
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    controller: _firstNameController,
+                    label: 'First Name',
+                    hint: 'Enter your first name',
+                    prefixIcon: Icons.person_outline,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildTextField(
-                  controller: _lastNameController,
-                  label: 'Last Name',
-                  hint: 'Enter your last name',
-                  prefixIcon: Icons.person_outline,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildTextField(
+                    controller: _lastNameController,
+                    label: 'Last Name',
+                    hint: 'Enter your last name',
+                    prefixIcon: Icons.person_outline,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTextField(
-                  controller: _phoneController,
-                  label: 'Mobile Number',
-                  hint: '+1 (555) 000-0000',
-                  prefixIcon: Icons.phone_outlined,
-                  keyboardType: TextInputType.phone,
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    controller: _phoneController,
+                    label: 'Mobile Number',
+                    hint: '+1 (555) 000-0000',
+                    prefixIcon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildTextField(
-                  controller: _emailController,
-                  label: 'Email',
-                  hint: 'your.email@example.com',
-                  prefixIcon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildTextField(
+                    controller: _emailController,
+                    label: 'Email',
+                    hint: 'your.email@example.com',
+                    prefixIcon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Text(
-                    'Note to Expert',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+              ],
+            ),
+            const SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Text(
+                      'Note to Expert',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  Spacer(),
-                  Text(
-                    '0/25 words minimum',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.red,
+                    Spacer(),
+                    Text(
+                      '0/25 words minimum',
+                      style: TextStyle(fontSize: 12, color: Colors.red),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _noteController,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  hintText:
-                      'Introduce yourself and describe what you\'d like to discuss in the session (minimum 25 words)...',
-                  hintStyle: TextStyle(color: Colors.grey[500]),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.blue),
-                  ),
-                  contentPadding: const EdgeInsets.all(12),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _promoController,
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _noteController,
+                  maxLines: 4,
                   decoration: InputDecoration(
-                    labelText: 'Gift Card / Promo Code',
-                    hintText: 'Enter gift or promo code',
-                    prefixIcon: const Icon(Icons.card_giftcard_outlined),
+                    hintText:
+                        'Introduce yourself and describe what you\'d like to discuss in the session (minimum 25 words)...',
+                    hintStyle: TextStyle(color: Colors.grey[500]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(color: Colors.grey[300]!),
@@ -615,31 +588,55 @@ Widget _buildBookingForm() {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.blue),
                     ),
+                    contentPadding: const EdgeInsets.all(12),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _applyPromoCode,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[800],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _promoController,
+                    decoration: InputDecoration(
+                      labelText: 'Gift Card / Promo Code',
+                      hintText: 'Enter gift or promo code',
+                      prefixIcon: const Icon(Icons.card_giftcard_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.blue),
+                      ),
+                    ),
                   ),
                 ),
-                child: const Text('Apply'),
-              ),
-            ],
-          ),
-        ],
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _applyPromoCode,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[800],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Apply'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
-
+    );
+  }
 
   Widget _buildTextField({
     required TextEditingController controller,
@@ -653,10 +650,7 @@ Widget _buildBookingForm() {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -674,7 +668,10 @@ Widget _buildBookingForm() {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Colors.blue),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 16,
+            ),
           ),
         ),
       ],
@@ -710,22 +707,21 @@ Widget _buildBookingForm() {
                 const SizedBox(width: 8),
                 Text(
                   'Your Wallet Balance',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.blue[700],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.blue[700]),
                 ),
                 const Spacer(),
-                isWalletLoading 
-                  ? SizedBox(
+                isWalletLoading
+                    ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.blue[600]!,
+                        ),
                       ),
                     )
-                  : Text(
+                    : Text(
                       'SAR ${walletBalance.toStringAsFixed(2)}',
                       style: TextStyle(
                         fontSize: 16,
@@ -737,7 +733,9 @@ Widget _buildBookingForm() {
             ),
           ),
           const SizedBox(height: 16),
-          if (!isWalletLoading && finalPriceAfterGiftCard > walletBalance && !isFirstSession) ...[
+          if (!isWalletLoading &&
+              finalPriceAfterGiftCard > walletBalance &&
+              !isFirstSession) ...[
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -747,15 +745,16 @@ Widget _buildBookingForm() {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_outlined, color: Colors.red[600], size: 16),
+                  Icon(
+                    Icons.warning_outlined,
+                    color: Colors.red[600],
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Insufficient wallet balance. Please top up your wallet.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.red[700],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.red[700]),
                     ),
                   ),
                 ],
@@ -768,17 +767,11 @@ Widget _buildBookingForm() {
             children: [
               Text(
                 'Session Fee',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
               Text(
                 'SAR ${sessionFee.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -789,17 +782,11 @@ Widget _buildBookingForm() {
               children: [
                 Text(
                   'First Session (Free)',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.green[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.green[600]),
                 ),
                 Text(
                   '-SAR ${sessionFee.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.green[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.green[600]),
                 ),
               ],
             ),
@@ -811,17 +798,11 @@ Widget _buildBookingForm() {
               children: [
                 Text(
                   'Discount',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.green[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.green[600]),
                 ),
                 Text(
                   '-SAR ${discountAmount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.green[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.green[600]),
                 ),
               ],
             ),
@@ -834,10 +815,7 @@ Widget _buildBookingForm() {
             children: [
               const Text(
                 'Total',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               Text(
                 'SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)}',
@@ -854,20 +832,24 @@ Widget _buildBookingForm() {
   }
 
   Widget _buildBookButton() {
-    bool canBook = !isWalletLoading && 
-                   (isFirstSession || finalPriceAfterGiftCard <= walletBalance) &&
-                   !isBookingInProgress;
-    
+    bool canBook =
+        !isWalletLoading &&
+        (isFirstSession || finalPriceAfterGiftCard <= walletBalance) &&
+        !isBookingInProgress;
+
     return Column(
       children: [
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: canBook ? () {
-              if (_formKey.currentState!.validate()) {
-                _handleBooking();
-              }
-            } : null,
+            onPressed:
+                canBook
+                    ? () {
+                      if (_formKey.currentState!.validate()) {
+                        _handleBooking();
+                      }
+                    }
+                    : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: canBook ? Colors.black : Colors.grey[400],
               foregroundColor: Colors.white,
@@ -876,43 +858,41 @@ Widget _buildBookingForm() {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: isBookingInProgress 
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.payment),
-                    const SizedBox(width: 8),
-                    Text(
-                      isFirstSession 
-                        ? 'Book Free Session'
-                        : 'Pay SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)} & Book',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+            child:
+                isBookingInProgress
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
+                    )
+                    : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.payment),
+                        const SizedBox(width: 8),
+                        Text(
+                          isFirstSession
+                              ? 'Book Free Session'
+                              : 'Pay SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)} & Book',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
           ),
         ),
         const SizedBox(height: 12),
         Text(
-          isFirstSession 
-            ? 'By clicking "Book Free Session", you agree to our Terms of Service and Privacy Policy.'
-            : 'By clicking "Pay SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)} & Book", you agree to our Terms of Service and Privacy Policy.',
+          isFirstSession
+              ? 'By clicking "Book Free Session", you agree to our Terms of Service and Privacy Policy.'
+              : 'By clicking "Pay SAR ${finalPriceAfterGiftCard.toStringAsFixed(2)} & Book", you agree to our Terms of Service and Privacy Policy.',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
       ],
     );
@@ -921,7 +901,9 @@ Widget _buildBookingForm() {
   Future<void> _handleBooking() async {
     if (authToken == null || currentUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login required or user ID missing. Please re-login.')),
+        const SnackBar(
+          content: Text('Login required or user ID missing. Please re-login.'),
+        ),
       );
       return;
     }
@@ -937,15 +919,17 @@ Widget _buildBookingForm() {
         'Technology',
         'Style and Beauty',
         'Health and Wellness',
-        'Career and Business'
+        'Career and Business',
       ];
       return allowed.contains(input) ? input! : 'Home';
     }
 
     try {
       final bookingData = {
-        'consultingExpertID': widget.expertId,
-        'expertId': currentUserId,
+        'consultingExpertID': widget.expertId, // The expert being booked
+        'expertId': widget.expertId, // ✅ FIXED: This should also be the expert ID
+        'userId': currentUserId,
+        'expertName': expert?.name ?? 'Expert', 
         'areaOfExpertise': _validateAreaOfExpertise(expert?.areaOfExpertise),
         'duration': _mapSessionDurationLabel(sessionType),
         'firstName': _firstNameController.text.trim(),
@@ -956,17 +940,18 @@ Widget _buildBookingForm() {
         'price': sessionFee.toString(),
         'redemptionCode': _promoController.text.trim(),
         'slots': [
-          {
-            'selectedDate': sessionDate,
-            'selectedTime': sessionTime,
-          }
+          {'selectedDate': sessionDate, 'selectedTime': sessionTime},
         ],
       };
 
-      print("📦 Booking Payload: consultingExpertID=${widget.expertId}, expertId=$currentUserId");
+      print(
+        "📦 Booking Payload: consultingExpertID=${widget.expertId}, expertId=$currentUserId",
+      );
 
       final sessionResponse = await http.post(
-        Uri.parse('https://amd-api.code4bharat.com/api/session/usertoexpertsession'),
+        Uri.parse(
+          'https://amd-api.code4bharat.com/api/session/usertoexpertsession',
+        ),
         // Uri.parse('https://amd-api.code4bharat.com/api/session/Userbookings'),
         headers: {
           'Authorization': 'Bearer $authToken',
@@ -975,7 +960,8 @@ Widget _buildBookingForm() {
         body: jsonEncode(bookingData),
       );
 
-      if (sessionResponse.statusCode != 200 && sessionResponse.statusCode != 201) {
+      if (sessionResponse.statusCode != 200 &&
+          sessionResponse.statusCode != 201) {
         throw Exception('Failed to create session: ${sessionResponse.body}');
       }
 
@@ -984,7 +970,9 @@ Widget _buildBookingForm() {
 
       if (!isFirstSession && finalPriceAfterGiftCard > 0) {
         final paymentResponse = await http.post(
-          Uri.parse('https://amd-api.code4bharat.com/api/expertwallet/spending/pay'),
+          Uri.parse(
+            'https://amd-api.code4bharat.com/api/expertwallet/spending/pay',
+          ),
           headers: {
             'Authorization': 'Bearer $authToken',
             'Content-Type': 'application/json',
@@ -996,7 +984,8 @@ Widget _buildBookingForm() {
           }),
         );
 
-        if (paymentResponse.statusCode != 200 && paymentResponse.statusCode != 201) {
+        if (paymentResponse.statusCode != 200 &&
+            paymentResponse.statusCode != 201) {
           throw Exception('Payment failed: ${paymentResponse.body}');
         }
 
@@ -1006,7 +995,6 @@ Widget _buildBookingForm() {
       }
 
       _showBookingConfirmation(sessionId);
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Booking failed: ${e.toString()}')),
@@ -1028,11 +1016,7 @@ Widget _buildBookingForm() {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.check_circle,
-                color: Colors.green,
-                size: 50,
-              ),
+              const Icon(Icons.check_circle, color: Colors.green, size: 50),
               const SizedBox(height: 16),
               Text(
                 'Your session with ${expert?.name} has been booked successfully.',
@@ -1041,10 +1025,7 @@ Widget _buildBookingForm() {
               const SizedBox(height: 8),
               Text(
                 'Session ID: $sessionId',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
             ],
