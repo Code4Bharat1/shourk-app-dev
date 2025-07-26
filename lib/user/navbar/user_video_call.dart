@@ -32,19 +32,6 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
   bool isLoading = false;
   String? errorMessage;
 
-  // Cancellation state
-  // bool isCancelling = false;
-  // Booking? bookingToCancel;
-  // List<Map<String, dynamic>> cancellationReasons = [
-  //   {"id": 1, "reason": "Schedule conflict", "checked": false},
-  //   {"id": 2, "reason": "Found alternative solution", "checked": false},
-  //   {"id": 3, "reason": "Expert not suitable for my needs", "checked": false},
-  //   {"id": 4, "reason": "Technical issues", "checked": false},
-  //   {"id": 5, "reason": "Cost concerns", "checked": false},
-  //   {"id": 6, "reason": "Other", "checked": false},
-  // ];
-  // String otherReason = "";
-  // bool termsAccepted = false;
 
   // static const String baseUrl = "https://amd-api.code4bharat.com/api";
   static const String baseUrl = "https://api.shourk.com/api";
@@ -321,79 +308,7 @@ void _showMeetingLinkDialog(String meetingLink) {
     }
   }
 
-  // Future<void> _cancelSession() async {
-  //   if (bookingToCancel == null || userToken == null) return;
 
-  //   final selectedReasons =
-  //       cancellationReasons
-  //           .where((reason) => reason['checked'] == true)
-  //           .map((reason) => reason['reason'].toString())
-  //           .toList();
-
-  //   if (selectedReasons.isEmpty) {
-  //     _showSnackBar('Please select at least one reason for cancellation');
-  //     return;
-  //   }
-
-  //   final isOtherSelected = cancellationReasons.any(
-  //     (reason) => reason['id'] == 6 && reason['checked'] == true,
-  //   );
-
-  //   if (isOtherSelected && otherReason.trim().isEmpty) {
-  //     _showSnackBar('Please provide details for "Other" reason');
-  //     return;
-  //   }
-
-  //   if (!termsAccepted) {
-  //     _showSnackBar('Please accept the terms and conditions');
-  //     return;
-  //   }
-
-  //   setState(() => isCancelling = true);
-
-  //   try {
-  //     final response = await http.post(
-  //       Uri.parse('$baseUrl/cancelsession/canceluser'),
-  //       headers: {
-  //         'Authorization': 'Bearer $userToken',
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: json.encode({
-  //         'sessionId': bookingToCancel!.id,
-  //         'reasons': selectedReasons,
-  //         'otherReason': isOtherSelected ? otherReason : "",
-  //         'sessionModel': "UserToExpertSession",
-  //       }),
-  //     );
-
-  //     if (response.statusCode == 200) {
-  //       final data = json.decode(response.body);
-  //       if (data['success'] == true) {
-  //         setState(() {
-  //           bookings =
-  //               bookings.map((booking) {
-  //                 if (booking.id == bookingToCancel!.id) {
-  //                   return booking.copyWith(status: 'cancelled');
-  //                 }
-  //                 return booking;
-  //               }).toList();
-  //         });
-
-  //         _showSnackBar('Session cancelled successfully');
-  //         Navigator.of(context).pop();
-  //         setState(() => bookingToCancel = null);
-  //       } else {
-  //         throw Exception(data['message'] ?? 'Failed to cancel session');
-  //       }
-  //     } else {
-  //       throw Exception('Failed to cancel session: ${response.statusCode}');
-  //     }
-  //   } catch (e) {
-  //     _showSnackBar('Error cancelling session: ${e.toString()}');
-  //   } finally {
-  //     setState(() => isCancelling = false);
-  //   }
-  // }
 
   String _getUserInitials(String firstName, String lastName) {
     String initials = "";
@@ -408,146 +323,6 @@ void _showMeetingLinkDialog(String meetingLink) {
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
   }
-
-  // void _showCancelDialog(Booking booking) {
-  //   setState(() {
-  //     bookingToCancel = booking;
-  //     cancellationReasons =
-  //         cancellationReasons
-  //             .map((reason) => {...reason, 'checked': false})
-  //             .toList();
-  //     otherReason = "";
-  //     termsAccepted = false;
-  //   });
-
-  //   showDialog(
-  //     context: context,
-  //     builder:
-  //         (context) => StatefulBuilder(
-  //           builder: (context, setState) {
-  //             return AlertDialog(
-  //               title: const Text('Cancel Session'),
-  //               content: SingleChildScrollView(
-  //                 child: Column(
-  //                   mainAxisSize: MainAxisSize.min,
-  //                   crossAxisAlignment: CrossAxisAlignment.start,
-  //                   children: [
-  //                     const Text('Please select your reason for cancellation:'),
-  //                     const SizedBox(height: 16),
-  //                     ...cancellationReasons
-  //                         .map(
-  //                           (reason) => CheckboxListTile(
-  //                             title: Text(reason['reason']),
-  //                             value: reason['checked'],
-  //                             onChanged: (value) {
-  //                               setState(() {
-  //                                 cancellationReasons =
-  //                                     cancellationReasons
-  //                                         .map(
-  //                                           (r) =>
-  //                                               r['id'] == reason['id']
-  //                                                   ? {
-  //                                                     ...r,
-  //                                                     'checked': value ?? false,
-  //                                                   }
-  //                                                   : {...r, 'checked': false},
-  //                                         )
-  //                                         .toList();
-  //                               });
-  //                             },
-  //                           ),
-  //                         )
-  //                         .toList(),
-  //                     if (cancellationReasons.any(
-  //                       (r) => r['id'] == 6 && r['checked'] == true,
-  //                     ))
-  //                       TextField(
-  //                         decoration: const InputDecoration(
-  //                           labelText: 'Please specify',
-  //                           border: OutlineInputBorder(),
-  //                         ),
-  //                         onChanged: (value) => otherReason = value,
-  //                       ),
-  //                   ],
-  //                 ),
-  //               ),
-  //               actions: [
-  //                 TextButton(
-  //                   onPressed: () => Navigator.of(context).pop(),
-  //                   child: const Text('Back'),
-  //                 ),
-  //                 ElevatedButton(
-  //                   onPressed: () {
-  //                     Navigator.of(context).pop();
-  //                     _showTermsDialog();
-  //                   },
-  //                   child: const Text('Next'),
-  //                 ),
-  //               ],
-  //             );
-  //           },
-  //         ),
-  //   );
-  // }
-
-  // void _showTermsDialog() {
-  //   showDialog(
-  //     context: context,
-  //     builder:
-  //         (context) => StatefulBuilder(
-  //           builder: (context, setState) {
-  //             return AlertDialog(
-  //               title: const Text('Cancellation Terms'),
-  //               content: SingleChildScrollView(
-  //                 child: Column(
-  //                   mainAxisSize: MainAxisSize.min,
-  //                   crossAxisAlignment: CrossAxisAlignment.start,
-  //                   children: [
-  //                     const Text(
-  //                       'Please review the cancellation terms:',
-  //                       style: TextStyle(fontWeight: FontWeight.bold),
-  //                     ),
-  //                     const SizedBox(height: 12),
-  //                     const Text(
-  //                       '1. Cancellations made within 24 hours may incur a fee\n'
-  //                       '2. Full refund for cancellations >24 hours in advance\n'
-  //                       '3. Rescheduling is subject to expert availability\n'
-  //                       '4. Multiple cancellations may affect future bookings',
-  //                     ),
-  //                     const SizedBox(height: 16),
-  //                     Row(
-  //                       children: [
-  //                         Checkbox(
-  //                           value: termsAccepted,
-  //                           onChanged:
-  //                               (value) => setState(
-  //                                 () => termsAccepted = value ?? false,
-  //                               ),
-  //                         ),
-  //                         const Text('I accept the terms'),
-  //                       ],
-  //                     ),
-  //                   ],
-  //                 ),
-  //               ),
-  //               actions: [
-  //                 TextButton(
-  //                   onPressed: () => Navigator.of(context).pop(),
-  //                   child: const Text('Back'),
-  //                 ),
-  //                 ElevatedButton(
-  //                   onPressed: isCancelling ? null : _cancelSession,
-  //                   child:
-  //                       isCancelling
-  //                           ? const CircularProgressIndicator()
-  //                           : const Text('Confirm Cancellation'),
-  //                 ),
-  //               ],
-  //             );
-  //           },
-  //         ),
-  //   );
-  // }
 
   void _showRatingDialog(Booking booking) {
     showDialog(
@@ -1160,20 +935,6 @@ if (booking.userMeetingLink != null && booking.userMeetingLink!.isNotEmpty) {
     }
   }
 
-  // if (booking.status.toLowerCase() == 'unconfirmed' ||
-  //     booking.status.toLowerCase() == 'pending') {
-  //   buttons.add(
-  //     OutlinedButton.icon(
-  //       onPressed: () => _showCancelDialog(booking),
-  //       icon: const Icon(Icons.cancel, size: 16, color: Colors.red),
-  //       label: const Text('Cancel', style: TextStyle(color: Colors.red)),
-  //       style: OutlinedButton.styleFrom(
-  //         side: const BorderSide(color: Colors.red),
-  //         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-  //       ),
-  //     ),
-  //   );
-  // }
 
   if (booking.status.toLowerCase() == 'completed' && !booking.hasRating) {
     buttons.add(

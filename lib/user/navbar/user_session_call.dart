@@ -808,57 +808,65 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
-        border: Border(
-          bottom: BorderSide(color: theme.dividerColor),
+Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize) {
+  return Container(
+    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    decoration: BoxDecoration(
+      color: theme.colorScheme.surface,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black12,
+          blurRadius: 4,
+          offset: Offset(0, 2),
         ),
+      ],
+      border: Border(
+        bottom: BorderSide(color: theme.dividerColor),
       ),
-      child: screenSize.width > 600
-          ? Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildHeaderLeftSection(provider, theme),
-                _buildHeaderRightSection(provider, theme),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildHeaderLeftSection(provider, theme),
-                    _buildHeaderRightSection(provider, theme),
-                  ],
-                ),
-                SizedBox(height: 8),
-                _buildMeetingInfo(provider, theme),
-              ],
-            ),
-    );
-  }
+    ),
+    child: screenSize.width > 600
+        ? Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center, // Add this
+            children: [
+              Flexible( // Wrap with Flexible
+                child: _buildHeaderLeftSection(provider, theme),
+              ),
+              SizedBox(width: 12), // Add spacing
+              _buildHeaderRightSection(provider, theme),
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start, // Change to start
+                children: [
+                  Flexible( // Wrap with Flexible
+                    child: _buildHeaderLeftSection(provider, theme),
+                  ),
+                  _buildHeaderRightSection(provider, theme),
+                ],
+              ),
+              SizedBox(height: 8),
+              _buildMeetingInfo(provider, theme),
+            ],
+          ),
+  );
+}
 
   Widget _buildHeaderLeftSection(UserSessionProvider provider, ThemeData theme) {
-    return Row(
-      children: [
-        Image.asset(
-          'assets/images/Shourk_logo.png',
-          width: 100,
-          height: 40,
-        ),
-        SizedBox(width: 12),
-        Container(
+  return Row(
+    children: [
+      Image.asset(
+        'assets/images/Shourk_logo.png',
+        width: 100,
+        height: 40,
+      ),
+      SizedBox(width: 12),
+      Flexible( // Add Flexible here
+        child: Container(
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface.withOpacity(0.7),
@@ -866,6 +874,7 @@ class _UserSessionBody extends StatelessWidget {
             border: Border.all(color: theme.dividerColor),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min, // Add this
             children: [
               Container(
                 width: 8,
@@ -876,20 +885,24 @@ class _UserSessionBody extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 8),
-              Text(
-                provider.connectionStatus,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: theme.colorScheme.onSurface,
+              Flexible( // Add Flexible here
+                child: Text(
+                  provider.connectionStatus,
+                  overflow: TextOverflow.ellipsis, // Add overflow handling
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
   Widget _buildHeaderRightSection(UserSessionProvider provider, ThemeData theme) {
     return Row(
@@ -1127,7 +1140,8 @@ class _UserSessionBody extends StatelessWidget {
                     SizedBox(width: 10),
                     Text(
                       'Join Consultation',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(fontSize: 16,
+                      color: Colors.white),
                     ),
                   ],
                 ),

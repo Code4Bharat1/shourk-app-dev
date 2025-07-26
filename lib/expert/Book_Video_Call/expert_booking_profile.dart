@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
-import 'package:shourk_application/expert/navbar/video_call.dart';
+// import 'package:shourk_application/expert/navbar/video_call.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
 
 class ExpertBookingScreen extends StatefulWidget {
