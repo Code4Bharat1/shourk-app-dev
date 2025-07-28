@@ -28,7 +28,7 @@ dependencies:
   shimmer: ^3.0.0
   flutter_rating_bar: ^4.0.1
   camera: ^0.10.0+1
-  permission_handler: ^10.4.0
+  permission_handler: ^11.3.0
 
 dev_dependencies:
   flutter_test:
