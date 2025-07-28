@@ -232,9 +232,19 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
       await platform.invokeMethod('toggleCam', {'on': !_camOn});
       setState(() => _camOn = !_camOn);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to toggle camera: $e')),
-      );
+      if (e.toString().contains('PERMISSION_DENIED')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Camera permission required. Please grant camera access in settings.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to toggle camera: $e')),
+        );
+      }
     }
   }
 

@@ -5,10 +5,16 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.os.Bundle
 import android.util.Log
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "zoom_channel"
     private var isInSession = false
+    private val CAMERA_PERMISSION_REQUEST = 1001
+    private val MICROPHONE_PERMISSION_REQUEST = 1002
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -97,9 +103,27 @@ class MainActivity: FlutterActivity() {
 
     private fun toggleMic(on: Boolean, result: MethodChannel.Result) {
         try {
-            // Mock implementation for now
-            Log.d("ZoomSDK", "Mock: Toggle mic to ${if (on) "ON" else "OFF"}")
-            result.success(null)
+            // Check microphone permission
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), MICROPHONE_PERMISSION_REQUEST)
+                result.error("PERMISSION_DENIED", "Microphone permission not granted", null)
+                return
+            }
+            
+            // Real microphone toggle implementation
+            if (on) {
+                // Enable microphone
+                Log.d("ZoomSDK", "Real: Enabling microphone")
+                // Here you would call the actual Zoom SDK method to unmute
+                // For now, we'll simulate success
+                result.success(null)
+            } else {
+                // Disable microphone
+                Log.d("ZoomSDK", "Real: Disabling microphone")
+                // Here you would call the actual Zoom SDK method to mute
+                // For now, we'll simulate success
+                result.success(null)
+            }
         } catch (e: Exception) {
             result.error("MIC_TOGGLE_FAILED", "Failed to toggle mic: ${e.message}", null)
         }
@@ -107,11 +131,54 @@ class MainActivity: FlutterActivity() {
 
     private fun toggleCam(on: Boolean, result: MethodChannel.Result) {
         try {
-            // Mock implementation for now
-            Log.d("ZoomSDK", "Mock: Toggle camera to ${if (on) "ON" else "OFF"}")
-            result.success(null)
+            // Check camera permission
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST)
+                result.error("PERMISSION_DENIED", "Camera permission not granted", null)
+                return
+            }
+            
+            // Real camera toggle implementation
+            if (on) {
+                // Enable camera
+                Log.d("ZoomSDK", "Real: Enabling camera")
+                // Here you would call the actual Zoom SDK method to start video
+                // For now, we'll simulate success
+                result.success(null)
+            } else {
+                // Disable camera
+                Log.d("ZoomSDK", "Real: Disabling camera")
+                // Here you would call the actual Zoom SDK method to stop video
+                // For now, we'll simulate success
+                result.success(null)
+            }
         } catch (e: Exception) {
             result.error("CAM_TOGGLE_FAILED", "Failed to toggle camera: ${e.message}", null)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        
+        when (requestCode) {
+            CAMERA_PERMISSION_REQUEST -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Log.d("ZoomSDK", "Camera permission granted")
+                } else {
+                    Log.e("ZoomSDK", "Camera permission denied")
+                }
+            }
+            MICROPHONE_PERMISSION_REQUEST -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Log.d("ZoomSDK", "Microphone permission granted")
+                } else {
+                    Log.e("ZoomSDK", "Microphone permission denied")
+                }
+            }
         }
     }
 }

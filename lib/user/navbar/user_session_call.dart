@@ -421,7 +421,11 @@ void toggleVideo() async {
       isVideoOn = !isVideoOn;
       notifyListeners();
     } on PlatformException catch (e) {
-      mediaError = "Failed to toggle camera: ${e.message}";
+      if (e.message?.contains('PERMISSION_DENIED') == true) {
+        mediaError = "Camera permission required. Please grant camera access in settings.";
+      } else {
+        mediaError = "Failed to toggle camera: ${e.message}";
+      }
       notifyListeners();
     }
   } catch (e) {
