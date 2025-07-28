@@ -124,14 +124,14 @@ void _showMeetingLinkDialog(String meetingLink) {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Close'),
         ),
-        ElevatedButton(
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: meetingLink));
-            Navigator.of(context).pop();
-            _showSnackBar('Meeting link copied to clipboard');
-          },
-          child: const Text('Copy Link'),
-        ),
+        // ElevatedButton(
+        //   onPressed: () {
+        //     Clipboard.setData(ClipboardData(text: meetingLink));
+        //     Navigator.of(context).pop();
+        //     _showSnackBar('Meeting link copied to clipboard');
+        //   },
+        //   child: const Text('Copy Link'),
+        // ),
       ],
     ),
   );
