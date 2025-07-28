@@ -71,12 +71,18 @@ repositories {
 }
 
 dependencies {
-    // TODO: Uncomment when Zoom SDK is properly integrated
-    // implementation(files("libs/mobilertc.aar"))
+    // Real Zoom Video SDK integration
+    implementation(files("libs/mobilertc.aar"))
     implementation("androidx.appcompat:appcompat:1.2.0")
     implementation("androidx.core:core-ktx:1.7.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("com.google.android.material:material:1.5.0")
+    // Additional dependencies for Zoom SDK
+    implementation("androidx.multidex:multidex:2.0.1")
+    implementation("com.google.code.gson:gson:2.8.9")
+    implementation("com.squareup.okhttp3:okhttp:4.9.1")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     // Add any other required dependencies for Zoom SDK here
 }
 
