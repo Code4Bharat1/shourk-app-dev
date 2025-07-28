@@ -32,11 +32,40 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   bool _micOn = true;
   bool _camOn = false;
   bool _userJoined = false; // Simulate user join for demo
+  Timer? _userJoinPollTimer;
 
   @override
   void initState() {
     super.initState();
     _fetchSessionDetails();
+    _startUserJoinPolling();
+  }
+
+  void _startUserJoinPolling() {
+    // Poll every 3 seconds to check if user has joined
+    _userJoinPollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!_inMeeting || _userJoined) return;
+      try {
+        final response = await http.get(
+          Uri.parse('http://localhost:5070/api/zoomVideo/user-joined/${widget.sessionId}'),
+          headers: {
+            'Authorization': 'Bearer ${widget.token}',
+            'Content-Type': 'application/json',
+          },
+        );
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['userJoined'] == true) {
+            setState(() {
+              _userJoined = true;
+            });
+            _userJoinPollTimer?.cancel();
+          }
+        }
+      } catch (e) {
+        // Optionally log polling error
+      }
+    });
   }
 
   Future<void> _fetchSessionDetails() async {
@@ -186,7 +215,30 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _userJoinPollTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _toggleMic() async {
+    try {
+      await platform.invokeMethod('toggleMic', {'on': !_micOn});
+      setState(() => _micOn = !_micOn);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to toggle mic: $e')),
+      );
+    }
+  }
+
+  Future<void> _toggleCam() async {
+    try {
+      await platform.invokeMethod('toggleCam', {'on': !_camOn});
+      setState(() => _camOn = !_camOn);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to toggle camera: $e')),
+      );
+    }
   }
 
   Widget _buildPanel({
@@ -403,12 +455,12 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
                     IconButton(
                       icon: Icon(_micOn ? Icons.mic : Icons.mic_off),
                       color: _micOn ? Colors.green : Colors.red,
-                      onPressed: () => setState(() => _micOn = !_micOn),
+                      onPressed: _toggleMic,
                     ),
                     IconButton(
                       icon: Icon(_camOn ? Icons.videocam : Icons.videocam_off),
                       color: _camOn ? Colors.green : Colors.red,
-                      onPressed: () => setState(() => _camOn = !_camOn),
+                      onPressed: _toggleCam,
                     ),
                   ],
                 ),

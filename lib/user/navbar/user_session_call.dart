@@ -239,6 +239,7 @@ class UserSessionProvider with ChangeNotifier {
   DateTime? sessionStartTime;
   List<Participant> participants = [];
   Timer? timer;
+  Timer? _expertJoinPollTimer;
 
   final String meetingId;
   final String sessionId;
@@ -266,11 +267,38 @@ class UserSessionProvider with ChangeNotifier {
       isLoading = false;
       connectionStatus = "Ready to join as User";
       notifyListeners();
+      _startExpertJoinPolling();
     } catch (e) {
       error = e.toString();
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  void _startExpertJoinPolling() {
+    // Poll every 3 seconds to check if expert has joined
+    _expertJoinPollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!isInSession || expertJoined) return;
+      try {
+        final response = await http.get(
+          Uri.parse('${UserSessionCall.baseUrl}/api/zoomVideo/expert-joined/$sessionId'),
+          headers: {
+            'Authorization': 'Bearer $userToken',
+            'Content-Type': 'application/json',
+          },
+        );
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['expertJoined'] == true) {
+            expertJoined = true;
+            notifyListeners();
+            _expertJoinPollTimer?.cancel();
+          }
+        }
+      } catch (e) {
+        // Optionally log polling error
+      }
+    });
   }
 
   Future<void> startLocalVideo() async {
@@ -380,8 +408,22 @@ void toggleVideo() async {
       }
     }
     
-    isVideoOn = !isVideoOn;
-    notifyListeners();
+    // Call native method to toggle camera in Zoom session
+    if (kIsWeb) {
+      // Web fallback
+      isVideoOn = !isVideoOn;
+      notifyListeners();
+      return;
+    }
+    
+    try {
+      await platform.invokeMethod('toggleCam', {'on': !isVideoOn});
+      isVideoOn = !isVideoOn;
+      notifyListeners();
+    } on PlatformException catch (e) {
+      mediaError = "Failed to toggle camera: ${e.message}";
+      notifyListeners();
+    }
   } catch (e) {
     mediaError = "Failed to toggle video: $e";
     notifyListeners();
@@ -400,10 +442,26 @@ void toggleAudio() async {
       }
     }
     
-    isAudioOn = !isAudioOn;
-    audioJoined = true;
-    mediaError = null;
-    notifyListeners();
+    // Call native method to toggle mic in Zoom session
+    if (kIsWeb) {
+      // Web fallback
+      isAudioOn = !isAudioOn;
+      audioJoined = true;
+      mediaError = null;
+      notifyListeners();
+      return;
+    }
+    
+    try {
+      await platform.invokeMethod('toggleMic', {'on': !isAudioOn});
+      isAudioOn = !isAudioOn;
+      audioJoined = true;
+      mediaError = null;
+      notifyListeners();
+    } on PlatformException catch (e) {
+      mediaError = "Failed to toggle microphone: ${e.message}";
+      notifyListeners();
+    }
   } catch (e) {
     mediaError = "Failed to toggle audio: $e";
     notifyListeners();
@@ -464,6 +522,7 @@ void toggleAudio() async {
     
     timer?.cancel();
     timer = null;
+    _expertJoinPollTimer?.cancel();
     
     isSessionActive = false;
     sessionEnded = true;
