@@ -7,13 +7,13 @@ import 'package:shourk_application/user/user_expert_category/user_wellness_exper
 import 'package:shourk_application/user/user_expert_category/user_career_expert.dart';
 import 'package:shourk_application/user/user_expert_category/user_fashion_expert.dart';
 import 'package:shourk_application/user/user_expert_category/user_home_expert.dart';
-import 'package:shourk_application/user/user_expert_category/user_top_expert.dart';
+// import 'package:shourk_application/user/user_expert_category/user_top_expert.dart';
 import 'dart:convert';
-import 'package:shourk_application/shared/models/expert_model.dart' as shared ;
-import 'package:shourk_application/shared/widgets/expert_card.dart';
-import 'package:shourk_application/shared/models/expert_model.dart';
-import 'package:shourk_application/features/expert_profile/expert_detail_screen.dart';
-import 'package:shourk_application/user/home/user_expert_detailscreen.dart';
+import 'package:shourk_application/shared/models/expert_model.dart' as shared;
+// import 'package:shourk_application/shared/widgets/expert_card.dart';
+// import 'package:shourk_application/shared/models/expert_model.dart';
+// import 'package:shourk_application/features/expert_profile/expert_detail_screen.dart';
+// import 'package:shourk_application/user/home/user_expert_detailscreen.dart';
 
 class UserTopExpertsScreen extends StatefulWidget {
   const UserTopExpertsScreen({super.key});
@@ -77,13 +77,14 @@ class _UserTopExpertsScreenState extends State<UserTopExpertsScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List<dynamic> expertsData = data['data'] ?? [];
-        
+
         // Filter experts with rating >= 4
-        final List<shared.ExpertModel> filteredExperts = expertsData
-            .where((expert) => expert['status'] == 'Approved')
-            .map((expertJson) => shared.ExpertModel.fromJson(expertJson))
-            .where((expert) => expert.rating >= 4.0)
-            .toList();
+        final List<shared.ExpertModel> filteredExperts =
+            expertsData
+                .where((expert) => expert['status'] == 'Approved')
+                .map((expertJson) => shared.ExpertModel.fromJson(expertJson))
+                .where((expert) => expert.rating >= 4.0)
+                .toList();
 
         setState(() {
           experts = filteredExperts;
@@ -118,8 +119,9 @@ class _UserTopExpertsScreenState extends State<UserTopExpertsScreen> {
         break;
       case 'Most Reviewed':
         // Use null-safe access for reviews
-        filteredExperts.sort((a, b) => 
-            (b.reviews?.length ?? 0).compareTo(a.reviews?.length ?? 0));
+        filteredExperts.sort(
+          (a, b) => (b.reviews?.length ?? 0).compareTo(a.reviews?.length ?? 0),
+        );
         break;
       default:
         // Keep recommended order (default API order)
@@ -132,25 +134,26 @@ class _UserTopExpertsScreenState extends State<UserTopExpertsScreen> {
   void _openFilterDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Filter'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildFilterOption('Recommended'),
-            _buildFilterOption('Price High - Low'),
-            _buildFilterOption('Price Low - High'),
-            _buildFilterOption('Highest Rating'),
-            _buildFilterOption('Most Reviewed'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Filter'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildFilterOption('Recommended'),
+                _buildFilterOption('Price High - Low'),
+                _buildFilterOption('Price Low - High'),
+                _buildFilterOption('Highest Rating'),
+                _buildFilterOption('Most Reviewed'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -188,25 +191,15 @@ class _UserTopExpertsScreenState extends State<UserTopExpertsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 64,
-            ),
+            const Icon(Icons.error_outline, color: Colors.red, size: 64),
             const SizedBox(height: 16),
             Text(
               errorMessage,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.red,
-              ),
+              style: const TextStyle(fontSize: 16, color: Colors.red),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: fetchExperts,
-              child: const Text('Retry'),
-            ),
+            ElevatedButton(onPressed: fetchExperts, child: const Text('Retry')),
           ],
         ),
       ),
@@ -239,7 +232,7 @@ class _UserTopExpertsScreenState extends State<UserTopExpertsScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth > 600;
-    
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: UserUpperNavbar(),
@@ -247,44 +240,42 @@ class _UserTopExpertsScreenState extends State<UserTopExpertsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header + Filter Button
-          Padding(
+          Container(
+            width: double.infinity,
             padding: EdgeInsets.symmetric(
-              horizontal: isTablet ? 24 : 16, 
-              vertical: 12
+              horizontal: isTablet ? 24 : 16,
+              vertical: 12,
             ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        "Find The Right Expert In Seconds!",
-                        style: TextStyle(
-                          fontSize: isTablet ? 18 : 15, 
-                          fontWeight: FontWeight.bold
-                        ),
-                      ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    "Find The Right Expert In Seconds!",
+                    style: TextStyle(
+                      fontSize: isTablet ? 18 : 15,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: ElevatedButton.icon(
-                        onPressed: _openFilterDialog,
-                        icon: const Icon(Icons.filter_alt_outlined, size: 18),
-                        label: const Text("Filter"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          textStyle: const TextStyle(fontSize: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                    )
-                  ],
-                );
-              },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: _openFilterDialog,
+                  icon: const Icon(Icons.filter_alt_outlined, size: 18),
+                  label: const Text("Filter"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    textStyle: const TextStyle(fontSize: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -358,16 +349,16 @@ class _UserTopExpertsScreenState extends State<UserTopExpertsScreen> {
                 Text(
                   "Top Experts",
                   style: TextStyle(
-                    fontSize: isTablet ? 26 : 22, 
-                    fontWeight: FontWeight.bold
+                    fontSize: isTablet ? 26 : 22,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   "Access to the best has never been easier",
                   style: TextStyle(
-                    fontSize: isTablet ? 15 : 13, 
-                    color: Colors.black54
+                    fontSize: isTablet ? 15 : 13,
+                    color: Colors.black54,
                   ),
                 ),
               ],
@@ -378,36 +369,39 @@ class _UserTopExpertsScreenState extends State<UserTopExpertsScreen> {
 
           // Main Content Area
           Expanded(
-            child: isLoading
-                ? _buildLoadingWidget()
-                : errorMessage.isNotEmpty
+            child:
+                isLoading
+                    ? _buildLoadingWidget()
+                    : errorMessage.isNotEmpty
                     ? _buildErrorWidget()
                     : experts.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No experts found',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: fetchExperts,
-                            child: GridView.builder(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: isTablet ? 24 : 16
-                              ),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: _getCrossAxisCount(context),
-                                crossAxisSpacing: isTablet ? 16 : 12,
-                                mainAxisSpacing: isTablet ? 20 : 16,
-                                childAspectRatio: _getChildAspectRatio(context),
-                              ),
-                              itemCount: getFilteredExperts().length,
-                              itemBuilder: (context, index) {
-                                final filteredExperts = getFilteredExperts();
-                                return ModernExpertCard(expert: filteredExperts[index]);
-                              },
-                            ),
-                          ),
+                    ? const Center(
+                      child: Text(
+                        'No experts found',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    )
+                    : RefreshIndicator(
+                      onRefresh: fetchExperts,
+                      child: GridView.builder(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isTablet ? 24 : 16,
+                        ),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: _getCrossAxisCount(context),
+                          crossAxisSpacing: isTablet ? 16 : 12,
+                          mainAxisSpacing: isTablet ? 20 : 16,
+                          childAspectRatio: _getChildAspectRatio(context),
+                        ),
+                        itemCount: getFilteredExperts().length,
+                        itemBuilder: (context, index) {
+                          final filteredExperts = getFilteredExperts();
+                          return ModernExpertCard(
+                            expert: filteredExperts[index],
+                          );
+                        },
+                      ),
+                    ),
           ),
         ],
       ),
@@ -426,13 +420,13 @@ class ModernExpertCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth > 600;
-    
+
     return InkWell(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => UserExpertDetailscreen(expertId: expert.id)
+            builder: (_) => UserExpertDetailscreen(expertId: expert.id),
           ),
         );
       },
@@ -441,7 +435,7 @@ class ModernExpertCard extends StatelessWidget {
         builder: (context, constraints) {
           final cardWidth = constraints.maxWidth;
           final cardHeight = constraints.maxHeight;
-          
+
           return Container(
             width: cardWidth,
             height: cardHeight,
@@ -468,17 +462,18 @@ class ModernExpertCard extends StatelessWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: expert.imageUrl.isNotEmpty
-                        ? Image.network(
-                            expert.imageUrl,
-                            width: cardWidth,
-                            height: cardHeight,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildPlaceholderImage();
-                            },
-                          )
-                        : _buildPlaceholderImage(),
+                    child:
+                        expert.imageUrl.isNotEmpty
+                            ? Image.network(
+                              expert.imageUrl,
+                              width: cardWidth,
+                              height: cardHeight,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildPlaceholderImage();
+                              },
+                            )
+                            : _buildPlaceholderImage(),
                   ),
                 ),
 
@@ -582,9 +577,9 @@ class ModernExpertCard extends StatelessWidget {
                               ),
                             ),
                             Icon(
-                              Icons.verified, 
-                              size: isTablet ? 18 : 16, 
-                              color: Colors.orange[600]
+                              Icons.verified,
+                              size: isTablet ? 18 : 16,
+                              color: Colors.orange[600],
                             ),
                           ],
                         ),
@@ -602,7 +597,8 @@ class ModernExpertCard extends StatelessWidget {
                             ),
                             child: Text(
                               // Handle null experience
-                              (expert.experience != null && expert.experience!.isNotEmpty)
+                              (expert.experience != null &&
+                                      expert.experience!.isNotEmpty)
                                   ? expert.experience!
                                   : "My name is ${expert.name.split(' ')[0]}, and I'm passionate about growth and making an impact.",
                               style: TextStyle(
@@ -626,8 +622,8 @@ class ModernExpertCard extends StatelessWidget {
                   right: isTablet ? 16 : 12,
                   child: Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: isTablet ? 10 : 8, 
-                      vertical: 4
+                      horizontal: isTablet ? 10 : 8,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.8),
@@ -637,9 +633,9 @@ class ModernExpertCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.star, 
-                          size: isTablet ? 16 : 14, 
-                          color: Colors.orange
+                          Icons.star,
+                          size: isTablet ? 16 : 14,
+                          color: Colors.orange,
                         ),
                         const SizedBox(width: 4),
                         Text(

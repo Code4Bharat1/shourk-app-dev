@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import 'package:shourk_application/features/expert_profile/expert_detail_screen.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
-import 'package:shourk_application/shared/widgets/expert_card.dart';
+// import 'package:shourk_application/shared/widgets/expert_card.dart';
 import 'package:shourk_application/expert/expert_category/top_expert.dart';
 import 'package:shourk_application/expert/expert_category/home_expert.dart';
 import 'package:shourk_application/expert/expert_category/wellness_expert.dart';

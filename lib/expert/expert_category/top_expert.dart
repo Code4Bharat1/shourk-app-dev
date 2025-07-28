@@ -214,37 +214,40 @@ class _TopExpertsScreenState extends State<TopExpertsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header + Filter Button - Made responsive
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    "Find The Right Expert In Seconds!",
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: _openFilterDialog,
-                  icon: const Icon(Icons.filter_alt_outlined, size: 18),
-                  label: const Text("Filter"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    textStyle: const TextStyle(fontSize: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                )
-              ],
-            ),
+Container(
+  width: double.infinity,
+  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  child: Row(
+    children: [
+      Expanded(
+        child: Text(
+          "Find The Right Expert In Seconds!",
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
           ),
-
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      const SizedBox(width: 8),
+      ElevatedButton.icon(
+        onPressed: _openFilterDialog,
+        icon: const Icon(Icons.filter_alt_outlined, size: 18),
+        label: const Text("Filter"),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          textStyle: const TextStyle(fontSize: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+      
           // Category Navigation
           SizedBox(
             height: 70,
