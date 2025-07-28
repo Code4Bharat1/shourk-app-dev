@@ -878,38 +878,34 @@ class _UserSessionBody extends StatelessWidget {
   Widget _buildMainContent(BuildContext context, ThemeData theme, bool isDarkMode) {
     final provider = Provider.of<UserSessionProvider>(context);
     final screenSize = MediaQuery.of(context).size;
-    final isPortrait = screenSize.height > screenSize.width;
+    final isLandscape = screenSize.width > screenSize.height;
     
-    return Column(
-      children: [
-        // Header
-        _buildHeader(provider, theme, isDarkMode, screenSize),
-        
-        // Warning banners
-        if (provider.mediaError != null) 
-          _buildMediaWarningBanner(provider.mediaError!, theme, isDarkMode),
-        
-        if (provider.timeRemaining <= 120 && provider.timeRemaining > 0)
-          _buildTimeWarningBanner(provider.timeRemaining, theme, isDarkMode),
-        
-        // Main content
-        Expanded(
-          child: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: screenSize.height - 200,
-              ),
-              child: provider.isInSession
-                  ? _buildVideoGrid(provider, theme, isDarkMode, screenSize, isPortrait)
-                  : _buildPreJoinScreen(provider, theme, isDarkMode, screenSize),
-            ),
+    return Container(
+      color: Colors.grey[200],
+      child: Column(
+        children: [
+          // Header
+          _buildHeader(provider, theme, isDarkMode, screenSize),
+          
+          // Warning banners
+          if (provider.mediaError != null) 
+            _buildMediaWarningBanner(provider.mediaError!, theme, isDarkMode),
+          
+          if (provider.timeRemaining <= 120 && provider.timeRemaining > 0)
+            _buildTimeWarningBanner(provider.timeRemaining, theme, isDarkMode),
+          
+          // Main content
+          Expanded(
+            child: provider.isInSession
+                ? _buildVideoGrid(provider, theme, isDarkMode, screenSize, isLandscape)
+                : _buildPreJoinScreen(provider, theme, isDarkMode, screenSize),
           ),
-        ),
-        
-        // Footer controls
-        if (provider.isInSession && !provider.sessionEnded)
-          _buildFooterControls(provider, theme, isDarkMode),
-      ],
+          
+          // Footer controls
+          if (provider.isInSession && !provider.sessionEnded)
+            _buildFooterControls(provider, theme, isDarkMode, context),
+        ],
+      ),
     );
   }
 
@@ -1263,251 +1259,208 @@ Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMo
     );
   }
 
-  Widget _buildVideoGrid(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize, bool isPortrait) {
-    return Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: isPortrait
-          ? Column(
+  Widget _buildVideoGrid(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize, bool isLandscape) {
+    return Container(
+      color: Colors.grey[200],
+      child: isLandscape
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _buildLocalVideo(provider, theme, isDarkMode, screenSize),
-                SizedBox(height: 16),
-                ...provider.participants.map((p) => 
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: _buildParticipantVideo(p, theme, isDarkMode, screenSize),
-                  ),
+                _buildParticipantCard(
+                  name: 'You (User)',
+                  isExpert: false,
+                  cameraOn: provider.isVideoOn,
+                  micOn: provider.isAudioOn,
+                  screenSize: screenSize,
                 ),
-                if (provider.participants.isEmpty)
-                  _buildWaitingForExpert(theme, isDarkMode, screenSize),
+                _buildParticipantCard(
+                  name: provider.getExpertDisplayName(),
+                  isExpert: true,
+                  cameraOn: provider.expertJoined,
+                  micOn: provider.expertJoined,
+                  screenSize: screenSize,
+                  waiting: !provider.expertJoined,
+                ),
               ],
             )
-          : GridView.count(
-              shrinkWrap: true,
-              crossAxisCount: 2,
-              childAspectRatio: 4/3,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildLocalVideo(provider, theme, isDarkMode, screenSize),
-                ...provider.participants.map((p) => _buildParticipantVideo(p, theme, isDarkMode, screenSize)),
-                if (provider.participants.isEmpty)
-                  _buildWaitingForExpert(theme, isDarkMode, screenSize),
+                _buildParticipantCard(
+                  name: 'You (User)',
+                  isExpert: false,
+                  cameraOn: provider.isVideoOn,
+                  micOn: provider.isAudioOn,
+                  screenSize: screenSize,
+                ),
+                _buildParticipantCard(
+                  name: provider.getExpertDisplayName(),
+                  isExpert: true,
+                  cameraOn: provider.expertJoined,
+                  micOn: provider.expertJoined,
+                  screenSize: screenSize,
+                  waiting: !provider.expertJoined,
+                ),
               ],
             ),
     );
   }
 
-  Widget _buildLocalVideo(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize) {
+  Widget _buildParticipantCard({
+    required String name,
+    required bool isExpert,
+    required bool cameraOn,
+    required bool micOn,
+    required Size screenSize,
+    bool waiting = false,
+  }) {
+    final isLandscape = screenSize.width > screenSize.height;
+    
+    // Calculate card dimensions based on screen size and orientation
+    double cardWidth, cardHeight;
+    if (isLandscape) {
+      cardWidth = screenSize.width * 0.45;
+      cardHeight = screenSize.height * 0.7;
+    } else {
+      cardWidth = screenSize.width * 0.85;
+      cardHeight = screenSize.height * 0.35;
+    }
+
     return Container(
-      height: screenSize.height * 0.3,
+      width: cardWidth,
+      height: cardHeight,
+      margin: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isDarkMode ? Color(0xFF0F172A) : Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Stack(
-        children: [
-          if (provider.isVideoOn)
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Placeholder(),
-            ),
-          
-          if (!provider.isVideoOn)
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? Color(0xFF1E293B) : Color(0xFF334155),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.person,
-                      size: 30,
-                      color: Colors.white70,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'You',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Camera is off',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          
-          Positioned(
-            bottom: 12,
-            left: 12,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    'You - User',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  _buildAudioIndicator(provider.isAudioOn),
-                ],
-              ),
-            ),
-          ),
-          
-          Positioned(
-            top: 12,
-            left: 12,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                'You',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 10,
-                ),
-              ),
-            ),
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
+      child: waiting
+          ? _buildWaitingCard(name, cardWidth, cardHeight)
+          : _buildActiveParticipantCard(name, isExpert, cameraOn, micOn, cardWidth, cardHeight),
     );
   }
 
-  Widget _buildParticipantVideo(Participant participant, ThemeData theme, bool isDarkMode, Size screenSize) {
-    return Container(
-      height: screenSize.height * 0.3,
-      decoration: BoxDecoration(
-        color: isDarkMode ? Color(0xFF0F172A) : Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Stack(
-        children: [
-          if (participant.video)
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Placeholder(),
-            ),
-          
-          if (!participant.video)
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? Color(0xFF1E293B) : Color(0xFF334155),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.person,
-                      size: 30,
-                      color: Colors.white70,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    participant.displayName,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Camera is off',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          
-          Positioned(
-            bottom: 12,
-            left: 12,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    '${participant.displayName} - ${participant.isHost ? 'Expert' : 'User'}',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  _buildAudioIndicator(participant.audio),
-                ],
-              ),
-            ),
+  Widget _buildWaitingCard(String name, double width, double height) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.person,
+          size: width * 0.2,
+          color: Colors.grey[400],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Waiting for expert to join...',
+          style: TextStyle(
+            fontSize: width * 0.04,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
-          
-          Positioned(
-            top: 12,
-            left: 12,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: participant.isHost 
-                    ? theme.colorScheme.secondary 
-                    : theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                participant.isHost ? 'Expert' : 'User',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 10,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'The consultation will begin once the expert connects to the session',
+          style: TextStyle(
+            fontSize: width * 0.03,
+            color: Colors.grey[600],
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        const CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveParticipantCard(String name, bool isExpert, bool cameraOn, bool micOn, double width, double height) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Video placeholder or camera feed
+        Container(
+          width: width * 0.6,
+          height: height * 0.5,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: cameraOn
+              ? Icon(
+                  Icons.videocam,
+                  size: width * 0.15,
+                  color: Colors.blue,
+                )
+              : Icon(
+                  Icons.person,
+                  size: width * 0.15,
+                  color: Colors.grey[600],
                 ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          name,
+          style: TextStyle(
+            fontSize: width * 0.04,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          cameraOn ? 'Camera is on' : 'Camera is off',
+          style: TextStyle(
+            fontSize: width * 0.03,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              micOn ? Icons.mic : Icons.mic_off,
+              color: micOn ? Colors.green : Colors.red,
+              size: width * 0.04,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              micOn ? 'Mic on' : 'Mic muted',
+              style: TextStyle(
+                color: micOn ? Colors.green : Colors.red,
+                fontSize: width * 0.03,
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: isExpert ? Colors.purple[700] : Colors.blue[700],
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-      ),
+          child: Text(
+            isExpert ? 'Expert (Host)' : 'User',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1615,35 +1568,46 @@ Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMo
     );
   }
 
-  Widget _buildFooterControls(UserSessionProvider provider, ThemeData theme, bool isDarkMode) {
+  Widget _buildFooterControls(UserSessionProvider provider, ThemeData theme, bool isDarkMode, BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     return SafeArea(
       top: false,
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border(
-            top: BorderSide(color: theme.dividerColor),
-          ),
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        color: Colors.white,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildControlButton(
-              icon: provider.isAudioOn ? Icons.mic : Icons.mic_off,
-              label: provider.isAudioOn ? 'Mute' : 'Unmute',
-              isActive: provider.isAudioOn,
-              onPressed: provider.toggleAudio,
-              theme: theme,
+            // Left controls
+            Row(
+              children: [
+                _buildControlButton(
+                  icon: provider.isAudioOn ? Icons.mic : Icons.mic_off,
+                  color: provider.isAudioOn ? Colors.green : Colors.red,
+                  onPressed: provider.toggleAudio,
+                  screenWidth: screenWidth,
+                ),
+                const SizedBox(width: 16),
+                _buildControlButton(
+                  icon: provider.isVideoOn ? Icons.videocam : Icons.videocam_off,
+                  color: provider.isVideoOn ? Colors.green : Colors.red,
+                  onPressed: provider.toggleVideo,
+                  screenWidth: screenWidth,
+                ),
+              ],
             ),
-            SizedBox(width: 24),
-            _buildControlButton(
-              icon: Icons.videocam,
-              label: provider.isVideoOn ? 'Stop Video' : 'Start Video',
-              isActive: provider.isVideoOn,
-              onPressed: provider.toggleVideo,
-              theme: theme,
+            // Center timer
+            Text(
+              'Time left: ${provider.formatTime(provider.timeRemaining)}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: screenWidth * 0.04,
+                color: Colors.black87,
+              ),
             ),
+            // Right end session button
+            _buildEndSessionButton(screenWidth, provider),
           ],
         ),
       ),
@@ -1652,38 +1616,42 @@ Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMo
 
   Widget _buildControlButton({
     required IconData icon,
-    required String label,
-    required bool isActive,
+    required Color color,
     required VoidCallback onPressed,
-    required ThemeData theme,
+    required double screenWidth,
   }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: isActive 
-                ? theme.colorScheme.surface.withOpacity(0.3) 
-                : Colors.red,
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            icon: Icon(icon, size: 20),
-            color: isActive 
-                ? theme.colorScheme.onSurface 
-                : Colors.white,
-            onPressed: onPressed,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: color),
+        onPressed: onPressed,
+        iconSize: screenWidth * 0.06,
+      ),
+    );
+  }
+
+  Widget _buildEndSessionButton(double screenWidth, UserSessionProvider provider) {
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: screenWidth * 0.3,
+        minWidth: 100,
+      ),
+      child: ElevatedButton.icon(
+        onPressed: provider.endSessionAutomatically,
+        icon: const Icon(Icons.call_end, color: Colors.white, size: 20),
+        label: const Text(
+          'End Session',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: theme.colorScheme.onSurface,
-          ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.red,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-      ],
+      ),
     );
   }
 }

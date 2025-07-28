@@ -30,8 +30,8 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   Timer? _timer;
   int _secondsLeft = 0;
   bool _micOn = true;
-  bool _camOn = false;
-  bool _userJoined = false; // Simulate user join for demo
+  bool _camOn = true;
+  bool _userJoined = false;
   Timer? _userJoinPollTimer;
 
   @override
@@ -42,7 +42,6 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   }
 
   void _startUserJoinPolling() {
-    // Poll every 3 seconds to check if user has joined
     _userJoinPollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
       if (!_inMeeting || _userJoined) return;
       try {
@@ -136,11 +135,10 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   Future<void> _joinZoomSessionNative() async {
     if (_zoomAuthData == null) return;
     
-    // Web fallback for testing
     if (kIsWeb) {
       setState(() {
         _inMeeting = true;
-        _userJoined = true; // Simulate user joining for web demo
+        _userJoined = true;
       });
       _startTimer();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -172,7 +170,6 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   }
 
   Future<void> _leaveZoomSessionNative() async {
-    // Web fallback for testing
     if (kIsWeb) {
       setState(() {
         _inMeeting = false;
@@ -194,7 +191,7 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   }
 
   void _startTimer() {
-    int durationMinutes = 15; // default
+    int durationMinutes = 15;
     if (_sessionData?['duration'] != null) {
       final d = _sessionData!['duration'].toString();
       final match = RegExp(r'(\d+)').firstMatch(d);
@@ -241,150 +238,229 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
     }
   }
 
-  Widget _buildPanel({
-    required String role,
+  Widget _buildParticipantCard({
     required String name,
     required bool isExpert,
     required bool cameraOn,
     required bool micOn,
     bool waiting = false,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isLandscape = screenWidth > screenHeight;
+    
+    // Calculate card dimensions based on screen size and orientation
+    double cardWidth, cardHeight;
+    if (isLandscape) {
+      cardWidth = screenWidth * 0.45;
+      cardHeight = screenHeight * 0.7;
+    } else {
+      cardWidth = screenWidth * 0.85;
+      cardHeight = screenHeight * 0.35;
+    }
+
     return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: screenWidth * 0.04,
-        vertical: 12,
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: screenWidth * 0.06,
-        vertical: 24,
-      ),
+      width: cardWidth,
+      height: cardHeight,
+      margin: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF232B3B) : Colors.grey[100],
+        color: Colors.grey[100],
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      width: screenWidth > 600 ? 340 : screenWidth * 0.85,
       child: waiting
-          ? Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.person, size: screenWidth * 0.13, color: Colors.grey),
-                const SizedBox(height: 24),
-                Text(
-                  'Waiting for user to join...',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
-                  textAlign: TextAlign.center,
+          ? _buildWaitingCard(name, cardWidth, cardHeight)
+          : _buildActiveParticipantCard(name, isExpert, cameraOn, micOn, cardWidth, cardHeight),
+    );
+  }
+
+  Widget _buildWaitingCard(String name, double width, double height) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.person,
+          size: width * 0.2,
+          color: Colors.grey[400],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Waiting for user to join...',
+          style: TextStyle(
+            fontSize: width * 0.04,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'The consultation will begin once the user connects to the session',
+          style: TextStyle(
+            fontSize: width * 0.03,
+            color: Colors.grey[600],
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        const CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveParticipantCard(String name, bool isExpert, bool cameraOn, bool micOn, double width, double height) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Video placeholder or camera feed
+        Container(
+          width: width * 0.6,
+          height: height * 0.5,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: cameraOn
+              ? Icon(
+                  Icons.videocam,
+                  size: width * 0.15,
+                  color: Colors.blue,
+                )
+              : Icon(
+                  Icons.person,
+                  size: width * 0.15,
+                  color: Colors.grey[600],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'The consultation will begin once the user connects to the session',
-                  style: TextStyle(color: Colors.grey[400]),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                const CircularProgressIndicator(),
-              ],
-            )
-          : Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // TODO: Replace with real video feed for expert/user
-                CircleAvatar(
-                  radius: screenWidth * 0.11,
-                  backgroundColor: Colors.grey[300],
-                  child: cameraOn
-                      ? Icon(Icons.videocam, size: screenWidth * 0.11, color: Colors.blue)
-                      : Icon(Icons.person, size: screenWidth * 0.11, color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  name,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  cameraOn ? 'Camera is on' : 'Camera is off',
-                  style: TextStyle(color: Colors.grey[400]),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(micOn ? Icons.mic : Icons.mic_off, color: micOn ? Colors.green : Colors.red, size: 20),
-                    const SizedBox(width: 8),
-                    Text(micOn ? 'Mic on' : 'Mic muted', style: TextStyle(color: micOn ? Colors.green : Colors.red)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isExpert ? Colors.purple[700] : Colors.blue[700],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    role,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          name,
+          style: TextStyle(
+            fontSize: width * 0.04,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          cameraOn ? 'Camera is on' : 'Camera is off',
+          style: TextStyle(
+            fontSize: width * 0.03,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              micOn ? Icons.mic : Icons.mic_off,
+              color: micOn ? Colors.green : Colors.red,
+              size: width * 0.04,
             ),
+            const SizedBox(width: 4),
+            Text(
+              micOn ? 'Mic on' : 'Mic muted',
+              style: TextStyle(
+                color: micOn ? Colors.green : Colors.red,
+                fontSize: width * 0.03,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: isExpert ? Colors.purple[700] : Colors.blue[700],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            isExpert ? 'Expert (Host)' : 'User',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildSessionIntro() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Center(
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.04, vertical: 24),
-        padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.06, vertical: 32),
+        width: screenWidth * 0.85,
+        constraints: BoxConstraints(
+          maxWidth: 400,
+          maxHeight: screenHeight * 0.6,
+        ),
+        padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF232B3B) : Colors.grey[100],
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
-        width: screenWidth > 600 ? 400 : screenWidth * 0.92,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.video_call, size: screenWidth * 0.13, color: Colors.blue),
+            Icon(
+              Icons.video_call,
+              size: screenWidth * 0.15,
+              color: Colors.blue,
+            ),
             const SizedBox(height: 24),
             Text(
               'Ready to Start Expert Session',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
+              style: TextStyle(
+                fontSize: screenWidth * 0.05,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               'Begin your ${_sessionData?['duration'] ?? '15'}-minute consultation session',
-              style: TextStyle(fontSize: 15, color: isDark ? Colors.white70 : Colors.black87),
+              style: TextStyle(
+                fontSize: screenWidth * 0.035,
+                color: Colors.black54,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _fetchZoomTokenAndJoin,
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Start Expert Session'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.12, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _fetchZoomTokenAndJoin,
+                icon: const Icon(Icons.play_arrow, color: Colors.white),
+                label: const Text(
+                  'Start Expert Session',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ),
           ],
@@ -394,27 +470,27 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   }
 
   Widget _buildSessionUI() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isLandscape = screenWidth > screenHeight;
+    
     return Container(
-      color: isDark ? const Color(0xFF181F2C) : Colors.grey[200],
+      color: Colors.grey[200],
       child: Column(
         children: [
           Expanded(
-            child: screenWidth > 600
+            child: isLandscape
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _buildPanel(
-                        role: 'Expert (Host)',
+                      _buildParticipantCard(
                         name: 'You (Expert)',
                         isExpert: true,
                         cameraOn: _camOn,
                         micOn: _micOn,
                       ),
-                      _buildPanel(
-                        role: 'User',
+                      _buildParticipantCard(
                         name: _userJoined ? 'User (Client)' : '',
                         isExpert: false,
                         cameraOn: false,
@@ -423,18 +499,16 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
                       ),
                     ],
                   )
-                : ListView(
-                    padding: EdgeInsets.zero,
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildPanel(
-                        role: 'Expert (Host)',
+                      _buildParticipantCard(
                         name: 'You (Expert)',
                         isExpert: true,
                         cameraOn: _camOn,
                         micOn: _micOn,
                       ),
-                      _buildPanel(
-                        role: 'User',
+                      _buildParticipantCard(
                         name: _userJoined ? 'User (Client)' : '',
                         isExpert: false,
                         cameraOn: false,
@@ -444,71 +518,108 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
                     ],
                   ),
           ),
-          Container(
-            padding: EdgeInsets.symmetric(vertical: 16, horizontal: screenWidth * 0.06),
-            color: isDark ? const Color(0xFF232B3B) : Colors.grey[100],
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          _buildControlBar(screenWidth),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControlBar(double screenWidth) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        color: Colors.white,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Left controls
+            Row(
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(_micOn ? Icons.mic : Icons.mic_off),
-                      color: _micOn ? Colors.green : Colors.red,
-                      onPressed: _toggleMic,
-                    ),
-                    IconButton(
-                      icon: Icon(_camOn ? Icons.videocam : Icons.videocam_off),
-                      color: _camOn ? Colors.green : Colors.red,
-                      onPressed: _toggleCam,
-                    ),
-                  ],
+                _buildControlButton(
+                  icon: _micOn ? Icons.mic : Icons.mic_off,
+                  color: _micOn ? Colors.green : Colors.red,
+                  onPressed: _toggleMic,
+                  screenWidth: screenWidth,
                 ),
-                Text(
-                  'Time left: ${(_secondsLeft ~/ 60).toString().padLeft(2, '0')}:${(_secondsLeft % 60).toString().padLeft(2, '0')}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _leaveZoomSessionNative,
-                  icon: const Icon(Icons.call_end, color: Colors.white),
-                  label: const Text('End Session'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.06, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
+                const SizedBox(width: 16),
+                _buildControlButton(
+                  icon: _camOn ? Icons.videocam : Icons.videocam_off,
+                  color: _camOn ? Colors.green : Colors.red,
+                  onPressed: _toggleCam,
+                  screenWidth: screenWidth,
                 ),
               ],
             ),
-          ),
-        ],
+            // Center timer
+            Text(
+              'Time left: ${(_secondsLeft ~/ 60).toString().padLeft(2, '0')}:${(_secondsLeft % 60).toString().padLeft(2, '0')}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: screenWidth * 0.04,
+                color: Colors.black87,
+              ),
+            ),
+            // Right end session button
+            _buildEndSessionButton(screenWidth),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+    required double screenWidth,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: color),
+        onPressed: onPressed,
+        iconSize: screenWidth * 0.06,
+      ),
+    );
+  }
+
+  Widget _buildEndSessionButton(double screenWidth) {
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: screenWidth * 0.3,
+        minWidth: 100,
+      ),
+      child: ElevatedButton.icon(
+        onPressed: _leaveZoomSessionNative,
+        icon: const Icon(Icons.call_end, color: Colors.white, size: 20),
+        label: const Text(
+          'End Session',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.red,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final brightness = MediaQuery.of(context).platformBrightness;
-    final theme = ThemeData(
-      brightness: brightness,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.blue,
-        brightness: brightness,
-      ),
-    );
-    return Theme(
-      data: theme,
-      child: Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMsg != null
-                ? Center(child: Text(_errorMsg ?? 'Unknown error'))
-                : !_inMeeting
-                    ? _buildSessionIntro()
-                    : _buildSessionUI(),
-      ),
+    return Scaffold(
+      backgroundColor: Colors.grey[200],
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMsg != null
+              ? Center(child: Text(_errorMsg ?? 'Unknown error'))
+              : !_inMeeting
+                  ? _buildSessionIntro()
+                  : _buildSessionUI(),
     );
   }
 }
