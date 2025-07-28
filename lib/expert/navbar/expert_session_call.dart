@@ -43,7 +43,7 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
     setState(() => _loading = true);
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5070/api/zoomVideo/get-session/${widget.sessionId}'),
+        Uri.parse('http://192.168.0.123:5070/api/zoomVideo/get-session/${widget.sessionId}'),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
           'Content-Type': 'application/json',
@@ -73,7 +73,7 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
     setState(() => _loading = true);
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:5070/api/zoomVideo/generate-expert-video-token'),
+        Uri.parse('http://192.168.0.123:5070/api/zoomVideo/generate-expert-video-token'),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
           'Content-Type': 'application/json',

@@ -95,7 +95,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
       }
 
       final response = await http.get(
-        Uri.parse('http://localhost:5070/api/expertwallet/balances'),
+        Uri.parse('http://192.168.0.123:5070/api/expertwallet/balances'),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
   Future<void> fetchExpert() async {
     try {
       final res = await http.get(
-        Uri.parse('http://localhost:5070/api/expertauth/${widget.expertId}'),
+        Uri.parse('http://192.168.0.123:5070/api/expertauth/${widget.expertId}'),
         headers: {'Content-Type': 'application/json'},
       );
       if (res.statusCode == 200) {
@@ -962,7 +962,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
 
       // First create the session
       final sessionResponse = await http.post(
-        Uri.parse('http://localhost:5070/api/session/experttoexpertsession'),
+        Uri.parse('http://192.168.0.123:5070/api/session/experttoexpertsession'),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
@@ -980,7 +980,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
       // If not a free session and there's a cost, make the payment
       if (!isFirstSession && finalPriceAfterGiftCard > 0) {
         final paymentResponse = await http.post(
-          Uri.parse('http://localhost:5070/api/expertwallet/spending/pay'),
+          Uri.parse('http://192.168.0.123:5070/api/expertwallet/spending/pay'),
           headers: {
             'Authorization': 'Bearer $authToken',
             'Content-Type': 'application/json',
