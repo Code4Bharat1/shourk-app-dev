@@ -71,7 +71,8 @@ repositories {
 }
 
 dependencies {
-    implementation(files("libs/mobilertc.aar"))
+    // TODO: Uncomment when Zoom SDK is properly integrated
+    // implementation(files("libs/mobilertc.aar"))
     implementation("androidx.appcompat:appcompat:1.2.0")
     // Add any other required dependencies for Zoom SDK here
 }

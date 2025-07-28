@@ -13,6 +13,7 @@ import 'expert/profile/giftcard_selection_option.dart';
 import 'expert/profile/payment_option.dart';
 import 'expert/profile/payment_history.dart';
 import 'expert/profile/account_deactivate.dart';
+import 'expert/expert_register.dart';
 
 import 'expert/profile/contact_us_screen.dart';
 
@@ -144,6 +145,10 @@ class MyApp extends StatelessWidget {
 
          '/user-payment-method': (context) =>  UserPaymentMethod(),
          '/user-giftcard-select': (context) => const UserGiftCardSelectPage(),
+         
+         // Add missing routes
+         '/register': (context) => const ExpertRegister(),
+         '/userlogin': (context) => const UserLogin(),
       },
     );
   }
