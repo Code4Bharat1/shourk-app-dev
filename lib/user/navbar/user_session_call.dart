@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -215,6 +217,8 @@ class UserSessionCall {
 
 // State management provider
 class UserSessionProvider with ChangeNotifier {
+  static const platform = MethodChannel('zoom_channel');
+  
   bool isLoading = true;
   String? error;
   AuthData? authData;
@@ -289,24 +293,41 @@ class UserSessionProvider with ChangeNotifier {
     connectionStatus = "Joining Zoom session as User...";
     notifyListeners();
 
-    await Future.delayed(Duration(seconds: 2));
-
-    // Only add expert when they actually join
-    if (expertJoined) {
-      participants.add(Participant(
-        userId: "expert_123",
-        displayName: "Dr. ${sessionData?.expertFirstName ?? 'Expert'} ${sessionData?.expertLastName ?? ''}",
-        isHost: true,
-        video: true,
-        audio: true,
-      ));
+    // Web fallback for testing
+    if (kIsWeb) {
+      await Future.delayed(Duration(seconds: 2));
+      isInSession = true;
+      connectionStatus = "Connected to Zoom (User) - Web Demo";
+      notifyListeners();
+      await notifyUserJoined();
+      return;
     }
 
-    isInSession = true;
-    connectionStatus = "Connected to Zoom (User)";
-    notifyListeners();
+    try {
+      if (authData == null) {
+        throw Exception('Auth data not available');
+      }
 
-    await notifyUserJoined();
+      await platform.invokeMethod('joinZoomSession', {
+        'token': authData!.token,
+        'sessionName': authData!.sessionName,
+        'userName': '${authData!.firstName} ${authData!.lastName}',
+        'userIdentity': authData!.userIdentity,
+        'role': authData!.role,
+      });
+
+      isInSession = true;
+      connectionStatus = "Connected to Zoom (User)";
+      notifyListeners();
+
+      await notifyUserJoined();
+    } on PlatformException catch (e) {
+      error = "Failed to join Zoom session: ${e.message}";
+      notifyListeners();
+    } catch (e) {
+      error = "Failed to join session: $e";
+      notifyListeners();
+    }
   }
 
   Future<void> notifyUserJoined() async {
@@ -417,6 +438,27 @@ void toggleAudio() async {
     notifyListeners();
   }
 
+  Future<void> leaveZoomSession() async {
+    if (!isInSession) return;
+    
+    // Web fallback for testing
+    if (kIsWeb) {
+      isInSession = false;
+      notifyListeners();
+      return;
+    }
+    
+    try {
+      await platform.invokeMethod('leaveZoomSession');
+      isInSession = false;
+      notifyListeners();
+    } on PlatformException catch (e) {
+      print("Failed to leave Zoom session: ${e.message}");
+    } catch (e) {
+      print("Failed to leave session: $e");
+    }
+  }
+
   Future<void> endSessionAutomatically([String reason = "Session completed"]) async {
     if (sessionEnded) return;
     
@@ -427,6 +469,9 @@ void toggleAudio() async {
     sessionEnded = true;
     connectionStatus = "Consultation completed";
     notifyListeners();
+    
+    // Leave Zoom session
+    await leaveZoomSession();
     
     try {
       await UserSessionCall.completeUserSession(
@@ -456,6 +501,7 @@ void toggleAudio() async {
   @override
   void dispose() {
     timer?.cancel();
+    leaveZoomSession();
     super.dispose();
   }
 }
