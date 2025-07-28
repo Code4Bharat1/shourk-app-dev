@@ -217,6 +217,7 @@ class _WellnessExpertsScreenState extends State<WellnessExpertsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header + Filter Button - Made Responsive
+
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
