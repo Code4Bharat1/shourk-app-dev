@@ -129,12 +129,12 @@ class AuthData {
 
 // Service class for API calls
 class UserSessionCall {
-  static const String baseUrl = "https://amd-api.code4bharat.com";
+  static const String baseUrl = "http://10.0.2.2:5070";
 
   static Future<SessionData> getSessionData(String sessionId, String token) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/zoomVideo/user-session-details/$sessionId'),
+        Uri.parse('$baseUrl/api/usertoexpertsession/user-session-details/$sessionId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -143,6 +143,7 @@ class UserSessionCall {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print('User session details response: $data');
         return SessionData.fromJson(data['session'] ?? {});
       } else {
         throw Exception('Failed to load session data: ${response.statusCode}');
@@ -156,19 +157,19 @@ class UserSessionCall {
       String meetingId, String sessionId, String token) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/zoomVideo/generate-user-video-token'),
+        Uri.parse('$baseUrl/api/usertoexpertsession/generate-user-video-auth'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
         body: json.encode({
-          'meetingId': meetingId,
-          'sessionId': sessionId,
+          'meetingNumber': meetingId,
         }),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print('User auth response: $data');
         return AuthData.fromJson(data['data'] ?? {});
       } else {
         throw Exception('Failed to generate user auth: ${response.statusCode}');
@@ -181,7 +182,7 @@ class UserSessionCall {
   static Future<void> notifyUserJoined(String sessionId, String token) async {
     try {
       await http.post(
-        Uri.parse('$baseUrl/api/zoomVideo/user-joined'),
+        Uri.parse('$baseUrl/api/usertoexpertsession/user-joined'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -197,7 +198,7 @@ class UserSessionCall {
       String sessionId, int duration, String token) async {
     try {
       await http.put(
-        Uri.parse('$baseUrl/api/zoomVideo/complete-user-session'),
+        Uri.parse('$baseUrl/api/usertoexpertsession/complete-user-session'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -227,6 +228,7 @@ class UserSessionProvider with ChangeNotifier {
   bool sessionEnded = false;
   bool isSessionActive = false;
   bool isVideoOn = false;
+  DateTime? _sessionStartTime;
   bool isAudioOn = false;
   bool audioJoined = false;
   bool expertJoined = false;
@@ -236,7 +238,6 @@ class UserSessionProvider with ChangeNotifier {
   String? mediaError;
   int sessionDuration = 0;
   int timeRemaining = 0;
-  DateTime? sessionStartTime;
   List<Participant> participants = [];
   Timer? timer;
   Timer? _expertJoinPollTimer;
@@ -280,20 +281,12 @@ class UserSessionProvider with ChangeNotifier {
     _expertJoinPollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
       if (!isInSession || expertJoined) return;
       try {
-        final response = await http.get(
-          Uri.parse('${UserSessionCall.baseUrl}/api/zoomVideo/expert-joined/$sessionId'),
-          headers: {
-            'Authorization': 'Bearer $userToken',
-            'Content-Type': 'application/json',
-          },
-        );
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          if (data['expertJoined'] == true) {
-            expertJoined = true;
-            notifyListeners();
-            _expertJoinPollTimer?.cancel();
-          }
+        // For now, simulate expert joining after 3 seconds for testing
+        // In real implementation, this would check the actual session status
+        if (DateTime.now().difference(_sessionStartTime ?? DateTime.now()).inSeconds > 3) {
+          expertJoined = true;
+          notifyListeners();
+          _expertJoinPollTimer?.cancel();
         }
       } catch (e) {
         // Optionally log polling error
@@ -477,7 +470,7 @@ void toggleAudio() async {
     
     timerStarted = true;
     isSessionActive = true;
-    sessionStartTime = DateTime.now();
+    _sessionStartTime = DateTime.now();
     
     timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (timeRemaining <= 0) {
