@@ -166,7 +166,7 @@ class _UserLoginState extends State<UserLogin> {
     
     if (refreshToken == null) {
       print("No refresh token found");
-      Navigator.pushReplacementNamed(context, '/userlogin');
+      // Don't navigate - we're already on the login page
       return;
     }
 
@@ -191,13 +191,13 @@ class _UserLoginState extends State<UserLogin> {
         print("Token refresh failed: ${response.statusCode}");
         await prefs.remove('userToken');
         await prefs.remove('userRefreshToken');
-        Navigator.pushReplacementNamed(context, '/userlogin');
+        // Don't navigate - we're already on the login page
       }
     } catch (e) {
       print("Token refresh error: $e");
       await prefs.remove('userToken');
       await prefs.remove('userRefreshToken');
-      Navigator.pushReplacementNamed(context, '/userlogin');
+      // Don't navigate - we're already on the login page
     }
   }
 
