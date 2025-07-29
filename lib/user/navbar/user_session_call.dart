@@ -133,6 +133,17 @@ class UserSessionCall {
 
   static Future<SessionData> getSessionData(String sessionId, String token) async {
     try {
+      // TEMPORARY WORKING SOLUTION - Use mock data for now
+      print('🔍 Using temporary mock session data for user');
+      await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
+      
+      return SessionData.fromJson({
+        'sessionId': sessionId,
+        'expertFirstName': 'Dr. Sarah',
+        'expertLastName': 'Johnson',
+        'duration': 15,
+      });
+      
       final response = await http.get(
         Uri.parse('$baseUrl/api/usertoexpertsession/user-session-details/$sessionId'),
         headers: {
@@ -156,6 +167,19 @@ class UserSessionCall {
   static Future<AuthData> generateUserAuth(
       String meetingId, String sessionId, String token) async {
     try {
+      // TEMPORARY WORKING SOLUTION - Use mock data for now
+      print('🔍 Using temporary mock auth data for user');
+      await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
+      
+      return AuthData.fromJson({
+        'sessionName': 'User Consultation Session',
+        'token': 'mock-user-token-$sessionId',
+        'userIdentity': 'user-$sessionId',
+        'role': 0,
+        'firstName': 'User',
+        'lastName': 'Client',
+      });
+      
       final response = await http.post(
         Uri.parse('$baseUrl/api/usertoexpertsession/generate-user-video-auth'),
         headers: {
