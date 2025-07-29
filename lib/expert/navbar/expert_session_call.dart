@@ -597,7 +597,7 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
     );
   }
 
-  Widget _buildEndSessionButton(double screenWidth) {
+  Widget _buildEndSessionButton(double screenWidth) { 
     return Container(
       constraints: BoxConstraints(
         maxWidth: screenWidth * 0.3,
