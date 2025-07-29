@@ -219,14 +219,14 @@ class _StartPageState extends State<StartPage> {
       await prefs.remove('expertToken');
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => LoginPage()),
+        MaterialPageRoute(builder: (context) => const LoginPage()),
       );
     }
   } else {
     // No token, redirect to login
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => LoginPage()),
+      MaterialPageRoute(builder: (context) => const LoginPage()),
     );
   }
 },
@@ -294,12 +294,10 @@ class _StartPageState extends State<StartPage> {
                         selectedRole = 'user';
                       });
                       // Navigate to User Login
-                      Future.delayed(const Duration(milliseconds: 200), () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => UserLogin()),
-                        );
-                      });
+                     Navigator.push(
+                       context,
+                       MaterialPageRoute(builder: (context) => const UserLogin()),
+                     );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
