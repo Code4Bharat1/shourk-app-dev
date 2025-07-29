@@ -38,6 +38,9 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   @override
   void initState() {
     super.initState();
+    print('🔍 ExpertSessionCallPage initState called');
+    print('🔍 Session ID: ${widget.sessionId}');
+    print('🔍 Token: ${widget.token.substring(0, 20)}...');
     _fetchSessionDetails();
     _startUserJoinPolling();
   }
@@ -62,8 +65,30 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   }
 
   Future<void> _fetchSessionDetails() async {
+    print('🔍 _fetchSessionDetails called');
+    print('🔍 URL: http://10.0.2.2:5070/api/experttoexpertsession/details/${widget.sessionId}');
     setState(() => _loading = true);
+    
+    // First, test if backend is reachable
     try {
+      print('🔍 Testing backend connectivity...');
+      final testResponse = await http.get(
+        Uri.parse('http://10.0.2.2:5070/'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 5));
+      print('🔍 Backend test response: ${testResponse.statusCode}');
+    } catch (e) {
+      print('🔍 Backend connectivity test failed: $e');
+      // Show helpful message if backend is not available
+      setState(() {
+        _errorMsg = 'Backend server is not running. Please start your backend server on port 5070 and try again.';
+        _loading = false;
+      });
+      return;
+    }
+    
+    try {
+      // Try the main endpoint first
       final response = await http.get(
         Uri.parse('http://10.0.2.2:5070/api/experttoexpertsession/details/${widget.sessionId}'),
         headers: {
@@ -71,6 +96,8 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
           'Content-Type': 'application/json',
         },
       ).timeout(const Duration(seconds: 10));
+      print('🔍 Response status: ${response.statusCode}');
+      print('🔍 Response headers: ${response.headers}');
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('Session details response: $data');
@@ -78,20 +105,52 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
           _sessionData = data['session'] ?? data;
           _loading = false;
         });
+        print('🔍 Session data set: $_sessionData');
       } else {
-        print('Session fetch failed with status: ${response.statusCode}');
-        print('Response body: ${response.body}');
-        setState(() {
-          _errorMsg = 'Failed to fetch session details';
-          _loading = false;
-        });
+        // Try alternative endpoint if main one fails
+        print('🔍 Main endpoint failed, trying alternative...');
+        final altResponse = await http.get(
+          Uri.parse('http://10.0.2.2:5070/api/experttoexpertsession/getexpertsession'),
+          headers: {
+            'Authorization': 'Bearer ${widget.token}',
+            'Content-Type': 'application/json',
+          },
+        ).timeout(const Duration(seconds: 10));
+        
+        if (altResponse.statusCode == 200) {
+          final altData = json.decode(altResponse.body);
+          print('🔍 Alternative endpoint response: $altData');
+          setState(() {
+            _sessionData = altData;
+            _loading = false;
+          });
+          print('🔍 Session data set from alternative endpoint: $_sessionData');
+        } else {
+          print('Session fetch failed with status: ${response.statusCode}');
+          print('Response body: ${response.body}');
+          setState(() {
+            _errorMsg = 'Failed to fetch session details';
+            _loading = false;
+          });
+          print('🔍 Error set: $_errorMsg');
+        }
       }
     } catch (e) {
       print('Session fetch error: $e');
-      setState(() {
-        _errorMsg = 'Failed to connect to server: $e';
-        _loading = false;
-      });
+      // Check if it's a connection issue
+      if (e.toString().contains('Connection refused') || e.toString().contains('Connection timed out')) {
+        print('🔍 Backend connection issue detected');
+        setState(() {
+          _errorMsg = 'Backend server is not reachable. Please check if the server is running on port 5070.';
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _errorMsg = 'Failed to connect to server: $e';
+          _loading = false;
+        });
+      }
+      print('🔍 Exception error set: $_errorMsg');
     }
   }
 
@@ -632,6 +691,12 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Debug information
+    print('Build state: loading=$_loading, inMeeting=$_inMeeting, errorMsg=$_errorMsg');
+    print('Session data: $_sessionData');
+    print('Zoom auth data: $_zoomAuthData');
+    print('🔍 BUILD METHOD - Loading: $_loading, Error: $_errorMsg, InMeeting: $_inMeeting');
+    
     return Scaffold(
       backgroundColor: Colors.grey[200],
       body: _loading
