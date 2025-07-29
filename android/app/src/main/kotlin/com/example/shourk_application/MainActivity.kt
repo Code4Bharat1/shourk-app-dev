@@ -359,13 +359,21 @@ class MainActivity: FlutterActivity() {
             }
         }
         try {
-            val zoomSDKClass = Class.forName("us.zoom.videosdk.ZoomVideoSDK")
-            val getInstanceMethod = zoomSDKClass.getMethod("getInstance")
-            val zoomSDKInstance = getInstanceMethod.invoke(null)
-            val cleanUpMethod = zoomSDKClass.getMethod("cleanUp")
-            cleanUpMethod.invoke(zoomSDKInstance)
+            // Try to cleanup Zoom SDK using reflection with better error handling
+            try {
+                val zoomSDKClass = Class.forName("us.zoom.videosdk.ZoomVideoSDK")
+                val getInstanceMethod = zoomSDKClass.getMethod("getInstance")
+                val zoomSDKInstance = getInstanceMethod.invoke(null)
+                val cleanUpMethod = zoomSDKClass.getMethod("cleanUp")
+                cleanUpMethod.invoke(zoomSDKInstance)
+                Log.d("ZoomSDK", "Successfully cleaned up Zoom SDK")
+            } catch (e: ClassNotFoundException) {
+                Log.d("ZoomSDK", "Zoom SDK classes not found, skipping cleanup")
+            } catch (e: Exception) {
+                Log.e("ZoomSDK", "Failed to cleanup SDK: ${e.message}")
+            }
         } catch (e: Exception) {
-            Log.e("ZoomSDK", "Failed to cleanup SDK: ${e.message}")
+            Log.d("ZoomSDK", "Zoom SDK cleanup skipped: ${e.message}")
         }
     }
 }

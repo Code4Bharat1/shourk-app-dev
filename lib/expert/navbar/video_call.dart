@@ -16,7 +16,7 @@ class VideoCallPage extends StatefulWidget {
 }
 
 class _VideoCallPageState extends State<VideoCallPage> {
-  final String apiUrl = "http://192.168.0.123:5070";
+  final String apiUrl = "http://10.0.2.2:5070";
 
   String? _userToken;
   String? _userId;
