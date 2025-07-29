@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:shourk_application/shared/config/api_config.dart';
 
 class ExpertSessionCallPage extends StatefulWidget {
   final String sessionId;
@@ -33,7 +34,7 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   bool _camOn = true;
   bool _userJoined = false;
   Timer? _userJoinPollTimer;
-  DateTime? _sessionStartTime; // Added to track session start time for polling
+  DateTime? _sessionStartTime;
 
   @override
   void initState() {
@@ -46,19 +47,29 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
   }
 
   void _startUserJoinPolling() {
-    _userJoinPollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+    _userJoinPollTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       if (!_inMeeting || _userJoined) return;
       try {
-        // For now, simulate user joining after 5 seconds for testing
-        // In real implementation, this would check the actual session status
-        if (DateTime.now().difference(_sessionStartTime ?? DateTime.now()).inSeconds > 5) {
-          setState(() {
-            _userJoined = true;
-          });
-          _userJoinPollTimer?.cancel();
+        // Poll for user join status
+        final response = await http.get(
+          Uri.parse(ApiConfig.expertSessionDetails(widget.sessionId)),
+          headers: {
+            'Authorization': 'Bearer ${widget.token}',
+            'Content-Type': 'application/json',
+          },
+        ).timeout(const Duration(seconds: 3));
+        
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          // Check if user has joined based on session status or other indicators
+          if (data['session']?['status'] == 'confirmed' || data['session']?['userJoined'] == true) {
+            setState(() {
+              _userJoined = true;
+            });
+            _userJoinPollTimer?.cancel();
+          }
         }
       } catch (e) {
-        // Log polling error but don't show to user
         print('User join polling error: $e');
       }
     });
@@ -66,59 +77,21 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
 
   Future<void> _fetchSessionDetails() async {
     print('🔍 _fetchSessionDetails called');
-    print('🔍 URL: http://10.0.2.2:5070/api/experttoexpertsession/details/${widget.sessionId}');
+    print('🔍 URL: ${ApiConfig.expertSessionDetails(widget.sessionId)}');
     setState(() => _loading = true);
     
-    // TEMPORARY WORKING SOLUTION - Use mock data for now
-    print('🔍 Using temporary mock data solution');
-    await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
-    
-    setState(() {
-      _sessionData = {
-        'zoomMeetingId': '1234567890',
-        'zoomSessionName': 'Expert Consultation Session',
-        'duration': '15 minutes',
-        'expertName': 'Dr. Sarah Johnson',
-        'expertImage': 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400',
-        'sessionName': 'Expert Consultation Session',
-        'status': 'confirmed',
-        'price': 500,
-        'areaOfExpertise': 'Career Counseling',
-      };
-      _loading = false;
-    });
-    print('🔍 Mock session data set: $_sessionData');
-    return;
-    
-    // First, test if backend is reachable
     try {
-      print('🔍 Testing backend connectivity...');
-      final testResponse = await http.get(
-        Uri.parse('http://10.0.2.2:5070/'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 5));
-      print('🔍 Backend test response: ${testResponse.statusCode}');
-    } catch (e) {
-      print('🔍 Backend connectivity test failed: $e');
-      // Show helpful message if backend is not available
-      setState(() {
-        _errorMsg = 'Backend server is not running. Please start your backend server on port 5070 and try again.';
-        _loading = false;
-      });
-      return;
-    }
-    
-    try {
-      // Try the main endpoint first
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:5070/api/experttoexpertsession/details/${widget.sessionId}'),
+        Uri.parse(ApiConfig.expertSessionDetails(widget.sessionId)),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
           'Content-Type': 'application/json',
         },
       ).timeout(const Duration(seconds: 10));
+      
       print('🔍 Response status: ${response.statusCode}');
-      print('🔍 Response headers: ${response.headers}');
+      print('🔍 Response body: ${response.body}');
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('Session details response: $data');
@@ -127,40 +100,27 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
           _loading = false;
         });
         print('🔍 Session data set: $_sessionData');
+      } else if (response.statusCode == 401) {
+        setState(() {
+          _errorMsg = 'Authentication failed. Please login again.';
+          _loading = false;
+        });
+      } else if (response.statusCode == 404) {
+        setState(() {
+          _errorMsg = 'Session not found. Please check the session ID.';
+          _loading = false;
+        });
       } else {
-        // Try alternative endpoint if main one fails
-        print('🔍 Main endpoint failed, trying alternative...');
-        final altResponse = await http.get(
-          Uri.parse('http://10.0.2.2:5070/api/experttoexpertsession/getexpertsession'),
-          headers: {
-            'Authorization': 'Bearer ${widget.token}',
-            'Content-Type': 'application/json',
-          },
-        ).timeout(const Duration(seconds: 10));
-        
-        if (altResponse.statusCode == 200) {
-          final altData = json.decode(altResponse.body);
-          print('🔍 Alternative endpoint response: $altData');
-          setState(() {
-            _sessionData = altData;
-            _loading = false;
-          });
-          print('🔍 Session data set from alternative endpoint: $_sessionData');
-        } else {
-          print('Session fetch failed with status: ${response.statusCode}');
-          print('Response body: ${response.body}');
-          setState(() {
-            _errorMsg = 'Failed to fetch session details';
-            _loading = false;
-          });
-          print('🔍 Error set: $_errorMsg');
-        }
+        print('Session fetch failed with status: ${response.statusCode}');
+        print('Response body: ${response.body}');
+        setState(() {
+          _errorMsg = 'Failed to fetch session details: ${response.body}';
+          _loading = false;
+        });
       }
     } catch (e) {
       print('Session fetch error: $e');
-      // Check if it's a connection issue
       if (e.toString().contains('Connection refused') || e.toString().contains('Connection timed out')) {
-        print('🔍 Backend connection issue detected');
         setState(() {
           _errorMsg = 'Backend server is not reachable. Please check if the server is running on port 5070.';
           _loading = false;
@@ -171,65 +131,54 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
           _loading = false;
         });
       }
-      print('🔍 Exception error set: $_errorMsg');
     }
   }
 
   Future<void> _fetchZoomTokenAndJoin() async {
     setState(() => _loading = true);
-   
-    // TEMPORARY WORKING SOLUTION - Use mock data for now
-    print('🔍 Using temporary mock Zoom token solution');
-    await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
-    
-    setState(() {
-      _zoomAuthData = {
-        'token': 'mock-zoom-token-${widget.sessionId}',
-        'sessionName': _sessionData?['zoomSessionName'] ?? 'Expert Session',
-        'firstName': 'Expert',
-        'lastName': 'User',
-        'userIdentity': 'expert-${widget.sessionId}',
-        'role': 1,
-      };
-      _loading = false;
-    });
-    print('🔍 Mock Zoom auth data set: $_zoomAuthData');
-    await _joinZoomSessionNative();
-    return;
     
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:5070/api/experttoexpertsession/generate-video-sdk-auth'),
+        Uri.parse(ApiConfig.expertGenerateVideoAuth()),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
           'Content-Type': 'application/json',
         },
         body: json.encode({
-          'meetingNumber': _sessionData!['zoomMeetingId'],
+          'meetingNumber': _sessionData!['zoomMeetingId'] ?? _sessionData!['videoSDKMeetingNumber'],
           'sessionId': widget.sessionId,
           'role': 1, // Expert role
         }),
       ).timeout(const Duration(seconds: 10));
+      
+      print('🔍 Zoom token response status: ${response.statusCode}');
+      print('🔍 Zoom token response body: ${response.body}');
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('Zoom token response: $data');
         setState(() {
           _zoomAuthData = {
             'token': data['signature'] ?? data['token'],
-            'sessionName': _sessionData?['zoomSessionName'] ?? 'Expert Session',
-            'firstName': 'Expert',
-            'lastName': 'User',
+            'sessionName': _sessionData?['videoSDKTopic'] ?? _sessionData?['zoomSessionName'] ?? 'Expert Session',
+            'firstName': _sessionData?['firstName'] ?? 'Expert',
+            'lastName': _sessionData?['lastName'] ?? 'User',
             'userIdentity': 'expert-${widget.sessionId}',
             'role': 1,
           };
           _loading = false;
         });
         await _joinZoomSessionNative();
+      } else if (response.statusCode == 401) {
+        setState(() {
+          _errorMsg = 'Authentication failed. Please login again.';
+          _loading = false;
+        });
       } else {
         print('Zoom token fetch failed with status: ${response.statusCode}');
         print('Response body: ${response.body}');
         setState(() {
-          _errorMsg = 'Failed to get Zoom token';
+          _errorMsg = 'Failed to get Zoom token: ${response.body}';
           _loading = false;
         });
       }
@@ -732,10 +681,6 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Debug information
-    print('Build state: loading=$_loading, inMeeting=$_inMeeting, errorMsg=$_errorMsg');
-    print('Session data: $_sessionData');
-    print('Zoom auth data: $_zoomAuthData');
     print('🔍 BUILD METHOD - Loading: $_loading, Error: $_errorMsg, InMeeting: $_inMeeting');
     
     return Scaffold(
@@ -743,7 +688,41 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _errorMsg != null
-              ? Center(child: Text(_errorMsg ?? 'Unknown error'))
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _errorMsg!,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.red,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _errorMsg = null;
+                              _loading = true;
+                            });
+                            _fetchSessionDetails();
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               : !_inMeeting
                   ? _buildSessionIntro()
                   : _buildSessionUI(),

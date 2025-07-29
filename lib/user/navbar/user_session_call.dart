@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shourk_application/expert/navbar/expert_dashboard.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shourk_application/shared/config/api_config.dart';
 
 // Model classes
 class Participant {
@@ -129,37 +130,34 @@ class AuthData {
 
 // Service class for API calls
 class UserSessionCall {
-  static const String baseUrl = "http://10.0.2.2:5070";
-
   static Future<SessionData> getSessionData(String sessionId, String token) async {
     try {
-      // TEMPORARY WORKING SOLUTION - Use mock data for now
-      print('🔍 Using temporary mock session data for user');
-      await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
-      
-      return SessionData.fromJson({
-        'sessionId': sessionId,
-        'expertFirstName': 'Dr. Sarah',
-        'expertLastName': 'Johnson',
-        'duration': 15,
-      });
+      print('🔍 Getting user session data from: ${ApiConfig.userSessionDetails(sessionId)}');
       
       final response = await http.get(
-        Uri.parse('$baseUrl/api/usertoexpertsession/user-session-details/$sessionId'),
+        Uri.parse(ApiConfig.userSessionDetails(sessionId)),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 10));
+
+      print('🔍 User session response status: ${response.statusCode}');
+      print('🔍 User session response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('User session details response: $data');
-        return SessionData.fromJson(data['session'] ?? {});
+        return SessionData.fromJson(data['session'] ?? data);
+      } else if (response.statusCode == 401) {
+        throw Exception('Authentication failed. Please login again.');
+      } else if (response.statusCode == 404) {
+        throw Exception('Session not found. Please check the session ID.');
       } else {
-        throw Exception('Failed to load session data: ${response.statusCode}');
+        throw Exception('Failed to load session data: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
+      print('🔍 User session data error: $e');
       throw Exception('Network error: $e');
     }
   }
@@ -167,52 +165,53 @@ class UserSessionCall {
   static Future<AuthData> generateUserAuth(
       String meetingId, String sessionId, String token) async {
     try {
-      // TEMPORARY WORKING SOLUTION - Use mock data for now
-      print('🔍 Using temporary mock auth data for user');
-      await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
-      
-      return AuthData.fromJson({
-        'sessionName': 'User Consultation Session',
-        'token': 'mock-user-token-$sessionId',
-        'userIdentity': 'user-$sessionId',
-        'role': 0,
-        'firstName': 'User',
-        'lastName': 'Client',
-      });
+      print('🔍 Generating user auth from: ${ApiConfig.userGenerateVideoAuth()}');
       
       final response = await http.post(
-        Uri.parse('$baseUrl/api/usertoexpertsession/generate-user-video-auth'),
+        Uri.parse(ApiConfig.userGenerateVideoAuth()),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
         body: json.encode({
           'meetingNumber': meetingId,
+          'sessionId': sessionId,
+          'role': 0, // User role
         }),
-      );
+      ).timeout(const Duration(seconds: 10));
+
+      print('🔍 User auth response status: ${response.statusCode}');
+      print('🔍 User auth response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('User auth response: $data');
-        return AuthData.fromJson(data['data'] ?? {});
+        return AuthData.fromJson(data['data'] ?? data);
+      } else if (response.statusCode == 401) {
+        throw Exception('Authentication failed. Please login again.');
       } else {
-        throw Exception('Failed to generate user auth: ${response.statusCode}');
+        throw Exception('Failed to generate user auth: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
+      print('🔍 User auth error: $e');
       throw Exception('Authentication error: $e');
     }
   }
 
   static Future<void> notifyUserJoined(String sessionId, String token) async {
     try {
-      await http.post(
-        Uri.parse('$baseUrl/api/usertoexpertsession/user-joined'),
+      print('🔍 Notifying user joined to: ${ApiConfig.userToExpertSession}/user-joined');
+      
+      final response = await http.post(
+        Uri.parse('${ApiConfig.userToExpertSession}/user-joined'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
         body: json.encode({'sessionId': sessionId}),
-      );
+      ).timeout(const Duration(seconds: 5));
+
+      print('🔍 User joined notification response: ${response.statusCode}');
     } catch (e) {
       print('Failed to notify user joined: $e');
     }
@@ -221,8 +220,10 @@ class UserSessionCall {
   static Future<void> completeUserSession(
       String sessionId, int duration, String token) async {
     try {
-      await http.put(
-        Uri.parse('$baseUrl/api/usertoexpertsession/complete-user-session'),
+      print('🔍 Completing user session: ${ApiConfig.userCompleteSession(sessionId)}');
+      
+      final response = await http.put(
+        Uri.parse(ApiConfig.userCompleteSession(sessionId)),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -233,7 +234,9 @@ class UserSessionCall {
           'status': 'completed',
           'actualDuration': duration,
         }),
-      );
+      ).timeout(const Duration(seconds: 10));
+
+      print('🔍 Complete session response: ${response.statusCode}');
     } catch (e) {
       print('Failed to complete user session: $e');
     }
@@ -301,19 +304,30 @@ class UserSessionProvider with ChangeNotifier {
   }
 
   void _startExpertJoinPolling() {
-    // Poll every 3 seconds to check if expert has joined
-    _expertJoinPollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+    // Poll every 5 seconds to check if expert has joined
+    _expertJoinPollTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       if (!isInSession || expertJoined) return;
       try {
-        // For now, simulate expert joining after 3 seconds for testing
-        // In real implementation, this would check the actual session status
-        if (DateTime.now().difference(_sessionStartTime ?? DateTime.now()).inSeconds > 3) {
-          expertJoined = true;
-          notifyListeners();
-          _expertJoinPollTimer?.cancel();
+        // Poll for expert join status
+        final response = await http.get(
+          Uri.parse(ApiConfig.userSessionDetails(sessionId)),
+          headers: {
+            'Authorization': 'Bearer $userToken',
+            'Content-Type': 'application/json',
+          },
+        ).timeout(const Duration(seconds: 3));
+        
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          // Check if expert has joined based on session status or other indicators
+          if (data['session']?['status'] == 'confirmed' || data['session']?['expertJoined'] == true) {
+            expertJoined = true;
+            notifyListeners();
+            _expertJoinPollTimer?.cancel();
+          }
         }
       } catch (e) {
-        // Optionally log polling error
+        print('Expert join polling error: $e');
       }
     });
   }
@@ -384,110 +398,110 @@ class UserSessionProvider with ChangeNotifier {
   }
 
   // Updated setupMedia method
-Future<void> setupMedia() async {
-  try {
-    // Request camera and microphone permissions together
-    final statuses = await [
-      Permission.camera,
-      Permission.microphone,
-    ].request();
+  Future<void> setupMedia() async {
+    try {
+      // Request camera and microphone permissions together
+      final statuses = await [
+        Permission.camera,
+        Permission.microphone,
+      ].request();
 
-    final cameraGranted = statuses[Permission.camera]?.isGranted ?? false;
-    final micGranted = statuses[Permission.microphone]?.isGranted ?? false;
+      final cameraGranted = statuses[Permission.camera]?.isGranted ?? false;
+      final micGranted = statuses[Permission.microphone]?.isGranted ?? false;
 
-    if (!cameraGranted || !micGranted) {
-      mediaError = "Permissions denied for ${!cameraGranted ? 'camera' : ''}${!cameraGranted && !micGranted ? ' and ' : ''}${!micGranted ? 'microphone' : ''}";
-      notifyListeners();
-      return;
-    }
-
-    // Initialize media devices
-    isAudioOn = true;
-    audioJoined = true;
-    isVideoOn = true;
-    mediaError = null;
-    notifyListeners();
-  } catch (e) {
-    mediaError = "Failed to initialize media: $e";
-    notifyListeners();
-  }
-}
-
-// Updated toggleVideo method
-void toggleVideo() async {
-  try {
-    if (!isVideoOn) {
-      final status = await Permission.camera.request();
-      if (status != PermissionStatus.granted) {
-        mediaError = "Camera permission denied";
+      if (!cameraGranted || !micGranted) {
+        mediaError = "Permissions denied for ${!cameraGranted ? 'camera' : ''}${!cameraGranted && !micGranted ? ' and ' : ''}${!micGranted ? 'microphone' : ''}";
         notifyListeners();
         return;
       }
-    }
-    
-    // Call native method to toggle camera in Zoom session
-    if (kIsWeb) {
-      // Web fallback
-      isVideoOn = !isVideoOn;
-      notifyListeners();
-      return;
-    }
-    
-    try {
-      await platform.invokeMethod('toggleCam', {'on': !isVideoOn});
-      isVideoOn = !isVideoOn;
-      notifyListeners();
-    } on PlatformException catch (e) {
-      if (e.message?.contains('PERMISSION_DENIED') == true) {
-        mediaError = "Camera permission required. Please grant camera access in settings.";
-      } else {
-        mediaError = "Failed to toggle camera: ${e.message}";
-      }
-      notifyListeners();
-    }
-  } catch (e) {
-    mediaError = "Failed to toggle video: $e";
-    notifyListeners();
-  }
-}
 
-// Updated toggleAudio method
-void toggleAudio() async {
-  try {
-    if (!isAudioOn || !audioJoined) {
-      final status = await Permission.microphone.request();
-      if (status != PermissionStatus.granted) {
-        mediaError = "Microphone permission denied";
+      // Initialize media devices
+      isAudioOn = true;
+      audioJoined = true;
+      isVideoOn = true;
+      mediaError = null;
+      notifyListeners();
+    } catch (e) {
+      mediaError = "Failed to initialize media: $e";
+      notifyListeners();
+    }
+  }
+
+  // Updated toggleVideo method
+  void toggleVideo() async {
+    try {
+      if (!isVideoOn) {
+        final status = await Permission.camera.request();
+        if (status != PermissionStatus.granted) {
+          mediaError = "Camera permission denied";
+          notifyListeners();
+          return;
+        }
+      }
+      
+      // Call native method to toggle camera in Zoom session
+      if (kIsWeb) {
+        // Web fallback
+        isVideoOn = !isVideoOn;
         notifyListeners();
         return;
       }
-    }
-    
-    // Call native method to toggle mic in Zoom session
-    if (kIsWeb) {
-      // Web fallback
-      isAudioOn = !isAudioOn;
-      audioJoined = true;
-      mediaError = null;
-      notifyListeners();
-      return;
-    }
-    
-    try {
-      await platform.invokeMethod('toggleMic', {'on': !isAudioOn});
-      isAudioOn = !isAudioOn;
-      audioJoined = true;
-      mediaError = null;
-      notifyListeners();
-    } on PlatformException catch (e) {
-      mediaError = "Failed to toggle microphone: ${e.message}";
+      
+      try {
+        await platform.invokeMethod('toggleCam', {'on': !isVideoOn});
+        isVideoOn = !isVideoOn;
+        notifyListeners();
+      } on PlatformException catch (e) {
+        if (e.message?.contains('PERMISSION_DENIED') == true) {
+          mediaError = "Camera permission required. Please grant camera access in settings.";
+        } else {
+          mediaError = "Failed to toggle camera: ${e.message}";
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      mediaError = "Failed to toggle video: $e";
       notifyListeners();
     }
-  } catch (e) {
-    mediaError = "Failed to toggle audio: $e";
-    notifyListeners();
   }
-}
+
+  // Updated toggleAudio method
+  void toggleAudio() async {
+    try {
+      if (!isAudioOn || !audioJoined) {
+        final status = await Permission.microphone.request();
+        if (status != PermissionStatus.granted) {
+          mediaError = "Microphone permission denied";
+          notifyListeners();
+          return;
+        }
+      }
+      
+      // Call native method to toggle mic in Zoom session
+      if (kIsWeb) {
+        // Web fallback
+        isAudioOn = !isAudioOn;
+        audioJoined = true;
+        mediaError = null;
+        notifyListeners();
+        return;
+      }
+      
+      try {
+        await platform.invokeMethod('toggleMic', {'on': !isAudioOn});
+        isAudioOn = !isAudioOn;
+        audioJoined = true;
+        mediaError = null;
+        notifyListeners();
+      } on PlatformException catch (e) {
+        mediaError = "Failed to toggle microphone: ${e.message}";
+        notifyListeners();
+      }
+    } catch (e) {
+      mediaError = "Failed to toggle audio: $e";
+      notifyListeners();
+    }
+  }
 
   void startTimer() {
     if (timerStarted) return;
@@ -904,89 +918,89 @@ class _UserSessionBody extends StatelessWidget {
     return Container(
       color: Colors.grey[200],
       child: Column(
-        children: [
-          // Header
-          _buildHeader(provider, theme, isDarkMode, screenSize),
-          
-          // Warning banners
-          if (provider.mediaError != null) 
-            _buildMediaWarningBanner(provider.mediaError!, theme, isDarkMode),
-          
-          if (provider.timeRemaining <= 120 && provider.timeRemaining > 0)
-            _buildTimeWarningBanner(provider.timeRemaining, theme, isDarkMode),
-          
-          // Main content
-          Expanded(
-            child: provider.isInSession
+      children: [
+        // Header
+        _buildHeader(provider, theme, isDarkMode, screenSize),
+        
+        // Warning banners
+        if (provider.mediaError != null) 
+          _buildMediaWarningBanner(provider.mediaError!, theme, isDarkMode),
+        
+        if (provider.timeRemaining <= 120 && provider.timeRemaining > 0)
+          _buildTimeWarningBanner(provider.timeRemaining, theme, isDarkMode),
+        
+        // Main content
+        Expanded(
+              child: provider.isInSession
                 ? _buildVideoGrid(provider, theme, isDarkMode, screenSize, isLandscape)
-                : _buildPreJoinScreen(provider, theme, isDarkMode, screenSize),
-          ),
-          
-          // Footer controls
-          if (provider.isInSession && !provider.sessionEnded)
+                  : _buildPreJoinScreen(provider, theme, isDarkMode, screenSize),
+        ),
+        
+        // Footer controls
+        if (provider.isInSession && !provider.sessionEnded)
             _buildFooterControls(provider, theme, isDarkMode, context),
-        ],
+      ],
       ),
     );
   }
 
-Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize) {
-  return Container(
-    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    decoration: BoxDecoration(
-      color: theme.colorScheme.surface,
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black12,
-          blurRadius: 4,
-          offset: Offset(0, 2),
+  Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+        border: Border(
+          bottom: BorderSide(color: theme.dividerColor),
         ),
-      ],
-      border: Border(
-        bottom: BorderSide(color: theme.dividerColor),
       ),
-    ),
-    child: screenSize.width > 600
-        ? Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: screenSize.width > 600
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center, // Add this
-            children: [
+              children: [
               Flexible( // Wrap with Flexible
                 child: _buildHeaderLeftSection(provider, theme),
               ),
               SizedBox(width: 12), // Add spacing
-              _buildHeaderRightSection(provider, theme),
-            ],
-          )
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                _buildHeaderRightSection(provider, theme),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start, // Change to start
-                children: [
+                  children: [
                   Flexible( // Wrap with Flexible
                     child: _buildHeaderLeftSection(provider, theme),
                   ),
-                  _buildHeaderRightSection(provider, theme),
-                ],
-              ),
-              SizedBox(height: 8),
-              _buildMeetingInfo(provider, theme),
-            ],
-          ),
-  );
-}
+                    _buildHeaderRightSection(provider, theme),
+                  ],
+                ),
+                SizedBox(height: 8),
+                _buildMeetingInfo(provider, theme),
+              ],
+            ),
+    );
+  }
 
   Widget _buildHeaderLeftSection(UserSessionProvider provider, ThemeData theme) {
-  return Row(
-    children: [
-      Image.asset(
-        'assets/images/Shourk_logo.png',
-        width: 100,
-        height: 40,
-      ),
-      SizedBox(width: 12),
+    return Row(
+      children: [
+        Image.asset(
+          'assets/images/Shourk_logo.png',
+          width: 100,
+          height: 40,
+        ),
+        SizedBox(width: 12),
       Flexible( // Add Flexible here
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1009,22 +1023,22 @@ Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMo
               SizedBox(width: 8),
               Flexible( // Add Flexible here
                 child: Text(
-                  provider.connectionStatus,
+                provider.connectionStatus,
                   overflow: TextOverflow.ellipsis, // Add overflow handling
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.onSurface,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.onSurface,
                   ),
                 ),
               ),
             ],
           ),
+          ),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
   Widget _buildHeaderRightSection(UserSessionProvider provider, ThemeData theme) {
     return Row(
@@ -1371,27 +1385,27 @@ Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMo
 
   Widget _buildWaitingCard(String name, double width, double height) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
         Icon(
-          Icons.person,
+                      Icons.person,
           size: width * 0.2,
           color: Colors.grey[400],
-        ),
+                    ),
         const SizedBox(height: 16),
-        Text(
+                  Text(
           'Waiting for expert to join...',
-          style: TextStyle(
+                    style: TextStyle(
             fontSize: width * 0.04,
-            fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.bold,
             color: Colors.black87,
-          ),
+                    ),
           textAlign: TextAlign.center,
-        ),
+                  ),
         const SizedBox(height: 8),
-        Text(
+                  Text(
           'The consultation will begin once the expert connects to the session',
-          style: TextStyle(
+                    style: TextStyle(
             fontSize: width * 0.03,
             color: Colors.grey[600],
           ),
@@ -1408,15 +1422,15 @@ Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMo
   Widget _buildActiveParticipantCard(String name, bool isExpert, bool cameraOn, bool micOn, double width, double height) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: [
+        children: [
         // Video placeholder or camera feed
-        Container(
+            Container(
           width: width * 0.6,
           height: height * 0.5,
-          decoration: BoxDecoration(
+              decoration: BoxDecoration(
             color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(12),
-          ),
+                borderRadius: BorderRadius.circular(12),
+              ),
           child: cameraOn
               ? Icon(
                   Icons.videocam,
@@ -1424,24 +1438,24 @@ Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMo
                   color: Colors.blue,
                 )
               : Icon(
-                  Icons.person,
+                      Icons.person,
                   size: width * 0.15,
                   color: Colors.grey[600],
-                ),
-        ),
+                    ),
+                  ),
         const SizedBox(height: 12),
-        Text(
+                  Text(
           name,
-          style: TextStyle(
+                    style: TextStyle(
             fontSize: width * 0.04,
-            fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.bold,
             color: Colors.black87,
-          ),
-        ),
+                    ),
+                  ),
         const SizedBox(height: 4),
-        Text(
+                  Text(
           cameraOn ? 'Camera is on' : 'Camera is off',
-          style: TextStyle(
+                    style: TextStyle(
             fontSize: width * 0.03,
             color: Colors.grey[600],
           ),
@@ -1449,16 +1463,16 @@ Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMo
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+                children: [
             Icon(
               micOn ? Icons.mic : Icons.mic_off,
               color: micOn ? Colors.green : Colors.red,
               size: width * 0.04,
             ),
             const SizedBox(width: 4),
-            Text(
+                  Text(
               micOn ? 'Mic on' : 'Mic muted',
-              style: TextStyle(
+                    style: TextStyle(
                 color: micOn ? Colors.green : Colors.red,
                 fontSize: width * 0.03,
               ),
@@ -1468,20 +1482,20 @@ Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMo
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
+              decoration: BoxDecoration(
             color: isExpert ? Colors.purple[700] : Colors.blue[700],
             borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
+              ),
+              child: Text(
             isExpert ? 'Expert (Host)' : 'User',
             style: const TextStyle(
-              color: Colors.white,
+                  color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 12,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
     );
   }
 
@@ -1602,18 +1616,18 @@ Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMo
           children: [
             // Left controls
             Row(
-              children: [
-                _buildControlButton(
-                  icon: provider.isAudioOn ? Icons.mic : Icons.mic_off,
+          children: [
+            _buildControlButton(
+              icon: provider.isAudioOn ? Icons.mic : Icons.mic_off,
                   color: provider.isAudioOn ? Colors.green : Colors.red,
-                  onPressed: provider.toggleAudio,
+              onPressed: provider.toggleAudio,
                   screenWidth: screenWidth,
-                ),
+            ),
                 const SizedBox(width: 16),
-                _buildControlButton(
+            _buildControlButton(
                   icon: provider.isVideoOn ? Icons.videocam : Icons.videocam_off,
                   color: provider.isVideoOn ? Colors.green : Colors.red,
-                  onPressed: provider.toggleVideo,
+              onPressed: provider.toggleVideo,
                   screenWidth: screenWidth,
                 ),
               ],
@@ -1642,13 +1656,13 @@ Widget _buildHeader(UserSessionProvider provider, ThemeData theme, bool isDarkMo
     required double screenWidth,
   }) {
     return Container(
-      decoration: BoxDecoration(
+          decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
         icon: Icon(icon, color: color),
-        onPressed: onPressed,
+            onPressed: onPressed,
         iconSize: screenWidth * 0.06,
       ),
     );

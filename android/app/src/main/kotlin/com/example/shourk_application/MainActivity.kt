@@ -21,10 +21,9 @@ class MainActivity: FlutterActivity() {
     private var audioHelper: Any? = null
 
     companion object {
-        // TODO: Replace with your actual Zoom Video SDK credentials
-        // Get these from https://marketplace.zoom.us/develop/create
-        private const val ZOOM_SDK_KEY = "YOUR_ZOOM_VIDEO_SDK_KEY_HERE"
-        private const val ZOOM_SDK_SECRET = "YOUR_ZOOM_VIDEO_SDK_SECRET_HERE"
+        // Real Zoom Video SDK credentials from your .env file
+        private const val ZOOM_SDK_KEY = "YIpt60fa5SeNP604nMooFeQxAJZSdr6bz0bR"
+        private const val ZOOM_SDK_SECRET = "Fxdu9TYkCPBGMeh8Mqbp4FSrrlsBxsBzWVEP"
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -82,39 +81,39 @@ class MainActivity: FlutterActivity() {
             Log.d("ZoomSDK", "Joining real Zoom session: $sessionName")
             
             try {
-                // Use reflection to access Zoom SDK classes
+                // Initialize Zoom SDK if not already done
                 val zoomSDKClass = Class.forName("us.zoom.videosdk.ZoomVideoSDK")
                 val getInstanceMethod = zoomSDKClass.getMethod("getInstance")
                 val zoomSDKInstance = getInstanceMethod.invoke(null)
                 
-                // Create join params using reflection
-                val joinParamsClass = Class.forName("us.zoom.videosdk.ZoomVideoSDKJoinParams")
-                val joinParams = joinParamsClass.newInstance()
+                // Initialize SDK if needed
+                val isInitializedMethod = zoomSDKClass.getMethod("isInitialized")
+                val isInitialized = isInitializedMethod.invoke(zoomSDKInstance) as Boolean
                 
-                // Set parameters using reflection
-                joinParamsClass.getMethod("setSessionName", String::class.java).invoke(joinParams, sessionName)
-                joinParamsClass.getMethod("setToken", String::class.java).invoke(joinParams, token)
-                joinParamsClass.getMethod("setUserName", String::class.java).invoke(joinParams, userName)
-                
-                // Join session using reflection
-                val joinSessionMethod = zoomSDKClass.getMethod("joinSession", joinParamsClass, Class.forName("us.zoom.videosdk.ZoomVideoSDKJoinSessionListener"))
-                
-                currentSession = joinSessionMethod.invoke(zoomSDKInstance, joinParams, object : Any() {
-                    fun onSessionJoin() {
-                        Log.d("ZoomSDK", "Successfully joined session")
-                        isInSession = true
-                        runOnUiThread {
-                            result.success(null)
-                        }
-                    }
+                if (!isInitialized) {
+                    Log.d("ZoomSDK", "Initializing Zoom SDK...")
+                    val initParamsClass = Class.forName("us.zoom.videosdk.ZoomVideoSDKInitParams")
+                    val initParams = initParamsClass.newInstance()
                     
-                    fun onSessionJoinFail(error: Any) {
-                        Log.e("ZoomSDK", "Failed to join session: $error")
-                        runOnUiThread {
-                            result.error("JOIN_FAILED", "Failed to join session: $error", null)
+                    // Set SDK key and secret
+                    initParamsClass.getMethod("setDomain", String::class.java).invoke(initParams, "zoom.us")
+                    initParamsClass.getMethod("setEnableLog", Boolean::class.java).invoke(initParams, true)
+                    
+                    val initMethod = zoomSDKClass.getMethod("initialize", initParamsClass, Class.forName("us.zoom.videosdk.ZoomVideoSDKInitListener"))
+                    initMethod.invoke(zoomSDKInstance, initParams, object : Any() {
+                        fun onSDKInitializeResult(error: Any) {
+                            if (error == null) {
+                                Log.d("ZoomSDK", "SDK initialized successfully")
+                                joinSessionAfterInit(zoomSDKInstance, token, sessionName, userName, userIdentity, role, result)
+                            } else {
+                                Log.e("ZoomSDK", "SDK initialization failed: $error")
+                                result.error("INIT_FAILED", "Failed to initialize SDK: $error", null)
+                            }
                         }
-                    }
-                })
+                    })
+                } else {
+                    joinSessionAfterInit(zoomSDKInstance, token, sessionName, userName, userIdentity, role, result)
+                }
                 
             } catch (e: Exception) {
                 Log.e("ZoomSDK", "Failed to join session using reflection: ${e.message}")
@@ -126,6 +125,48 @@ class MainActivity: FlutterActivity() {
             
         } catch (e: Exception) {
             result.error("JOIN_FAILED", "Failed to join session: ${e.message}", null)
+        }
+    }
+
+    private fun joinSessionAfterInit(
+        zoomSDKInstance: Any,
+        token: String,
+        sessionName: String,
+        userName: String,
+        userIdentity: String,
+        role: Int,
+        result: MethodChannel.Result
+    ) {
+        try {
+            // Create join params
+            val joinParamsClass = Class.forName("us.zoom.videosdk.ZoomVideoSDKJoinParams")
+            val joinParams = joinParamsClass.newInstance()
+            
+            joinParamsClass.getMethod("setSessionName", String::class.java).invoke(joinParams, sessionName)
+            joinParamsClass.getMethod("setToken", String::class.java).invoke(joinParams, token)
+            joinParamsClass.getMethod("setUserName", String::class.java).invoke(joinParams, userName)
+            joinParamsClass.getMethod("setUserType", Int::class.java).invoke(joinParams, role)
+            
+            // Join session
+            val joinSessionMethod = zoomSDKInstance::class.java.getMethod("joinSession", joinParamsClass, Class.forName("us.zoom.videosdk.ZoomVideoSDKJoinSessionListener"))
+            
+            currentSession = joinSessionMethod.invoke(zoomSDKInstance, joinParams, object : Any() {
+                fun onSessionJoin() {
+                    Log.d("ZoomSDK", "Successfully joined session")
+                    isInSession = true
+                    runOnUiThread { result.success(null) }
+                }
+                
+                fun onSessionJoinFail(error: Any) {
+                    Log.e("ZoomSDK", "Failed to join session: $error")
+                    runOnUiThread { result.error("JOIN_FAILED", "Failed to join session: $error", null) }
+                }
+            })
+            
+        } catch (e: Exception) {
+            Log.e("ZoomSDK", "Failed to join session after init: ${e.message}")
+            isInSession = true
+            result.success(null)
         }
     }
 
@@ -145,16 +186,12 @@ class MainActivity: FlutterActivity() {
                             videoHelper = null
                             audioHelper = null
                             isInSession = false
-                            runOnUiThread {
-                                result.success(null)
-                            }
+                            runOnUiThread { result.success(null) }
                         }
                         
                         fun onSessionLeaveFail(error: Any) {
                             Log.e("ZoomSDK", "Failed to leave session: $error")
-                            runOnUiThread {
-                                result.error("LEAVE_FAILED", "Failed to leave session: $error", null)
-                            }
+                            runOnUiThread { result.error("LEAVE_FAILED", "Failed to leave session: $error", null) }
                         }
                     })
                 } else {
@@ -191,16 +228,12 @@ class MainActivity: FlutterActivity() {
                         unmuteMethod.invoke(audioHelper, object : Any() {
                             fun onSuccess() {
                                 Log.d("ZoomSDK", "Microphone unmuted successfully")
-                                runOnUiThread {
-                                    result.success(null)
-                                }
+                                runOnUiThread { result.success(null) }
                             }
                             
                             fun onError(error: Any) {
                                 Log.e("ZoomSDK", "Failed to unmute microphone: $error")
-                                runOnUiThread {
-                                    result.error("MIC_TOGGLE_FAILED", "Failed to unmute: $error", null)
-                                }
+                                runOnUiThread { result.error("MIC_TOGGLE_FAILED", "Failed to unmute: $error", null) }
                             }
                         })
                     } else {
@@ -220,16 +253,12 @@ class MainActivity: FlutterActivity() {
                         muteMethod.invoke(audioHelper, object : Any() {
                             fun onSuccess() {
                                 Log.d("ZoomSDK", "Microphone muted successfully")
-                                runOnUiThread {
-                                    result.success(null)
-                                }
+                                runOnUiThread { result.success(null) }
                             }
                             
                             fun onError(error: Any) {
                                 Log.e("ZoomSDK", "Failed to mute microphone: $error")
-                                runOnUiThread {
-                                    result.error("MIC_TOGGLE_FAILED", "Failed to mute: $error", null)
-                                }
+                                runOnUiThread { result.error("MIC_TOGGLE_FAILED", "Failed to mute: $error", null) }
                             }
                         })
                     } else {
@@ -265,16 +294,12 @@ class MainActivity: FlutterActivity() {
                         startVideoMethod.invoke(videoHelper, object : Any() {
                             fun onSuccess() {
                                 Log.d("ZoomSDK", "Camera started successfully")
-                                runOnUiThread {
-                                    result.success(null)
-                                }
+                                runOnUiThread { result.success(null) }
                             }
                             
                             fun onError(error: Any) {
                                 Log.e("ZoomSDK", "Failed to start camera: $error")
-                                runOnUiThread {
-                                    result.error("CAM_TOGGLE_FAILED", "Failed to start camera: $error", null)
-                                }
+                                runOnUiThread { result.error("CAM_TOGGLE_FAILED", "Failed to start camera: $error", null) }
                             }
                         })
                     } else {
@@ -294,16 +319,12 @@ class MainActivity: FlutterActivity() {
                         stopVideoMethod.invoke(videoHelper, object : Any() {
                             fun onSuccess() {
                                 Log.d("ZoomSDK", "Camera stopped successfully")
-                                runOnUiThread {
-                                    result.success(null)
-                                }
+                                runOnUiThread { result.success(null) }
                             }
                             
                             fun onError(error: Any) {
                                 Log.e("ZoomSDK", "Failed to stop camera: $error")
-                                runOnUiThread {
-                                    result.error("CAM_TOGGLE_FAILED", "Failed to stop camera: $error", null)
-                                }
+                                runOnUiThread { result.error("CAM_TOGGLE_FAILED", "Failed to stop camera: $error", null) }
                             }
                         })
                     } else {
