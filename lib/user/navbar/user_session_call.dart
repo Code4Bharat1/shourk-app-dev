@@ -129,7 +129,7 @@ class AuthData {
 
 // Service class for API calls
 class UserSessionCall {
-  static const String baseUrl = "http://10.0.2.2:5070";
+  static const String baseUrl = "http://localhost:5070";
 
   static Future<SessionData> getSessionData(String sessionId, String token) async {
     try {

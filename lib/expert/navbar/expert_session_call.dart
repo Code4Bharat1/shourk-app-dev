@@ -66,14 +66,14 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
 
   Future<void> _fetchSessionDetails() async {
     print('🔍 _fetchSessionDetails called');
-    print('🔍 URL: http://10.0.2.2:5070/api/experttoexpertsession/details/${widget.sessionId}');
+    print('🔍 URL: http://localhost:5070/api/experttoexpertsession/details/${widget.sessionId}');
     setState(() => _loading = true);
     
     // First, test if backend is reachable
     try {
       print('🔍 Testing backend connectivity...');
       final testResponse = await http.get(
-        Uri.parse('http://10.0.2.2:5070/'),
+        Uri.parse('http://localhost:5070/'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 5));
       print('🔍 Backend test response: ${testResponse.statusCode}');
@@ -90,7 +90,7 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
     try {
       // Try the main endpoint first
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:5070/api/experttoexpertsession/details/${widget.sessionId}'),
+        Uri.parse('http://localhost:5070/api/experttoexpertsession/details/${widget.sessionId}'),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
           'Content-Type': 'application/json',
@@ -110,7 +110,7 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
         // Try alternative endpoint if main one fails
         print('🔍 Main endpoint failed, trying alternative...');
         final altResponse = await http.get(
-          Uri.parse('http://10.0.2.2:5070/api/experttoexpertsession/getexpertsession'),
+          Uri.parse('http://localhost:5070/api/experttoexpertsession/getexpertsession'),
           headers: {
             'Authorization': 'Bearer ${widget.token}',
             'Content-Type': 'application/json',
@@ -158,7 +158,7 @@ class _ExpertSessionCallPageState extends State<ExpertSessionCallPage> {
     setState(() => _loading = true);
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:5070/api/experttoexpertsession/generate-video-sdk-auth'),
+        Uri.parse('http://localhost:5070/api/experttoexpertsession/generate-video-sdk-auth'),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
           'Content-Type': 'application/json',
