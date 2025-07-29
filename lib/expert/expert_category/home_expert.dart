@@ -349,7 +349,6 @@ class ModernExpertCard extends StatelessWidget {
       builder: (context, constraints) {
         return InkWell(
           onTap: () {
-            // Navigate to expert details screen
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -374,7 +373,7 @@ class ModernExpertCard extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                // Expert Image Section
+                // Expert Image Section (unchanged)
                 Container(
                   height: double.infinity,
                   width: double.infinity,
@@ -384,22 +383,21 @@ class ModernExpertCard extends StatelessWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child:
-                        expert.imageUrl.isNotEmpty
-                            ? Image.network(
-                              expert.imageUrl,
-                              width: double.infinity,
-                              height: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return _buildPlaceholderImage();
-                              },
-                            )
-                            : _buildPlaceholderImage(),
+                    child: expert.imageUrl.isNotEmpty
+                        ? Image.network(
+                            expert.imageUrl,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return _buildPlaceholderImage();
+                            },
+                          )
+                        : _buildPlaceholderImage(),
                   ),
                 ),
 
-                // Gradient overlay for text readability
+                // Gradient overlay (unchanged)
                 Container(
                   height: double.infinity,
                   decoration: BoxDecoration(
@@ -420,116 +418,54 @@ class ModernExpertCard extends StatelessWidget {
                   ),
                 ),
 
-                // Content overlay
+                // Top badges (unchanged position)
                 Positioned(
+                  top: 8,
                   left: 8,
                   right: 8,
-                  top: 8,
-                  bottom: 8,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Top badges
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Free Session Badge
-                          if (expert.freeSessionEnabled)
-                            Flexible(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.green[600],
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Text(
-                                  'First Session Free',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-
-                          const SizedBox(width: 4),
-
-                          // Price Badge
-                          Container(
+                      // Free Session Badge
+                      if (expert.freeSessionEnabled)
+                        Flexible(
+                          child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.8),
+                              color: Colors.green[600],
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(
-                              'SAR ${expert.price.toInt()}',
-                              style: const TextStyle(
+                            child: const Text(
+                              'First Session Free',
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 10,
+                                fontSize: 9,
                                 fontWeight: FontWeight.bold,
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const Spacer(),
-
-                      // Name and Verified Badge
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              expert.name,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Icon(
-                            Icons.verified,
-                            size: 14,
-                            color: Colors.orange[600],
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 6),
-
-                      // Expert experience with semi-transparent background
-                      Expanded(
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(6),
-                          margin: const EdgeInsets.only(bottom: 30),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.4),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            (expert.experience != null &&
-                                    expert.experience!.isNotEmpty)
-                                ? expert.experience!
-                                : "My name is ${expert.name.split(' ').firstOrNull ?? 'Unknown'}, and I'm passionate about home improvement and design.",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.white,
-                              height: 1.2,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                        ),
+                      const SizedBox(width: 4),
+                      // Price Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'SAR ${expert.price.toInt()}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -537,7 +473,7 @@ class ModernExpertCard extends StatelessWidget {
                   ),
                 ),
 
-                // Rating badge
+                // Rating badge (unchanged position)
                 Positioned(
                   bottom: 8,
                   right: 8,
@@ -562,6 +498,73 @@ class ModernExpertCard extends StatelessWidget {
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // NEW: Name and description at bottom
+                Positioned(
+                  bottom: 35,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(12),
+                        bottomRight: Radius.circular(12),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
+                        ],
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Name and Verified Badge
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                expert.name,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Icon(
+                              Icons.verified,
+                              size: 14,
+                              color: Colors.orange[600],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        // Description
+                        Text(
+                          (expert.experience != null &&
+                                  expert.experience!.isNotEmpty)
+                              ? expert.experience!
+                              : "My name is ${expert.name.split(' ').firstOrNull ?? 'Unknown'}, and I'm passionate about home improvement and design.",
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.white,
+                            height: 1.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),

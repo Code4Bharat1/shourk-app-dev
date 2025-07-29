@@ -384,7 +384,6 @@ class ModernExpertCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        // Navigate to expert details screen
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -409,7 +408,7 @@ class ModernExpertCard extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Expert Image Section
+            // Expert Image Section (unchanged)
             Container(
               height: 300,
               width: double.infinity,
@@ -433,7 +432,7 @@ class ModernExpertCard extends StatelessWidget {
               ),
             ),
 
-            // Gradient overlay for text readability
+            // Gradient overlay (unchanged)
             Container(
               height: 300,
               decoration: BoxDecoration(
@@ -454,119 +453,60 @@ class ModernExpertCard extends StatelessWidget {
               ),
             ),
 
-            // Content overlay
+            // Top badges (unchanged)
             Positioned(
+              top: 8,
               left: 12,
               right: 12,
-              top: 8,
-              bottom: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Top badges - Made responsive
-                  Flexible(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Free Session Badge
-                        if (expert.freeSessionEnabled)
-                          Flexible(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.green[600],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'First Session Free',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-
-                        const SizedBox(width: 4),
-
-                        // Price Badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.8),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'SAR ${expert.price.toInt()}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                  if (expert.freeSessionEnabled)
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
                         ),
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // Name and Verified Badge - Made responsive
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          expert.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        decoration: BoxDecoration(
+                          color: Colors.green[600],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'First Session Free',
+                          style: TextStyle(
                             color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
-                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Icon(Icons.verified, size: 16, color: Colors.orange[600]),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Expert experience with semi-transparent background - Made responsive
+                    ),
+                  const SizedBox(width: 4),
                   Container(
-                    padding: const EdgeInsets.all(8),
-                    margin: const EdgeInsets.only(bottom: 35),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.black.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      // Handle null experience
-                      (expert.experience != null && expert.experience!.isNotEmpty)
-                          ? expert.experience!
-                          : "My name is ${expert.name.split(' ')[0]}, and I'm passionate about growth and making an impact.",
+                      'SAR ${expert.price.toInt()}',
                       style: const TextStyle(
-                        fontSize: 12,
                         color: Colors.white,
-                        height: 1.3,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Rating badge
+            // Rating badge (unchanged)
             Positioned(
               bottom: 12,
               right: 12,
@@ -593,6 +533,64 @@ class ModernExpertCard extends StatelessWidget {
                 ),
               ),
             ),
+
+            // NEW: Name and description at bottom
+            Positioned(
+              bottom: 35,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
+                  ),
+                  color: Colors.black.withOpacity(0.6),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Name and Verified Badge
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            expert.name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.verified, 
+                          size: 16, 
+                          color: Colors.orange
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Description
+                    Text(
+                      (expert.experience != null && expert.experience!.isNotEmpty)
+                          ? expert.experience!
+                          : "My name is ${expert.name.split(' ').firstOrNull ?? 'Unknown'}",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -604,7 +602,7 @@ class ModernExpertCard extends StatelessWidget {
       width: double.infinity,
       height: double.infinity,
       color: Colors.grey[300],
-      child: Icon(Icons.person, size: 50, color: Colors.grey[600]),
+      child: const Icon(Icons.person, size: 50, color: Colors.grey),
     );
   }
 }

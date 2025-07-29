@@ -123,9 +123,16 @@ void _showLogoutConfirmation(BuildContext context) {
         ),
         TextButton(
           onPressed: () {
-            Navigator.pop(context);  // Close dialog
-            // AuthService().logout();
-            // Navigator.pushReplacementNamed(context, '/login');
+            Navigator.pop(context);  // Close the dialog first
+            // Call your logout function here if needed
+            // await AuthService().logout();
+            
+            // Navigate to /start route and remove all previous routes
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/start',
+              (route) => false,  // This removes all previous routes
+            );
           },
           child: const Text('Logout', style: TextStyle(color: Colors.red)),
         ),
