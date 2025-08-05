@@ -1007,12 +1007,28 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
   }
 
   void _showBookingConfirmation(String sessionId) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Booking Confirmed!'),
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return WillPopScope(
+        onWillPop: () async {
+          Navigator.of(context).pop(); // Close the dialog when back is pressed
+          return true;
+        },
+        child: AlertDialog(
+          title: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close the dialog when arrow is pressed
+                },
+              ),
+              const SizedBox(width: 8),
+              const Text('Booking Confirmed!'),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1047,8 +1063,9 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
             //   child: const Text('Go to Video Calls'),
             // ),
           ],
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 }

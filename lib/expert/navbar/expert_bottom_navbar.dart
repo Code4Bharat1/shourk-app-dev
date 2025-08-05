@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shourk_application/expert/home/expert_home_screen.dart';
-import 'package:shourk_application/expert/profile/edit_profile_screen.dart';
+// import 'package:shourk_application/expert/profile/edit_profile_screen.dart';
 import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
 import 'package:shourk_application/expert/navbar/expert_dashboard.dart';
 import 'package:shourk_application/expert/navbar/video_call.dart';
-import 'package:shourk_application/expert/navbar/expert_main.dart';
+// import 'package:shourk_application/expert/navbar/expert_main.dart';
 import 'package:shourk_application/expert/profile/expert_profile_settings.dart';
 
 import 'package:jwt_decoder/jwt_decoder.dart';
