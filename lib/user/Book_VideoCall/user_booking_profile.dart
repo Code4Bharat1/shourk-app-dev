@@ -6,20 +6,18 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
 import 'package:shourk_application/user/navbar/user_upper_navbar.dart';
 import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
-import 'package:shourk_application/expert/navbar/video_call.dart'; // Added video call import
+import 'package:shourk_application/expert/navbar/video_call.dart';
 
 class UserBookingProfile extends StatefulWidget {
   final String expertId;
   final String selectedSessionType;
-  final String selectedDate;
-  final String selectedTime;
+  final List<String> selectedTimeSlots; // ✅ CHANGED: Now accepts list of time slots
 
   const UserBookingProfile({
     super.key,
     required this.expertId,
     required this.selectedSessionType,
-    required this.selectedDate,
-    required this.selectedTime,
+    required this.selectedTimeSlots, // ✅ CHANGED: Now required list
   });
 
   @override
@@ -46,16 +44,28 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
   final TextEditingController _promoController = TextEditingController();
 
   late String sessionType;
-  late String sessionDate;
-  late String sessionTime;
 
   @override
   void initState() {
     super.initState();
     sessionType = widget.selectedSessionType;
-    sessionDate = widget.selectedDate;
-    sessionTime = widget.selectedTime;
+    // ✅ REMOVED: sessionDate and sessionTime assignments (no longer needed)
     _initializeData();
+  }
+
+  // ✅ NEW: Helper method to extract date from uniqueKey
+  String _extractDateFromSlot(String uniqueKey) {
+    final parts = uniqueKey.split('-');
+    if (parts.length >= 4) {
+      // Assuming format: YYYY-MM-DD-HH:MM
+      return '${parts[0]}-${parts[1]}-${parts[2]}';
+    }
+    return uniqueKey.split('-').first;
+  }
+
+  // ✅ NEW: Helper method to extract time from uniqueKey
+  String _extractTimeFromSlot(String uniqueKey) {
+    return uniqueKey.split('-').last;
   }
 
   Future<void> _initializeData() async {
@@ -67,7 +77,6 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('userToken');
-      // final token = prefs.getString('expertToken');
 
       if (token != null) {
         final decodedToken = JwtDecoder.decode(token);
@@ -226,83 +235,7 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
           children: [
             _buildExpertCard(),
             const SizedBox(height: 20),
-
-            // Dynamic session info
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today,
-                        size: 20,
-                        color: Colors.blue,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Date: ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(sessionDate, style: TextStyle(fontSize: 16)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.access_time,
-                        size: 20,
-                        color: Colors.blue,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Time: ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(sessionTime, style: TextStyle(fontSize: 16)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.timer, size: 20, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Duration: ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        _mapSessionDurationLabel(sessionType),
-                        style: TextStyle(fontSize: 16),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            _buildSessionInfoCard(), // ✅ CHANGED: Use new method to show all slots
             const SizedBox(height: 20),
             _buildBookingForm(),
             const SizedBox(height: 20),
@@ -313,6 +246,83 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
         ),
       ),
       bottomNavigationBar: const UserBottomNavbar(currentIndex: 0),
+    );
+  }
+
+  // ✅ NEW: Method to display all selected time slots
+  Widget _buildSessionInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.access_time, size: 20, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(
+                'Selected Time Slots (${widget.selectedTimeSlots.length})',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Display all selected time slots
+          ...widget.selectedTimeSlots.map((slot) {
+            final date = _extractDateFromSlot(slot);
+            final time = _extractTimeFromSlot(slot);
+            
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.schedule, size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text('$date at $time'),
+                  const SizedBox(width: 8),
+                  Text(
+                    '(${_mapSessionDurationLabel(sessionType)})',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+          
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              'One slot will be confirmed based on expert availability',
+              style: TextStyle(
+                fontSize: 12, 
+                color: Colors.blue[700],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -400,63 +410,6 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
             ],
           ),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Selected Sessions',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  sessionDate,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 8),
-                    Text(
-                      sessionTime,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.timer, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 8),
-                    Text(
-                      _mapSessionDurationLabel(sessionType),
-                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -898,6 +851,18 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
     );
   }
 
+  String _validateAreaOfExpertise(String? input) {
+    const allowed = [
+      'Home',
+      'Digital Marketing',
+      'Technology',
+      'Style and Beauty',
+      'Health and Wellness',
+      'Career and Business',
+    ];
+    return allowed.contains(input) ? input! : 'Home';
+  }
+
   Future<void> _handleBooking() async {
     if (authToken == null || currentUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -912,22 +877,11 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
       isBookingInProgress = true;
     });
 
-    String _validateAreaOfExpertise(String? input) {
-      const allowed = [
-        'Home',
-        'Digital Marketing',
-        'Technology',
-        'Style and Beauty',
-        'Health and Wellness',
-        'Career and Business',
-      ];
-      return allowed.contains(input) ? input! : 'Home';
-    }
-
     try {
+      // ✅ UPDATED: Now sends all selected time slots
       final bookingData = {
-        'consultingExpertID': widget.expertId, // The expert being booked
-        'expertId': widget.expertId, // ✅ FIXED: This should also be the expert ID
+        'consultingExpertID': widget.expertId,
+        'expertId': widget.expertId,
         'userId': currentUserId,
         'expertName': expert?.name ?? 'Expert', 
         'areaOfExpertise': _validateAreaOfExpertise(expert?.areaOfExpertise),
@@ -939,20 +893,18 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
         'note': _noteController.text.trim(),
         'price': sessionFee.toString(),
         'redemptionCode': _promoController.text.trim(),
-        'slots': [
-          {'selectedDate': sessionDate, 'selectedTime': sessionTime},
-        ],
+        'slots': widget.selectedTimeSlots.map((slot) => {
+          'selectedDate': _extractDateFromSlot(slot),
+          'selectedTime': _extractTimeFromSlot(slot),
+        }).toList(), // ✅ Now sends all selected slots
       };
 
-      print(
-        "📦 Booking Payload: consultingExpertID=${widget.expertId}, expertId=$currentUserId",
-      );
+      print("📦 Booking Payload: ${jsonEncode(bookingData)}");
 
       final sessionResponse = await http.post(
         Uri.parse(
           'https://amd-api.code4bharat.com/api/session/usertoexpertsession',
         ),
-        // Uri.parse('https://amd-api.code4bharat.com/api/session/Userbookings'),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
@@ -1011,42 +963,49 @@ class _BookingFormScreenState extends State<UserBookingProfile> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Booking Confirmed!'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 50),
-              const SizedBox(height: 16),
-              Text(
-                'Your session with ${expert?.name} has been booked successfully.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Session ID: $sessionId',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-            ],
+        return WillPopScope(
+          onWillPop: () async {
+            Navigator.of(context).pop();
+            return true;
+          },
+          child: AlertDialog(
+            title: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                const SizedBox(width: 8),
+                const Text('Booking Confirmed!'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 50),
+                const SizedBox(height: 16),
+                Text(
+                  'Your session with ${expert?.name} has been booked successfully.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Session ID: $sessionId',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${widget.selectedTimeSlots.length} time slots submitted. Expert will confirm one slot.',
+                  style: TextStyle(fontSize: 12, color: Colors.blue[600]),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            actions: [],
           ),
-          actions: [
-            // TextButton(
-            //   onPressed: () {
-            //     Navigator.of(context).pop();
-            //     Navigator.pushReplacement(
-            //       context,
-            //       MaterialPageRoute(
-            //         builder: (context) => VideoCallPage(
-            //           sessionId: sessionId,
-            //           key: UniqueKey(),
-            //         ),
-            //       ),
-            //     );
-            //   },
-            //   child: const Text('Go to Video Calls'),
-            // ),
-          ],
         );
       },
     );

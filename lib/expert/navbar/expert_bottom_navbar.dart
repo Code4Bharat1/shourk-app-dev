@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shourk_application/expert/home/expert_home_screen.dart';
-import 'package:shourk_application/expert/profile/edit_profile_screen.dart';
+// import 'package:shourk_application/expert/profile/edit_profile_screen.dart';
 import 'package:shourk_application/expert/profile/expert_profile_screen.dart';
 import 'package:shourk_application/expert/navbar/expert_dashboard.dart';
 import 'package:shourk_application/expert/navbar/video_call.dart';
-import 'package:shourk_application/expert/navbar/expert_main.dart';
+// import 'package:shourk_application/expert/navbar/expert_main.dart';
 import 'package:shourk_application/expert/profile/expert_profile_settings.dart';
 
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -123,9 +123,16 @@ void _showLogoutConfirmation(BuildContext context) {
         ),
         TextButton(
           onPressed: () {
-            Navigator.pop(context);  // Close dialog
-            // AuthService().logout();
-            // Navigator.pushReplacementNamed(context, '/login');
+            Navigator.pop(context);  // Close the dialog first
+            // Call your logout function here if needed
+            // await AuthService().logout();
+            
+            // Navigate to /start route and remove all previous routes
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/start',
+              (route) => false,  // This removes all previous routes
+            );
           },
           child: const Text('Logout', style: TextStyle(color: Colors.red)),
         ),

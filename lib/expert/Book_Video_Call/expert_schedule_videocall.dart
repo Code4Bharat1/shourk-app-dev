@@ -47,7 +47,9 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
   Future<void> _fetchExpert() async {
     try {
       final response = await http.get(
-        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}'),
+        Uri.parse(
+          'https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}',
+        ),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -228,7 +230,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
               ],
             ),
             const SizedBox(height: 10),
-            
+
             // Duration warning message
             if (showDurationWarning)
               Padding(
@@ -242,7 +244,7 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                   ),
                 ),
               ),
-            
+
             const SizedBox(height: 20),
 
             // Selection counter and limit message
@@ -292,6 +294,9 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
               Container(
                 height: MediaQuery.of(context).size.height * 0.5,
                 child: SingleChildScrollView(
+                  // Add these properties to fix scrolling issues
+                  physics: const ClampingScrollPhysics(), // Prevents overscroll
+                  clipBehavior: Clip.hardEdge, // Clips content to bounds
                   child: Column(
                     children: [
                       ...availabilitySlots.map(
@@ -388,23 +393,24 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                     });
                     return;
                   }
-                  
+
                   if (selectedTimeSlots.isEmpty) {
                     setState(() {
                       showSlotWarning = true;
                     });
                     return;
                   }
-                  
+
                   if (_expert != null) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ExpertBookingScreen(
-                          expertId: _expert!.id,
-                          selectedSessionType: selectedSessionType,
-                          selectedSlots: selectedTimeSlots,
-                        ),
+                        builder:
+                            (context) => ExpertBookingScreen(
+                              expertId: _expert!.id,
+                              selectedSessionType: selectedSessionType,
+                              selectedSlots: selectedTimeSlots,
+                            ),
                       ),
                     );
                   }
@@ -521,7 +527,8 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
               final timeSlot = times[index];
               final uniqueKey = '$originalDate-$timeSlot';
               final isSelected = selectedTimeSlots.contains(uniqueKey);
-              final isDisabledByLimit = !isSelected && selectedTimeSlots.length >= 5;
+              final isDisabledByLimit =
+                  !isSelected && selectedTimeSlots.length >= 5;
               final isDisabledByDuration = selectedSessionType.isEmpty;
 
               return GestureDetector(
@@ -554,7 +561,8 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                     } else {
                       selectedTimeSlots.add(uniqueKey);
                     }
-                    showSlotWarning = false; // Hide warning when slot is selected
+                    showSlotWarning =
+                        false; // Hide warning when slot is selected
                   });
                 },
                 child: Container(
@@ -578,8 +586,9 @@ class _VideoCallBookingPageState extends State<ExpertVideoCallBookingPage> {
                     child: Text(
                       timeSlot,
                       style: TextStyle(
-                        color: (isDisabledByLimit || isDisabledByDuration) 
-                                ? Colors.grey 
+                        color:
+                            (isDisabledByLimit || isDisabledByDuration)
+                                ? Colors.grey
                                 : Colors.black,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,

@@ -232,69 +232,102 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // NEW: Category selector section widget
-  Widget _buildCategorySelectorSection() {
-    final List<Map<String, dynamic>> categories = [
-      {'label': 'Top Experts', 'image': 'assets/images/img2.jpg'},
-      {'label': 'Home', 'image': 'assets/images/home.jpg'},
-      {'label': 'Career and Business', 'image': 'assets/images/career.jpg'},
-      {'label': 'Fashion & Beauty', 'image': 'assets/images/fashion.jpg'},
-      {'label': 'Wellness', 'image': 'assets/images/wellness.jpg'},
-    ];
+// FIXED: Category selector section widget
+Widget _buildCategorySelectorSection() {
+  final List<Map<String, dynamic>> categories = [
+    {'label': 'Top Experts', 'image': 'assets/images/img2.jpg'},
+    {'label': 'Home', 'image': 'assets/images/home.jpg'},
+    {'label': 'Career and Business', 'image': 'assets/images/career.jpg'},
+    {'label': 'Fashion & Beauty', 'image': 'assets/images/fashion.jpg'},
+    {'label': 'Wellness', 'image': 'assets/images/wellness.jpg'},
+  ];
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Find The Right Expert In Seconds!',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 70,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final category = categories[index];
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Find The Right Expert In Seconds!',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 70,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: categories.length,
+            itemBuilder: (context, index) {
+              final category = categories[index];
 
-                return GestureDetector(
-                  onTap: () => _navigateToCategory(category['label']),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    width: 90,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                      image: DecorationImage(
-                        image: AssetImage(category['image']),
-                        fit: BoxFit.cover,
-                        colorFilter: const ColorFilter.mode(
-                          Colors.black38,
-                          BlendMode.darken,
+              return GestureDetector(
+                onTap: () => _navigateToCategory(category['label']),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  width: 90,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      children: [
+                        // Background Image
+                        Positioned.fill(
+                          child: Image.asset(
+                            category['image'],
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback if image doesn't load
+                              return Container(
+                                color: Colors.grey[300],
+                                child: Icon(
+                                  Icons.image_not_supported,
+                                  color: Colors.grey[600],
+                                  size: 30,
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        category['label'],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
+                        // Dark overlay
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.black.withOpacity(0.4),
+                          ),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
+                        // Text
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              category['label'],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildFeatureTextSection() {
     return Container(

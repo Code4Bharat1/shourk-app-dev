@@ -4,16 +4,15 @@ import 'package:shourk_application/expert/expert_category/home_expert.dart';
 import 'dart:convert';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
-import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
+
 import '../../features/expert_profile/expert_detail_screen.dart';
-import '../../shared/widgets/expert_card.dart';
-import '../../shared/models/expert_model.dart';
+// import '../../shared/widgets/expert_card.dart';
+// import '../../shared/models/expert_model.dart';
 // import '../home/category_experts_screen.dart';
 
 import '../../expert/expert_category/career_expert.dart';
 import '../../expert/expert_category/top_expert.dart';
 import '../../expert/expert_category/wellness_expert.dart';
-import '../../expert/expert_category/career_expert.dart';
 import '../../expert/expert_category/fashion_expert.dart';
 
 // Moved CategoryChip to top level
@@ -57,7 +56,6 @@ class _ExpertHomeScreenState extends State<ExpertHomeScreen> {
 
   // FIXED: Updated API categories to match your database exactly
   final List<String> _apiCategories = [
-   
     'Wellness',
     'Style and Beauty', // Changed from 'Fashion' to match database
     'Career and Business', // Changed from 'Business' to match database
@@ -135,7 +133,9 @@ class _ExpertHomeScreenState extends State<ExpertHomeScreen> {
   Future<List<ExpertModel>> _fetchExpertsByCategory(String category) async {
     try {
       final response = await http.get(
-        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/area/$category'),
+        Uri.parse(
+          'https://amd-api.code4bharat.com/api/expertauth/area/$category',
+        ),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -270,23 +270,44 @@ class _ExpertHomeScreenState extends State<ExpertHomeScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.grey.shade300),
-                      image: DecorationImage(
-                        image: AssetImage(category['image']),
-                        fit: BoxFit.cover,
-                        colorFilter: const ColorFilter.mode(
-                          Colors.black38,
-                          BlendMode.darken,
-                        ),
-                      ),
                     ),
-                    child: Center(
-                      child: Text(
-                        category['label'],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        children: [
+                          // Background Image
+                          Positioned.fill(
+                            child: Image.asset(
+                              category['image'],
+                              fit: BoxFit.cover,
+                              alignment: Alignment.center,
+                            ),
+                          ),
+                          // Dark overlay
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.black.withOpacity(0.4),
+                            ),
+                          ),
+                          // Text
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                category['label'],
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -717,17 +738,18 @@ class ModernExpertCard extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: expert.imageUrl.isNotEmpty
-                    ? Image.network(
-                        expert.imageUrl,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _buildPlaceholderImage();
-                        },
-                      )
-                    : _buildPlaceholderImage(),
+                child:
+                    expert.imageUrl.isNotEmpty
+                        ? Image.network(
+                          expert.imageUrl,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildPlaceholderImage();
+                          },
+                        )
+                        : _buildPlaceholderImage(),
               ),
             ),
 
@@ -836,7 +858,10 @@ class ModernExpertCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     margin: EdgeInsets.only(
-                      bottom: expert.charityEnabled ? 8 : 35, // FIXED: Less margin when charity is enabled
+                      bottom:
+                          expert.charityEnabled
+                              ? 8
+                              : 35, // FIXED: Less margin when charity is enabled
                     ),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.4),
@@ -859,7 +884,9 @@ class ModernExpertCard extends StatelessWidget {
                   // Charity Badge - FIXED: Positioned with minimal spacing
                   if (expert.charityEnabled)
                     Container(
-                      margin: const EdgeInsets.only(bottom: 8), // FIXED: Minimal margin
+                      margin: const EdgeInsets.only(
+                        bottom: 8,
+                      ), // FIXED: Minimal margin
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
                         vertical: 4,

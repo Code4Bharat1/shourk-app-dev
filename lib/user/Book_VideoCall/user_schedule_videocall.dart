@@ -45,7 +45,9 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
   Future<void> _fetchExpert() async {
     try {
       final response = await http.get(
-        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}'),
+        Uri.parse(
+          'https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}',
+        ),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -235,7 +237,7 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
               ],
             ),
             const SizedBox(height: 10),
-            
+
             // Duration warning message
             if (showDurationWarning)
               Padding(
@@ -249,7 +251,7 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
                   ),
                 ),
               ),
-            
+
             const SizedBox(height: 20),
 
             // Selection counter and limit message
@@ -371,18 +373,16 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => UserBookingProfile(
-                          expertId: _expert!.id,
-                          selectedSessionType: selectedSessionType.isNotEmpty 
-                              ? selectedSessionType 
-                              : 'regular',
-                          selectedDate: selectedTimeSlots.isNotEmpty 
-                              ? _findSelectedDateForTime(selectedTimeSlots.first) 
-                              : '',
-                          selectedTime: selectedTimeSlots.isNotEmpty 
-                              ? selectedTimeSlots.first 
-                              : '',
-                        ),
+                        builder:
+                            (context) => UserBookingProfile(
+                              expertId: _expert!.id,
+                              selectedSessionType:
+                                  selectedSessionType.isNotEmpty
+                                      ? selectedSessionType
+                                      : 'regular',
+                              selectedTimeSlots:
+                                  selectedTimeSlots, // ✅ Pass entire list
+                            ),
                       ),
                     );
                   }
@@ -499,7 +499,8 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
               final timeSlot = times[index];
               final uniqueKey = '$originalDate-$timeSlot';
               final isSelected = selectedTimeSlots.contains(uniqueKey);
-              final isDisabledByLimit = !isSelected && selectedTimeSlots.length >= 5;
+              final isDisabledByLimit =
+                  !isSelected && selectedTimeSlots.length >= 5;
               final isDisabledByDuration = selectedSessionType.isEmpty;
 
               return GestureDetector(
@@ -553,8 +554,9 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
                     child: Text(
                       timeSlot,
                       style: TextStyle(
-                        color: (isDisabledByLimit || isDisabledByDuration) 
-                                ? Colors.grey 
+                        color:
+                            (isDisabledByLimit || isDisabledByDuration)
+                                ? Colors.grey
                                 : Colors.black,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
