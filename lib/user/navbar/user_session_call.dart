@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -132,30 +131,88 @@ class AuthData {
 class UserSessionCall {
   static Future<SessionData> getSessionData(String sessionId, String token) async {
     try {
-      print('🔍 Getting user session data from: ${ApiConfig.userSessionDetails(sessionId)}');
+      print('🔍 Getting user session data for session ID: $sessionId');
       
-      final response = await http.get(
-        Uri.parse(ApiConfig.userSessionDetails(sessionId)),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
+      // Try multiple endpoints in order of priority
+      List<String> endpoints = [
+        ApiConfig.userSessionDetails(sessionId),
+        '${ApiConfig.session}/details/$sessionId',
+        '${ApiConfig.expertToExpertSession}/details/$sessionId',
+      ];
+      
+      for (int i = 0; i < endpoints.length; i++) {
+        final url = endpoints[i];
+        print('🔍 Trying endpoint $i: $url');
+        
+        try {
+          final response = await http.get(
+            Uri.parse(url),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+          ).timeout(const Duration(seconds: 15));
 
-      print('🔍 User session response status: ${response.statusCode}');
-      print('🔍 User session response body: ${response.body}');
+          print('🔍 User session response status: ${response.statusCode}');
+          print('🔍 User session response body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        print('User session details response: $data');
-        return SessionData.fromJson(data['session'] ?? data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Authentication failed. Please login again.');
-      } else if (response.statusCode == 404) {
-        throw Exception('Session not found. Please check the session ID.');
-      } else {
-        throw Exception('Failed to load session data: ${response.statusCode} - ${response.body}');
+          if (response.statusCode == 200) {
+            final data = json.decode(response.body);
+            print('User session details response: $data');
+            
+            // Extract session data from response
+            Map<String, dynamic>? sessionData;
+            if (data['session'] != null) {
+              sessionData = data['session'] as Map<String, dynamic>;
+            } else if (data['data'] != null && data['data']['session'] != null) {
+              sessionData = data['data']['session'] as Map<String, dynamic>;
+            } else {
+              sessionData = data;
+            }
+            
+            if (sessionData != null && sessionData['_id'] != null) {
+              return SessionData.fromJson(sessionData);
+            } else {
+              print('🔍 Session data is null or missing _id');
+              if (i == endpoints.length - 1) {
+                throw Exception('Session data is invalid or missing. Please try again.');
+              }
+              continue; // Try next endpoint
+            }
+          } else if (response.statusCode == 401) {
+            throw Exception('Authentication failed. Please login again.');
+          } else if (response.statusCode == 404) {
+            print('🔍 404 Error - Session not found for ID: $sessionId at endpoint: $url');
+            if (i == endpoints.length - 1) {
+              // This was the last endpoint, show detailed error
+              throw Exception('Session not found. The session may have been deleted, expired, or the session ID is incorrect. Please create a new session or contact support.');
+            }
+            continue; // Try next endpoint
+          } else {
+            print('🔍 Session fetch failed with status: ${response.statusCode}');
+            print('🔍 Response body: ${response.body}');
+            if (i == endpoints.length - 1) {
+              throw Exception('Failed to load session data: ${response.statusCode} - ${response.body}');
+            }
+            continue; // Try next endpoint
+          }
+        } catch (e) {
+          print('🔍 Session fetch error for endpoint $url: $e');
+          if (i == endpoints.length - 1) {
+            // This was the last endpoint, show error
+            if (e.toString().contains('Connection refused') || e.toString().contains('Connection timed out')) {
+              throw Exception('Unable to connect to server. Please check your internet connection and try again.');
+            } else if (e.toString().contains('TimeoutException')) {
+              throw Exception('Request timed out. Please check your internet connection and try again.');
+            } else {
+              throw Exception('Network error: $e');
+            }
+          }
+          continue; // Try next endpoint
+        }
       }
+      
+      throw Exception('Failed to fetch session data from all endpoints');
     } catch (e) {
       print('🔍 User session data error: $e');
       throw Exception('Network error: $e');
@@ -165,33 +222,90 @@ class UserSessionCall {
   static Future<AuthData> generateUserAuth(
       String meetingId, String sessionId, String token) async {
     try {
-      print('🔍 Generating user auth from: ${ApiConfig.userGenerateVideoAuth()}');
+      print('🔍 Generating user auth for meeting ID: $meetingId, session ID: $sessionId');
       
-      final response = await http.post(
-        Uri.parse(ApiConfig.userGenerateVideoAuth()),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'meetingNumber': meetingId,
-          'sessionId': sessionId,
-          'role': 0, // User role
-        }),
-      ).timeout(const Duration(seconds: 10));
+      // Try multiple endpoints in order of priority
+      List<String> endpoints = [
+        ApiConfig.userGenerateVideoAuth(),
+        '${ApiConfig.expertToExpertSession}/generate-video-sdk-auth',
+        '${ApiConfig.session}/generate-video-auth',
+      ];
+      
+      for (int i = 0; i < endpoints.length; i++) {
+        final url = endpoints[i];
+        print('🔍 Trying auth endpoint $i: $url');
+        
+        try {
+          final response = await http.post(
+            Uri.parse(url),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: json.encode({
+              'meetingNumber': meetingId,
+              'sessionId': sessionId,
+              'role': 0, // User role
+            }),
+          ).timeout(const Duration(seconds: 15));
 
-      print('🔍 User auth response status: ${response.statusCode}');
-      print('🔍 User auth response body: ${response.body}');
+          print('🔍 User auth response status: ${response.statusCode}');
+          print('🔍 User auth response body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        print('User auth response: $data');
-        return AuthData.fromJson(data['data'] ?? data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Authentication failed. Please login again.');
-      } else {
-        throw Exception('Failed to generate user auth: ${response.statusCode} - ${response.body}');
+          if (response.statusCode == 200) {
+            final data = json.decode(response.body);
+            print('User auth response: $data');
+            
+            // Extract auth data from response
+            Map<String, dynamic>? authData;
+            if (data['data'] != null) {
+              authData = data['data'] as Map<String, dynamic>;
+            } else {
+              authData = data;
+            }
+            
+            if (authData != null && (authData['signature'] != null || authData['token'] != null)) {
+              return AuthData.fromJson(authData);
+            } else {
+              print('🔍 Auth data is null or missing signature/token');
+              if (i == endpoints.length - 1) {
+                throw Exception('Authentication data is invalid or missing. Please try again.');
+              }
+              continue; // Try next endpoint
+            }
+          } else if (response.statusCode == 401) {
+            throw Exception('Authentication failed. Please login again.');
+          } else if (response.statusCode == 404) {
+            print('🔍 404 Error - Auth endpoint not found: $url');
+            if (i == endpoints.length - 1) {
+              throw Exception('Authentication service not available. Please try again later.');
+            }
+            continue; // Try next endpoint
+          } else {
+            print('🔍 Auth generation failed with status: ${response.statusCode}');
+            print('🔍 Response body: ${response.body}');
+            if (i == endpoints.length - 1) {
+              throw Exception('Failed to generate user auth: ${response.statusCode} - ${response.body}');
+            }
+            continue; // Try next endpoint
+          }
+        } catch (e) {
+          print('🔍 Auth generation error for endpoint $url: $e');
+          if (i == endpoints.length - 1) {
+            // This was the last endpoint, show error
+            if (e.toString().contains('Connection refused') || e.toString().contains('Connection timed out')) {
+              throw Exception('Unable to connect to server. Please check your internet connection and try again.');
+            } else if (e.toString().contains('TimeoutException')) {
+              throw Exception('Request timed out. Please check your internet connection and try again.');
+            } else {
+              throw Exception('Authentication error: $e');
+            }
+          }
+          continue; // Try next endpoint
+        }
       }
+      
+      throw Exception('Failed to generate authentication from all endpoints');
     } catch (e) {
       print('🔍 User auth error: $e');
       throw Exception('Authentication error: $e');
@@ -352,16 +466,6 @@ class UserSessionProvider with ChangeNotifier {
     connectionStatus = "Joining Zoom session as User...";
     notifyListeners();
 
-    // Web fallback for testing
-    if (kIsWeb) {
-      await Future.delayed(Duration(seconds: 2));
-      isInSession = true;
-      connectionStatus = "Connected to Zoom (User) - Web Demo";
-      notifyListeners();
-      await notifyUserJoined();
-      return;
-    }
-
     try {
       if (authData == null) {
         throw Exception('Auth data not available');
@@ -440,27 +544,14 @@ class UserSessionProvider with ChangeNotifier {
       }
       
       // Call native method to toggle camera in Zoom session
-      if (kIsWeb) {
-        // Web fallback
-        isVideoOn = !isVideoOn;
-        notifyListeners();
-        return;
-      }
-      
-      try {
-        await platform.invokeMethod('toggleCam', {'on': !isVideoOn});
-        isVideoOn = !isVideoOn;
-        notifyListeners();
-      } on PlatformException catch (e) {
-        if (e.message?.contains('PERMISSION_DENIED') == true) {
-          mediaError = "Camera permission required. Please grant camera access in settings.";
-        } else {
-          mediaError = "Failed to toggle camera: ${e.message}";
-        }
-        notifyListeners();
-      }
+      await platform.invokeMethod('toggleCam', {'on': !isVideoOn});
+      isVideoOn = !isVideoOn;
+      notifyListeners();
+    } on PlatformException catch (e) {
+      mediaError = "Failed to toggle camera: ${e.message}";
+      notifyListeners();
     } catch (e) {
-      mediaError = "Failed to toggle video: $e";
+      mediaError = "Failed to toggle camera: $e";
       notifyListeners();
     }
   }
@@ -468,7 +559,7 @@ class UserSessionProvider with ChangeNotifier {
   // Updated toggleAudio method
   void toggleAudio() async {
     try {
-      if (!isAudioOn || !audioJoined) {
+      if (!isAudioOn) {
         final status = await Permission.microphone.request();
         if (status != PermissionStatus.granted) {
           mediaError = "Microphone permission denied";
@@ -477,28 +568,15 @@ class UserSessionProvider with ChangeNotifier {
         }
       }
       
-      // Call native method to toggle mic in Zoom session
-      if (kIsWeb) {
-        // Web fallback
-        isAudioOn = !isAudioOn;
-        audioJoined = true;
-        mediaError = null;
-        notifyListeners();
-        return;
-      }
-      
-      try {
-        await platform.invokeMethod('toggleMic', {'on': !isAudioOn});
-        isAudioOn = !isAudioOn;
-        audioJoined = true;
-        mediaError = null;
-        notifyListeners();
-      } on PlatformException catch (e) {
-        mediaError = "Failed to toggle microphone: ${e.message}";
-        notifyListeners();
-      }
+      // Call native method to toggle microphone in Zoom session
+      await platform.invokeMethod('toggleMic', {'on': !isAudioOn});
+      isAudioOn = !isAudioOn;
+      notifyListeners();
+    } on PlatformException catch (e) {
+      mediaError = "Failed to toggle microphone: ${e.message}";
+      notifyListeners();
     } catch (e) {
-      mediaError = "Failed to toggle audio: $e";
+      mediaError = "Failed to toggle microphone: $e";
       notifyListeners();
     }
   }
@@ -531,24 +609,18 @@ class UserSessionProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> leaveZoomSession() async {
-    if (!isInSession) return;
-    
-    // Web fallback for testing
-    if (kIsWeb) {
-      isInSession = false;
-      notifyListeners();
-      return;
-    }
-    
+  Future<void> leaveSession() async {
     try {
       await platform.invokeMethod('leaveZoomSession');
       isInSession = false;
+      connectionStatus = "Disconnected from Zoom";
       notifyListeners();
     } on PlatformException catch (e) {
-      print("Failed to leave Zoom session: ${e.message}");
+      error = "Failed to leave session: ${e.message}";
+      notifyListeners();
     } catch (e) {
-      print("Failed to leave session: $e");
+      error = "Failed to leave session: $e";
+      notifyListeners();
     }
   }
 
@@ -565,7 +637,7 @@ class UserSessionProvider with ChangeNotifier {
     notifyListeners();
     
     // Leave Zoom session
-    await leaveZoomSession();
+    await leaveSession();
     
     try {
       await UserSessionCall.completeUserSession(
@@ -595,7 +667,7 @@ class UserSessionProvider with ChangeNotifier {
   @override
   void dispose() {
     timer?.cancel();
-    leaveZoomSession();
+    leaveSession();
     super.dispose();
   }
 }
@@ -1296,7 +1368,7 @@ class _UserSessionBody extends StatelessWidget {
 
   Widget _buildVideoGrid(UserSessionProvider provider, ThemeData theme, bool isDarkMode, Size screenSize, bool isLandscape) {
     return Container(
-      color: Colors.grey[200],
+      color: isDarkMode ? Color(0xFF1E293B) : Colors.grey[200],
       child: isLandscape
           ? Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1308,6 +1380,7 @@ class _UserSessionBody extends StatelessWidget {
                   cameraOn: provider.isVideoOn,
                   micOn: provider.isAudioOn,
                   screenSize: screenSize,
+                  isDarkMode: isDarkMode,
                 ),
                 _buildParticipantCard(
                   name: provider.getExpertDisplayName(),
@@ -1316,6 +1389,7 @@ class _UserSessionBody extends StatelessWidget {
                   micOn: provider.expertJoined,
                   screenSize: screenSize,
                   waiting: !provider.expertJoined,
+                  isDarkMode: isDarkMode,
                 ),
               ],
             )
@@ -1328,6 +1402,7 @@ class _UserSessionBody extends StatelessWidget {
                   cameraOn: provider.isVideoOn,
                   micOn: provider.isAudioOn,
                   screenSize: screenSize,
+                  isDarkMode: isDarkMode,
                 ),
                 _buildParticipantCard(
                   name: provider.getExpertDisplayName(),
@@ -1336,6 +1411,7 @@ class _UserSessionBody extends StatelessWidget {
                   micOn: provider.expertJoined,
                   screenSize: screenSize,
                   waiting: !provider.expertJoined,
+                  isDarkMode: isDarkMode,
                 ),
               ],
             ),
@@ -1349,6 +1425,7 @@ class _UserSessionBody extends StatelessWidget {
     required bool micOn,
     required Size screenSize,
     bool waiting = false,
+    required bool isDarkMode,
   }) {
     final isLandscape = screenSize.width > screenSize.height;
     
@@ -1367,7 +1444,7 @@ class _UserSessionBody extends StatelessWidget {
       height: cardHeight,
       margin: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: isDarkMode ? Color(0xFF475569) : Colors.grey[100],
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -1378,19 +1455,20 @@ class _UserSessionBody extends StatelessWidget {
         ],
       ),
       child: waiting
-          ? _buildWaitingCard(name, cardWidth, cardHeight)
-          : _buildActiveParticipantCard(name, isExpert, cameraOn, micOn, cardWidth, cardHeight),
+          ? _buildWaitingCard(name, cardWidth, cardHeight, isDarkMode)
+          : _buildActiveParticipantCard(name, isExpert, cameraOn, micOn, cardWidth, cardHeight, isDarkMode),
     );
   }
 
-  Widget _buildWaitingCard(String name, double width, double height) {
+  Widget _buildWaitingCard(String name, double width, double height, bool isDarkMode) {
+    
     return Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
         Icon(
                       Icons.person,
           size: width * 0.2,
-          color: Colors.grey[400],
+          color: isDarkMode ? Colors.grey[500] : Colors.grey[400],
                     ),
         const SizedBox(height: 16),
                   Text(
@@ -1419,7 +1497,7 @@ class _UserSessionBody extends StatelessWidget {
     );
   }
 
-  Widget _buildActiveParticipantCard(String name, bool isExpert, bool cameraOn, bool micOn, double width, double height) {
+  Widget _buildActiveParticipantCard(String name, bool isExpert, bool cameraOn, bool micOn, double width, double height, bool isDarkMode) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -1608,10 +1686,10 @@ class _UserSessionBody extends StatelessWidget {
     
     return SafeArea(
       top: false,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        color: Colors.white,
-        child: Row(
+              child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          color: isDarkMode ? Color(0xFF334155) : Colors.white,
+          child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Left controls
@@ -1638,7 +1716,7 @@ class _UserSessionBody extends StatelessWidget {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: screenWidth * 0.04,
-                color: Colors.black87,
+                color: isDarkMode ? Colors.white : Colors.black87,
               ),
             ),
             // Right end session button

@@ -7,6 +7,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 import 'expert_session_call.dart';
+import 'package:shourk_application/shared/config/api_config.dart';
 
 class VideoCallPage extends StatefulWidget {
   const VideoCallPage({Key? key}) : super(key: key);
@@ -16,7 +17,7 @@ class VideoCallPage extends StatefulWidget {
 }
 
 class _VideoCallPageState extends State<VideoCallPage> {
-  final String apiUrl = "http://localhost:5070";
+  final String apiUrl = "https://amd-api.code4bharat.com";
 
   String? _userToken;
   String? _userId;
@@ -240,25 +241,48 @@ class _VideoCallPageState extends State<VideoCallPage> {
   }
 
   Future<void> _fetchSessions() async {
+    print('🔍 _fetchSessions called');
     setState(() => _loadingSessions = true);
 
     try {
-      final response = await _authenticatedGet('/api/session/getexpertsession');
+      // Ensure token and userId are loaded
+      if (_userToken == null || _userId == null) {
+        await _getValidToken();
+      }
+
+      if (_userId == null) {
+        setState(() {
+          _errorSessions = 'Expert ID not found.';
+          _loadingSessions = false;
+        });
+        return;
+      }
+
+      print('🔍 Fetching sessions for expert: $_userId');
+      print('🔍 Using token: ${_userToken?.substring(0, 20)}...');
+
+      final response = await http.get(
+        Uri.parse(ApiConfig.expertSessions()),
+        headers: {
+          'Authorization': 'Bearer $_userToken',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('🔍 Sessions response status: ${response.statusCode}');
+      print('🔍 Sessions response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final convertedData =
-            _recursiveConvert(data) as Map<String, dynamic>; // Add cast here
+        final convertedData = _recursiveConvert(data) as Map<String, dynamic>;
 
         print("🔍 Raw sessions response: $convertedData");
 
         // Extract sessions with explicit casting
-        final expertSessions =
-            (convertedData['expertSessions'] as List?)
+        final expertSessions = (convertedData['expertSessions'] as List?)
                 ?.cast<Map<String, dynamic>>() ??
             [];
-        final userSessions =
-            (convertedData['userSessions'] as List?)
+        final userSessions = (convertedData['userSessions'] as List?)
                 ?.cast<Map<String, dynamic>>() ??
             [];
 
@@ -271,45 +295,28 @@ class _VideoCallPageState extends State<VideoCallPage> {
           ),
         ];
 
-        // If no sessions, mock a pending session for debugging
+        print('🔍 Combined sessions count: ${combined.length}');
+        for (var session in combined) {
+          print('🔍 Session ID: ${session['_id']}, Type: ${session['sessionType']}');
+        }
+
+        // If no sessions, show empty state
         if (combined.isEmpty) {
-          print('No sessions found, adding a mock pending session for debug.');
-          combined.add({
-            '_id': 'mock123',
-            'type': 'User',
-            'status': 'pending',
-            'slots': [
-              {
-                'selectedDate': DateTime.now().toIso8601String().substring(
-                  0,
-                  10,
-                ),
-                'selectedTime': '10:00 AM',
-              },
-              {
-                'selectedDate': DateTime.now().toIso8601String().substring(
-                  0,
-                  10,
-                ),
-                'selectedTime': '2:00 PM',
-              },
-            ],
-            'userId': {'firstName': 'Test', 'lastName': 'User'},
-            'duration': '30 min',
-            'sessionType': 'Video',
-            'note': 'This is a mock session for debugging.',
+          print('No sessions found.');
+          setState(() {
+            _mySessions = [];
+            _loadingSessions = false;
           });
+          return;
         }
 
         setState(() => _mySessions = combined);
       } else if (response.statusCode == 402) {
         _handlePaymentError();
       } else {
-        setState(
-          () =>
-              _errorSessions =
-                  "Failed to load sessions: ${response.statusCode}\n${response.body}",
-        );
+        setState(() {
+          _errorSessions = "Failed to load sessions: ${response.statusCode}\n${response.body}";
+        });
       }
     } catch (e) {
       setState(() => _errorSessions = "Sessions error: ${e.toString()}");
@@ -342,7 +349,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
       final response = await http.get(
         url,
         headers: {'Authorization': 'Bearer $_userToken'},
-      );
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 402) {
         return response;
@@ -353,7 +360,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
         return await http.get(
           url,
           headers: {'Authorization': 'Bearer $_userToken'},
-        );
+        ).timeout(const Duration(seconds: 30));
       }
 
       return response;
@@ -420,11 +427,11 @@ class _VideoCallPageState extends State<VideoCallPage> {
     String normalizedSessionType = sessionType.toLowerCase().replaceAll(' ', '').replaceAll('-', '');
     
     if (normalizedSessionType.contains('experttoexpert') || normalizedSessionType.contains('expertoexpert')) {
-      // Expert-to-Expert session: Use PUT /api/expertsession/accept first, then confirm status
+      // Expert-to-Expert session: Use PUT /api/experttoexpertsession/accept first, then confirm status
       print('Accepting Expert-to-Expert session: $sessionId');
       
       // Step 1: Accept the session with selected slot
-      response = await _authenticatedPut('/api/expertsession/accept', {
+      response = await _authenticatedPut('/api/experttoexpertsession/accept', {
         'id': sessionId,
         'selectedDate': selectedSlot['selectedDate'],
         'selectedTime': selectedSlot['selectedTime'],
@@ -434,7 +441,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
         // Step 2: Confirm the session status
         print('Confirming Expert-to-Expert session status: $sessionId');
         response = await _authenticatedPatch(
-          '/api/expertsession/$sessionId/status',
+          '/api/experttoexpertsession/$sessionId/status',
           {'status': 'confirmed'},
         );
       }
@@ -1173,33 +1180,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
                     ),
                   )
                   : filteredSessions.isEmpty
-                  ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.videocam_off,
-                          size: 48,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No ${_sessionFilter == "all" ? "" : _sessionFilter} Sessions',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _sessionFilter == "all"
-                              ? 'You have no upcoming sessions'
-                              : 'You have no $_sessionFilter sessions',
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
+                  ? _buildNoSessionsMessage()
                   : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: filteredSessions.length,
@@ -1232,6 +1213,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
   Widget _buildSessionCard(Map<String, dynamic> session) {
     // Debug print to inspect session data
     print('Session data: ${session.toString()}');
+    
     // Safely extract values with type checking
     final slotsRaw = session['slots'] as List? ?? [];
     List<Map<String, dynamic>> slots = [];
@@ -1309,9 +1291,10 @@ class _VideoCallPageState extends State<VideoCallPage> {
                 Flexible(
                   child: Text(
                     getConsultationLabel(session),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: null,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -1647,7 +1630,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
     final selectedDate = _sessionState[sessionId]?['selectedDate']?.toString();
     final selectedTime = _sessionState[sessionId]?['selectedTime']?.toString();
     final sessionType = session['sessionType']?.toString() ?? '';
-
+    
     if (status == 'pending' || status == 'unconfirmed') {
       return Column(
         children: [
@@ -1661,7 +1644,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     side: const BorderSide(color: Colors.red),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Decline Request',
                     style: TextStyle(color: Colors.red),
                   ),
@@ -1670,15 +1653,14 @@ class _VideoCallPageState extends State<VideoCallPage> {
               const SizedBox(width: 16),
               Expanded(
                 child: ElevatedButton(
-                  onPressed:
-                      selectedDate != null && selectedTime != null
-                          ? () => _acceptSession(sessionId, sessionType)
-                          : null,
+                  onPressed: (selectedDate != null && selectedTime != null
+                      ? () => _acceptSession(sessionId, sessionType)
+                      : null),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     backgroundColor: Colors.blue,
                   ),
-                  child: const Text('Accept Request'),
+                  child: Text('Accept Request'),
                 ),
               ),
             ],
@@ -1694,7 +1676,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.chat, size: 18),
-                  label: const Text('Chat'),
+                  label: Text('Chat'),
                   onPressed: () => _navigateToChat(),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1706,7 +1688,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
               Expanded(
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.videocam, size: 18),
-                  label: const Text('Join Meeting'),
+                  label: Text('Join Meeting'),
                   onPressed: () => _joinMeeting(session),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1719,7 +1701,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => _handleCancelClick(session),
-            child: const Text(
+            child: Text(
               'Cancel Session',
               style: TextStyle(color: Colors.red),
             ),
@@ -1736,20 +1718,102 @@ class _VideoCallPageState extends State<VideoCallPage> {
   }
 
   void _joinMeeting(dynamic session) {
-    final sessionId = session['_id']?.toString() ?? '';
-    if (sessionId.isEmpty) {
+    // Debug: Print the entire session data
+    print('🔍 Join Meeting - Full session data: $session');
+    
+    // Validate session data
+    if (session == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid session details')),
+        const SnackBar(content: Text('Invalid session data')),
       );
       return;
     }
+    
+    // Try multiple possible session ID field names
+    String sessionId = '';
+    if (session['_id'] != null) {
+      sessionId = session['_id'].toString();
+      print('🔍 Found session ID in _id: $sessionId');
+    } else if (session['id'] != null) {
+      sessionId = session['id'].toString();
+      print('🔍 Found session ID in id: $sessionId');
+    } else if (session['sessionId'] != null) {
+      sessionId = session['sessionId'].toString();
+      print('🔍 Found session ID in sessionId: $sessionId');
+    } else if (session['session_id'] != null) {
+      sessionId = session['session_id'].toString();
+      print('🔍 Found session ID in session_id: $sessionId');
+    } else {
+      print('🔍 No session ID found in session data. Available keys: ${session.keys.toList()}');
+      // Show debug dialog with session data
+      _showSessionDebugDialog(session);
+      return;
+    }
+    
+    // Validate session ID format (should be a MongoDB ObjectId or similar)
+    if (sessionId.isEmpty || sessionId.length < 10) {
+      print('🔍 Invalid session ID: $sessionId');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid session ID. Please create a real session.')),
+      );
+      return;
+    }
+    
+    // Determine session type
+    String sessionType = 'expert-to-expert'; // default
+    if (session['type'] == 'User' || session['sessionType'] == 'user-to-expert') {
+      sessionType = 'user-to-expert';
+    } else if (session['type'] == 'Expert' || session['sessionType'] == 'expert-to-expert') {
+      sessionType = 'expert-to-expert';
+    }
+    
+    print('🔍 Using session ID: $sessionId');
+    print('🔍 Session type: $sessionType');
+    print('🔍 Session status: ${session['status']}');
+    
+    // Check if session is in a valid state for joining
+    final status = session['status']?.toString() ?? '';
+    if (status != 'confirmed' && status != 'pending' && status != 'accepted') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Session is not in a valid state for joining. Current status: $status')),
+      );
+      return;
+    }
+    
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ExpertSessionCallPage(
           sessionId: sessionId,
           token: _userToken ?? '',
+          sessionType: sessionType,
         ),
+      ),
+    );
+  }
+
+  void _showSessionDebugDialog(dynamic session) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Session Debug Info'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Session Data: ${session.toString()}'),
+              const SizedBox(height: 16),
+              Text('Available Keys: ${session.keys.toList()}'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
@@ -1860,5 +1924,56 @@ class _VideoCallPageState extends State<VideoCallPage> {
         SnackBar(content: Text('Error declining session: ${e.toString()}')),
       );
     }
+  }
+
+  Widget _buildNoSessionsMessage() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.video_call,
+            size: 64,
+            color: Colors.grey,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No Sessions Available',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'You don\'t have any active sessions at the moment.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Please create sessions through the booking process.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            },
+            icon: const Icon(Icons.info),
+            label: const Text('How to Create Sessions'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

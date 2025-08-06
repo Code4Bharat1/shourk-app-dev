@@ -20,7 +20,7 @@ class _PreferredAvailabilityScreenState
   bool _isSaving = false;
   Map<String, Map<String, bool>> _availability = {};
   List<String> _timeSlots = [];
-  List<DateTime> _monthDays = [];
+  List<DateTime> _dynamicDays = [];
 
   final String baseUrl = "https://amd-api.code4bharat.com/api/expertauth";
 
@@ -28,7 +28,7 @@ class _PreferredAvailabilityScreenState
   void initState() {
     super.initState();
     _initializeTimeSlots();
-    _generateMonthDays();
+    _generateDynamicDays();
     _loadAvailability();
   }
 
@@ -41,20 +41,19 @@ class _PreferredAvailabilityScreenState
     });
   }
 
-  void _generateMonthDays() {
-    final now = DateTime.now();
-    final firstDay = DateTime(now.year, now.month, 1);
-    final lastDay = DateTime(now.year, now.month + 1, 0);
-
-    _monthDays = [];
-    for (int i = 0; i < lastDay.day; i++) {
-      _monthDays.add(firstDay.add(Duration(days: i)));
+  void _generateDynamicDays() {
+    final DateTime now = DateTime.now();
+    _dynamicDays = [];
+    
+    // Generate 30 days from current date
+    for (int i = 0; i < 30; i++) {
+      _dynamicDays.add(now.add(Duration(days: i)));
     }
   }
 
   void _initializeEmptyAvailability() {
     _availability = {};
-    for (var day in _monthDays) {
+    for (var day in _dynamicDays) {
       final dayKey = DateFormat('yyyy-MM-dd').format(day);
       _availability[dayKey] = {};
       for (var timeSlot in _timeSlots) {
@@ -108,11 +107,13 @@ class _PreferredAvailabilityScreenState
 
     for (var dayData in loadedAvailability) {
       final dayKey = dayData['date'];
-      final timesMap = dayData['times'] as Map<String, dynamic>?;
+      final times = dayData['times'];
 
-      if (timesMap != null && _availability.containsKey(dayKey)) {
+      if (times != null && times is Map && _availability.containsKey(dayKey)) {
+        // Safely convert the dynamic map to Map<String, dynamic>
+        final Map<String, dynamic> timesMap = Map<String, dynamic>.from(times);
         timesMap.forEach((timeSlot, isSelected) {
-          if (_availability[dayKey]!.containsKey(timeSlot) ){
+          if (_availability[dayKey]!.containsKey(timeSlot)) {
             _availability[dayKey]![timeSlot] = isSelected == true;
           }
         });
@@ -189,7 +190,7 @@ class _PreferredAvailabilityScreenState
 
   void _repeatDayPattern(String dayOfWeek, Map<String, bool> pattern) {
     setState(() {
-      for (var day in _monthDays) {
+      for (var day in _dynamicDays) {
         if (DateFormat('EEEE').format(day) == dayOfWeek) {
           final dayKey = DateFormat('yyyy-MM-dd').format(day);
           _availability[dayKey] = Map<String, bool>.from(pattern);
@@ -359,9 +360,9 @@ class _PreferredAvailabilityScreenState
                 Expanded(
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _monthDays.length,
+                    itemCount: _dynamicDays.length,
                     itemBuilder: (context, index) {
-                      return _buildDaySection(_monthDays[index]);
+                      return _buildDaySection(_dynamicDays[index]);
                     },
                   ),
                 ),

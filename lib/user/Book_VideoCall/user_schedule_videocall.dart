@@ -84,24 +84,41 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
           final availability = data['data']['availability'] as List;
           final List<Map<String, dynamic>> processedSlots = [];
 
-          for (var slot in availability) {
-            final date = slot['date'] as String?;
-            if (date == null) continue;
+          // Generate dynamic dates (current date to 30 days forward)
+          final List<DateTime> dynamicDates = _generateDynamicDates();
+          
+          // Process available slots and merge with dynamic dates
+          for (var date in dynamicDates) {
+            final dateKey = DateFormat('yyyy-MM-dd').format(date);
+            
+            // Find matching availability data
+            final matchingSlot = availability.firstWhere(
+              (slot) => slot['date'] == dateKey,
+              orElse: () => {'date': dateKey, 'times': <String, dynamic>{}},
+            );
 
-            final times = slot['times'] as Map<String, dynamic>?;
-            if (times == null) continue;
+            final times = matchingSlot['times'];
+            if (times != null && times is Map) {
+              // Safely convert the dynamic map to Map<String, dynamic>
+              final Map<String, dynamic> timesMap = Map<String, dynamic>.from(times);
+              final availableTimes = timesMap.entries
+                  .where((entry) => entry.value == true)
+                  .map((entry) => entry.key)
+                  .toList();
 
-            final availableTimes =
-                times.entries
-                    .where((entry) => entry.value == true)
-                    .map((entry) => entry.key)
-                    .toList();
-
-            processedSlots.add({
-              'date': date,
-              'formattedDate': _formatDate(date),
-              'times': availableTimes,
-            });
+              processedSlots.add({
+                'date': dateKey,
+                'formattedDate': _formatDate(dateKey),
+                'times': availableTimes,
+              });
+            } else {
+              // Add empty slot for dates with no availability
+              processedSlots.add({
+                'date': dateKey,
+                'formattedDate': _formatDate(dateKey),
+                'times': [],
+              });
+            }
           }
 
           setState(() {
@@ -109,7 +126,21 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
             isLoading = false;
           });
         } else {
+          // If no availability data, generate dynamic dates with empty slots
+          final List<DateTime> dynamicDates = _generateDynamicDates();
+          final List<Map<String, dynamic>> processedSlots = [];
+          
+          for (var date in dynamicDates) {
+            final dateKey = DateFormat('yyyy-MM-dd').format(date);
+            processedSlots.add({
+              'date': dateKey,
+              'formattedDate': _formatDate(dateKey),
+              'times': [],
+            });
+          }
+          
           setState(() {
+            availabilitySlots = processedSlots;
             isLoading = false;
             errorMessage = 'No availability data found';
           });
@@ -126,6 +157,18 @@ class _VideoCallBookingPageState extends State<UserScheduleVideocall> {
         errorMessage = 'Error: $error';
       });
     }
+  }
+
+  // Generate dynamic dates from current date to 30 days forward
+  List<DateTime> _generateDynamicDates() {
+    final List<DateTime> dates = [];
+    final DateTime now = DateTime.now();
+    
+    for (int i = 0; i < 30; i++) {
+      dates.add(now.add(Duration(days: i)));
+    }
+    
+    return dates;
   }
 
   String _formatDate(String dateString) {

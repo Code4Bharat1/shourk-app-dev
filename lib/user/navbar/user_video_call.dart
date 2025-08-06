@@ -34,7 +34,7 @@ class _UserVideoCallPageState extends State<UserVideoCallPage> {
 
 
   // static const String baseUrl = "https://amd-api.code4bharat.com/api";
-  static const String baseUrl = "https://api.shourk.com/api";
+  static const String baseUrl = "https://amd-api.code4bharat.com/api";
 
   @override
   void initState() {
@@ -1192,7 +1192,7 @@ class _RatingDialogState extends State<RatingDialog> {
 
       final response = await http.post(
         // Uri.parse('https://amd-api.code4bharat.com/api/rating/rateSession'),
-        Uri.parse('https://api.shourk.com/api/rating/rateSession'),
+        Uri.parse('https://amd-api.code4bharat.com/api/rating/rateSession'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

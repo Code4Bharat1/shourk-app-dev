@@ -7,6 +7,7 @@ import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
 // import 'package:shourk_application/expert/navbar/video_call.dart';
 import 'package:shourk_application/shared/models/expert_model.dart';
+import 'package:shourk_application/shared/config/api_config.dart';
 
 class ExpertBookingScreen extends StatefulWidget {
   final String expertId;
@@ -95,7 +96,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
       }
 
       final response = await http.get(
-        Uri.parse('http://localhost:5070/api/expertwallet/balances'),
+        Uri.parse('https://amd-api.code4bharat.com/api/expertwallet/balances'),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
@@ -137,7 +138,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
   Future<void> fetchExpert() async {
     try {
       final res = await http.get(
-        Uri.parse('http://localhost:5070/api/expertauth/${widget.expertId}'),
+        Uri.parse('https://amd-api.code4bharat.com/api/expertauth/${widget.expertId}'),
         headers: {'Content-Type': 'application/json'},
       );
       if (res.statusCode == 200) {
@@ -949,7 +950,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
         'mobile': _phoneController.text.trim(),
         'email': _emailController.text.trim(),
         'note': _noteController.text.trim(),
-        'price': sessionFee.toString(),
+        'price': sessionFee, // Send as number, not string
         'redemptionCode': _promoController.text.trim(),
         'slots': widget.selectedSlots.map((slot) {
           final parsed = _parseSlot(slot);
@@ -960,9 +961,12 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
         }).toList(),
       };
 
-      // First create the session
+      // Debug: Print the payload
+      print('Booking payload: ' + bookingData.toString());
+
+      // Use the correct endpoint from ApiConfig
       final sessionResponse = await http.post(
-        Uri.parse('http://localhost:5070/api/session/experttoexpertsession'),
+        Uri.parse(ApiConfig.expertToExpertSession),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
@@ -970,7 +974,12 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
         body: jsonEncode(bookingData),
       );
 
+      // Debug: Print the response
+      print('Session response: ${sessionResponse.statusCode} ${sessionResponse.body}');
+
       if (sessionResponse.statusCode != 200 && sessionResponse.statusCode != 201) {
+        // Print backend error message for debugging
+        print('Failed to create session: ${sessionResponse.body}');
         throw Exception('Failed to create session: ${sessionResponse.body}');
       }
 
@@ -980,7 +989,7 @@ class _BookingFormScreenState extends State<ExpertBookingScreen> {
       // If not a free session and there's a cost, make the payment
       if (!isFirstSession && finalPriceAfterGiftCard > 0) {
         final paymentResponse = await http.post(
-          Uri.parse('http://localhost:5070/api/expertwallet/spending/pay'),
+          Uri.parse('https://amd-api.code4bharat.com/api/expertwallet/spending/pay'),
           headers: {
             'Authorization': 'Bearer $authToken',
             'Content-Type': 'application/json',
