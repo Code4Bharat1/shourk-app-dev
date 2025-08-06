@@ -4,16 +4,15 @@ import 'package:shourk_application/expert/expert_category/home_expert.dart';
 import 'dart:convert';
 import 'package:shourk_application/expert/navbar/expert_bottom_navbar.dart';
 import 'package:shourk_application/expert/navbar/expert_upper_navbar.dart';
-import 'package:shourk_application/user/navbar/user_bottom_navbar.dart';
+
 import '../../features/expert_profile/expert_detail_screen.dart';
-import '../../shared/widgets/expert_card.dart';
-import '../../shared/models/expert_model.dart';
+// import '../../shared/widgets/expert_card.dart';
+// import '../../shared/models/expert_model.dart';
 // import '../home/category_experts_screen.dart';
 
 import '../../expert/expert_category/career_expert.dart';
 import '../../expert/expert_category/top_expert.dart';
 import '../../expert/expert_category/wellness_expert.dart';
-import '../../expert/expert_category/career_expert.dart';
 import '../../expert/expert_category/fashion_expert.dart';
 
 // Moved CategoryChip to top level
